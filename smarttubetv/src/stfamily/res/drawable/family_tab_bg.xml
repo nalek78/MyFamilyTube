@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- current section and focused: white pill with red ring -->
+    <item android:state_activated="true" android:state_focused="true">
+        <shape android:shape="rectangle">
+            <corners android:radius="18dp" />
+            <solid android:color="#F2F2F2" />
+            <stroke android:width="3dp" android:color="#FF3D33" />
+        </shape>
+    </item>
+    <!-- current section -->
+    <item android:state_activated="true">
+        <shape android:shape="rectangle">
+            <corners android:radius="18dp" />
+            <solid android:color="#F2F2F2" />
+        </shape>
+    </item>
+    <!-- focused -->
+    <item android:state_focused="true">
+        <shape android:shape="rectangle">
+            <corners android:radius="18dp" />
+            <solid android:color="#2A2D33" />
+            <stroke android:width="3dp" android:color="#FF3D33" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="18dp" />
+            <solid android:color="#00000000" />
+        </shape>
+    </item>
+</selector>

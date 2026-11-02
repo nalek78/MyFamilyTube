@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="family_bg">#101114</color>
+    <color name="family_surface">#1B1D22</color>
+    <color name="family_surface_focus">#2A2D33</color>
+    <color name="family_red">#E0261E</color>
+    <color name="family_ring">#FF3D33</color>
+    <color name="family_text">#F2F2F2</color>
+    <color name="family_text2">#C9CCD2</color>
+    <color name="family_text3">#A7ABB3</color>
+    <color name="family_thumb">#2A3340</color>
+
+    <dimen name="family_side">42dp</dimen>
+    <dimen name="family_card_w">176dp</dimen>
+    <dimen name="family_card_h">99dp</dimen>
+    <dimen name="family_card_gap">16dp</dimen>
+    <dimen name="family_radius">10dp</dimen>
+    <dimen name="family_tab_icon_gap">6dp</dimen>
+
+    <style name="FamilyTheme" parent="App.Theme.Leanback.Browse">
+        <item name="android:windowBackground">@color/family_bg</item>
+        <item name="android:colorBackground">@color/family_bg</item>
+    </style>
+
+    <style name="FamilyTab">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">36dp</item>
+        <item name="android:gravity">center</item>
+        <item name="android:paddingLeft">18dp</item>
+        <item name="android:paddingRight">18dp</item>
+        <item name="android:textSize">15sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textColor">@color/family_tab_text</item>
+        <item name="android:background">@drawable/family_tab_bg</item>
+        <item name="android:focusable">true</item>
+        <item name="android:clickable">true</item>
+        <item name="android:singleLine">true</item>
+    </style>
+</resources>

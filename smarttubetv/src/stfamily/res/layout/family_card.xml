@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/family_card"
+    android:layout_width="@dimen/family_card_w"
+    android:layout_height="wrap_content"
+    android:clickable="true"
+    android:descendantFocusability="blocksDescendants"
+    android:focusable="true"
+    android:orientation="vertical">
+
+    <FrameLayout
+        android:id="@+id/family_card_thumb_frame"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/family_card_h"
+        android:background="@drawable/family_thumb_bg"
+        android:duplicateParentState="true"
+        android:foreground="@drawable/family_card_ring">
+
+        <ImageView
+            android:id="@+id/family_card_thumb"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:importantForAccessibility="no"
+            android:scaleType="centerCrop" />
+
+        <TextView
+            android:id="@+id/family_card_center"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:padding="10dp"
+            android:textColor="@color/family_text"
+            android:textSize="15sp"
+            android:fontFamily="sans-serif-medium"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/family_card_badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|end"
+            android:layout_margin="6dp"
+            android:background="@drawable/family_badge_bg"
+            android:paddingLeft="5dp"
+            android:paddingTop="1dp"
+            android:paddingRight="5dp"
+            android:paddingBottom="1dp"
+            android:textColor="#FFFFFF"
+            android:textSize="11sp"
+            android:fontFamily="sans-serif-medium"
+            android:visibility="gone" />
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/family_card_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:ellipsize="end"
+        android:maxLines="2"
+        android:textColor="@color/family_text"
+        android:textSize="13sp" />
+
+    <TextView
+        android:id="@+id/family_card_subtitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textColor="@color/family_text3"
+        android:textSize="12sp" />
+</LinearLayout>

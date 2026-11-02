@@ -2,7 +2,8 @@ name: Compilar MyFamilyTube
 
 on:
   push:
-    branches: [ "master" ]
+    # master publishes a Release; prueba only checks that it compiles
+    branches: [ "master", "prueba" ]
   workflow_dispatch:
 
 permissions:
@@ -50,14 +51,22 @@ jobs:
           ./gradlew assembleStfamilyRelease 2>&1 | tee build.log
           exit ${PIPESTATUS[0]}
 
-      - name: Guardar el error si falla
+      - name: Guardar el error si falla (rama build-log)
         if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-log
-          path: build.log
+        run: |
+          grep -n -E "error:|ERROR|FAILED|What went wrong|e: |Exception" build.log | head -200 > errors.txt || true
+          tail -150 build.log >> errors.txt
+          SHA=$(git rev-parse --short HEAD)
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git checkout --orphan build-log
+          git rm -rf --cached . > /dev/null
+          git add -f errors.txt
+          git commit -m "Error de compilación en ${SHA}"
+          git push -f origin build-log
 
       - name: Preparar APK y fichero de actualización
+        if: github.ref == 'refs/heads/master'
         run: |
           N=${FAMILY_BUILD_NUMBER}
           cp smarttubetv/build/outputs/apk/stfamily/release/*_universal.apk MyFamilyTube.apk
@@ -75,6 +84,7 @@ jobs:
           EOF
 
       - name: Publicar Release
+        if: github.ref == 'refs/heads/master'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

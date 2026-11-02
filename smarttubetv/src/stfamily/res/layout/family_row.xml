@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:clipChildren="false"
+    android:clipToPadding="false"
+    android:orientation="vertical"
+    android:paddingBottom="6dp">
+
+    <TextView
+        android:id="@+id/family_row_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="@dimen/family_side"
+        android:layout_marginBottom="8dp"
+        android:ellipsize="end"
+        android:fontFamily="sans-serif-medium"
+        android:maxLines="1"
+        android:textColor="@color/family_text"
+        android:textSize="17sp" />
+
+    <androidx.leanback.widget.HorizontalGridView
+        android:id="@+id/family_row_grid"
+        android:layout_width="match_parent"
+        android:layout_height="172dp"
+        android:clipChildren="false"
+        android:clipToPadding="false"
+        android:paddingLeft="@dimen/family_side"
+        android:paddingTop="6dp"
+        android:paddingRight="@dimen/family_side" />
+</LinearLayout>

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- MyFamilyTube: overlays the upstream manifest. Our own screens live here so upstream files stay untouched. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    package="com.liskovsoft.smartyoutubetv2.tv">
+
+    <application
+        android:name="es.myfamilytube.FamilyApplication"
+        tools:replace="android:name">
+
+        <activity
+            android:name="es.myfamilytube.ui.FamilyBrowseActivity"
+            android:launchMode="singleInstance"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|layoutDirection"
+            android:screenOrientation="unspecified"
+            android:theme="@style/FamilyTheme" />
+
+    </application>
+</manifest>

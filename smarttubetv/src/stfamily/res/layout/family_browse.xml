@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/family_bg">
+
+    <!-- Picture of the focused video, top right -->
+    <ImageView
+        android:id="@+id/family_hero_image"
+        android:layout_width="520dp"
+        android:layout_height="292dp"
+        android:layout_gravity="top|end"
+        android:alpha="0.7"
+        android:importantForAccessibility="no"
+        android:scaleType="centerCrop" />
+
+    <View
+        android:layout_width="520dp"
+        android:layout_height="292dp"
+        android:layout_gravity="top|end"
+        android:background="@drawable/family_hero_scrim" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <!-- Top bar: logo · tabs · settings -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:layout_marginLeft="@dimen/family_side"
+            android:layout_marginTop="22dp"
+            android:layout_marginRight="@dimen/family_side"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:layout_width="26dp"
+                android:layout_height="26dp"
+                android:importantForAccessibility="no"
+                android:src="@drawable/family_ic_home" />
+
+            <TextView
+                android:id="@+id/family_logo"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="8dp"
+                android:fontFamily="sans-serif-medium"
+                android:text="@string/app_name"
+                android:textColor="@color/family_text"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <View
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1" />
+
+            <LinearLayout
+                android:id="@+id/family_tabs"
+                android:layout_width="wrap_content"
+                android:layout_height="44dp"
+                android:background="@drawable/family_tabs_bg"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingLeft="4dp"
+                android:paddingRight="4dp" />
+
+            <View
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1" />
+
+            <TextView
+                android:id="@+id/family_update"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:layout_marginRight="10dp"
+                android:background="@drawable/family_pill_red"
+                android:focusable="true"
+                android:clickable="true"
+                android:gravity="center"
+                android:paddingLeft="16dp"
+                android:paddingRight="16dp"
+                android:text="Actualizar"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp"
+                android:fontFamily="sans-serif-medium"
+                android:visibility="gone" />
+
+            <ImageView
+                android:id="@+id/family_settings"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="@drawable/family_round_button"
+                android:clickable="true"
+                android:contentDescription="Ajustes"
+                android:focusable="true"
+                android:scaleType="center"
+                android:src="@drawable/family_ic_settings" />
+        </LinearLayout>
+
+        <!-- Hero: the focused video -->
+        <LinearLayout
+            android:id="@+id/family_hero"
+            android:layout_width="460dp"
+            android:layout_height="150dp"
+            android:layout_marginLeft="@dimen/family_side"
+            android:gravity="bottom"
+            android:orientation="vertical"
+            android:paddingBottom="14dp">
+
+            <TextView
+                android:id="@+id/family_hero_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:fontFamily="sans-serif-medium"
+                android:maxLines="2"
+                android:textColor="@color/family_text"
+                android:textSize="28sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/family_hero_meta"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="@color/family_text2"
+                android:textSize="14sp" />
+        </LinearLayout>
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1">
+
+            <androidx.leanback.widget.VerticalGridView
+                android:id="@+id/family_content"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                android:paddingBottom="40dp" />
+
+            <LinearLayout
+                android:id="@+id/family_message"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="40dp"
+                android:gravity="center_horizontal"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/family_message_text"
+                    android:layout_width="560dp"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:lineSpacingMultiplier="1.2"
+                    android:textColor="@color/family_text2"
+                    android:textSize="16sp" />
+
+                <TextView
+                    android:id="@+id/family_message_action"
+                    android:layout_width="wrap_content"
+                    android:layout_height="40dp"
+                    android:layout_marginTop="18dp"
+                    android:background="@drawable/family_pill_red"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:fontFamily="sans-serif-medium"
+                    android:gravity="center"
+                    android:paddingLeft="22dp"
+                    android:paddingRight="22dp"
+                    android:textColor="#FFFFFF"
+                    android:textSize="15sp" />
+            </LinearLayout>
+
+            <ProgressBar
+                android:id="@+id/family_progress"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="60dp"
+                android:indeterminateTint="@color/family_ring"
+                android:visibility="gone" />
+        </FrameLayout>
+    </LinearLayout>
+</FrameLayout>
