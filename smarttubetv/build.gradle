@@ -177,6 +177,16 @@ android {
                 abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86'
             }
         }
+        // MyFamilyTube: own package, so it installs next to SmartTube.
+        // Library modules only know the upstream flavors, so they use stbeta.
+        stfamily {
+            applicationId "es.myfamilytube"
+            targetSdkVersion project.properties.compileSdkVersion
+            matchingFallbacks = ['stbeta']
+            def buildNumber = System.getenv("FAMILY_BUILD_NUMBER")
+            versionCode buildNumber ? buildNumber.toInteger() : 1
+            versionName "1.0." + (buildNumber ?: "0")
+        }
     }
 }
 

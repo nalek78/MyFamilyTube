@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- MyFamilyTube updates come from our own GitHub Releases, never from SmartTube -->
+    <string-array name="update_urls">
+        <item>https://github.com/nalek78/MyFamilyTube/releases/latest/download/myfamilytube.json</item>
+    </string-array>
+</resources>
