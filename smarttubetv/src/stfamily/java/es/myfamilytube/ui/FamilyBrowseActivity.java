@@ -1,5 +1,6 @@
 package es.myfamilytube.ui;
 
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -30,6 +31,9 @@ import com.liskovsoft.smartyoutubetv2.tv.ui.common.LeanbackActivity;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import es.myfamilytube.profiles.FamilyProfile;
+import es.myfamilytube.profiles.FamilyProfiles;
 
 /**
  * MyFamilyTube home. Replaces SmartTube's BrowseActivity but talks to the same BrowsePresenter,
@@ -74,6 +78,8 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
     private Runnable mPendingTabSwitch;
     private String mHeroImageUrl;
     private boolean mFocusContentWhenLoaded;
+    private TextView mProfileButton;
+    private FamilyProfilesOverlay mProfilesOverlay;
 
     private static final class TabInfo {
         final int sectionId;
@@ -121,9 +127,34 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
             }
         });
 
+        mProfileButton = findViewById(R.id.family_profile_button);
+        mProfilesOverlay = new FamilyProfilesOverlay(this, findViewById(R.id.family_root), profile -> {
+            updateProfileButton();
+            mProfileButton.requestFocus();
+        });
+        mProfileButton.setOnClickListener(v -> mProfilesOverlay.show());
+        mProfileButton.setOnFocusChangeListener((v, hasFocus) -> updateProfileButton());
+        updateProfileButton();
+
         mPresenter = BrowsePresenter.instance(this);
         mPresenter.setView(this);
         mPresenter.onViewInitialized();
+
+        if (FamilyProfiles.instance(this).shouldAskWhoIsWatching()) {
+            mProfilesOverlay.show();
+        }
+    }
+
+    private void updateProfileButton() {
+        FamilyProfile profile = FamilyProfiles.instance(this).getCurrent();
+        mProfileButton.setText(profile.getInitial());
+        GradientDrawable circle = new GradientDrawable();
+        circle.setShape(GradientDrawable.OVAL);
+        circle.setColor(profile.color);
+        if (mProfileButton.hasFocus()) {
+            circle.setStroke((int) (3 * getResources().getDisplayMetrics().density), 0xFFFF3D33);
+        }
+        mProfileButton.setBackground(circle);
     }
 
     @Override
@@ -159,6 +190,9 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
 
     @Override
     public void onBackPressed() {
+        if (mProfilesOverlay != null && mProfilesOverlay.onBack()) {
+            return;
+        }
         // From the videos, Back goes up to the tabs; from the tabs it exits as usual
         View focused = getCurrentFocus();
         if (focused != null && isInside(focused, mContent)) {
@@ -700,6 +734,9 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
     @Override
     public void focusOnContent() {
         mHandler.post(() -> {
+            if (mProfilesOverlay != null && mProfilesOverlay.isShowing()) {
+                return; // don't steal focus from "¿Quién está viendo?"
+            }
             if (!mRows.isEmpty()) {
                 mFocusContentWhenLoaded = false;
                 mContent.requestFocus();
@@ -713,7 +750,8 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
 
     private void onRowsArrived() {
         hideMessage();
-        if (mFocusContentWhenLoaded && !mRows.isEmpty()) {
+        boolean overlayShowing = mProfilesOverlay != null && mProfilesOverlay.isShowing();
+        if (mFocusContentWhenLoaded && !mRows.isEmpty() && !overlayShowing) {
             mFocusContentWhenLoaded = false;
             mHandler.post(() -> mContent.requestFocus());
         }

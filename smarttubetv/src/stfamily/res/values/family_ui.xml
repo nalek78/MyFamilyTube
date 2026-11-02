@@ -22,6 +22,16 @@
         <item name="android:colorBackground">@color/family_bg</item>
     </style>
 
+    <style name="FamilyLabel">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">22dp</item>
+        <item name="android:layout_marginBottom">8dp</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textColor">@color/family_text2</item>
+    </style>
+
     <style name="FamilyTab">
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">36dp</item>

@@ -1,0 +1,146 @@
+package es.myfamilytube.profiles;
+
+import android.content.Context;
+import android.content.SharedPreferences;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+
+/** Profiles stored on this TV only (no Google account needed). */
+public final class FamilyProfiles {
+    private static final String PREFS = "family_profiles";
+    private static final String KEY_LIST = "profiles";
+    private static final String KEY_CURRENT = "current";
+    private static final String KEY_PIN = "parental_pin";
+    private static FamilyProfiles sInstance;
+    /** True once someone picked a profile in this run of the app. */
+    private static boolean sChosenThisRun;
+
+    private final SharedPreferences mPrefs;
+    private final List<FamilyProfile> mProfiles = new ArrayList<>();
+
+    private FamilyProfiles(Context context) {
+        mPrefs = context.getApplicationContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        load();
+        if (mProfiles.isEmpty()) {
+            // First run: one adult profile so the app works straight away
+            add("Principal", false, FamilyProfile.AGE_5_TO_8);
+        }
+    }
+
+    public static synchronized FamilyProfiles instance(Context context) {
+        if (sInstance == null) {
+            sInstance = new FamilyProfiles(context);
+        }
+        return sInstance;
+    }
+
+    public List<FamilyProfile> getAll() {
+        return new ArrayList<>(mProfiles);
+    }
+
+    public FamilyProfile get(String id) {
+        for (FamilyProfile profile : mProfiles) {
+            if (profile.id.equals(id)) {
+                return profile;
+            }
+        }
+        return null;
+    }
+
+    public FamilyProfile getCurrent() {
+        FamilyProfile current = get(mPrefs.getString(KEY_CURRENT, ""));
+        return current != null ? current : mProfiles.get(0);
+    }
+
+    public void setCurrent(FamilyProfile profile) {
+        mPrefs.edit().putString(KEY_CURRENT, profile.id).apply();
+        sChosenThisRun = true;
+    }
+
+    /** The picker is shown at start when there is more than one person to choose from. */
+    public boolean shouldAskWhoIsWatching() {
+        return !sChosenThisRun && mProfiles.size() > 1;
+    }
+
+    public FamilyProfile add(String name, boolean isKid, int ageGroup) {
+        int color = FamilyProfile.COLORS[mProfiles.size() % FamilyProfile.COLORS.length];
+        FamilyProfile profile = new FamilyProfile(UUID.randomUUID().toString(), name, color, isKid, ageGroup);
+        mProfiles.add(profile);
+        save();
+        return profile;
+    }
+
+    public void update(FamilyProfile profile) {
+        save();
+    }
+
+    /** The last adult profile can't be removed, so there is always someone to manage the others. */
+    public boolean canRemove(FamilyProfile profile) {
+        if (profile.isKid) {
+            return true;
+        }
+        int adults = 0;
+        for (FamilyProfile p : mProfiles) {
+            if (!p.isKid) {
+                adults++;
+            }
+        }
+        return adults > 1;
+    }
+
+    public void remove(FamilyProfile profile) {
+        if (!canRemove(profile)) {
+            return;
+        }
+        mProfiles.remove(profile);
+        if (profile.id.equals(mPrefs.getString(KEY_CURRENT, ""))) {
+            mPrefs.edit().remove(KEY_CURRENT).apply();
+        }
+        save();
+    }
+
+    public boolean hasPin() {
+        return mPrefs.contains(KEY_PIN);
+    }
+
+    public boolean checkPin(String pin) {
+        return pin != null && pin.equals(mPrefs.getString(KEY_PIN, null));
+    }
+
+    public void setPin(String pin) {
+        mPrefs.edit().putString(KEY_PIN, pin).apply();
+    }
+
+    private void load() {
+        mProfiles.clear();
+        try {
+            JSONArray array = new JSONArray(mPrefs.getString(KEY_LIST, "[]"));
+            for (int i = 0; i < array.length(); i++) {
+                JSONObject json = array.optJSONObject(i);
+                if (json != null) {
+                    mProfiles.add(FamilyProfile.fromJson(json));
+                }
+            }
+        } catch (JSONException e) {
+            // Corrupted data: start again with a default profile
+        }
+    }
+
+    private void save() {
+        JSONArray array = new JSONArray();
+        try {
+            for (FamilyProfile profile : mProfiles) {
+                array.put(profile.toJson());
+            }
+        } catch (JSONException e) {
+            return;
+        }
+        mPrefs.edit().putString(KEY_LIST, array.toString()).apply();
+    }
+}

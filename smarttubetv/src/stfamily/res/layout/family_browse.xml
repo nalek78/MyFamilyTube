@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/family_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/family_bg">
@@ -88,6 +89,20 @@
                 android:textSize="14sp"
                 android:fontFamily="sans-serif-medium"
                 android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/family_profile_button"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginRight="10dp"
+                android:clickable="true"
+                android:contentDescription="Cambiar de perfil"
+                android:focusable="true"
+                android:fontFamily="sans-serif-medium"
+                android:gravity="center"
+                android:textColor="#FFFFFF"
+                android:textSize="17sp"
+                android:textStyle="bold" />
 
             <ImageView
                 android:id="@+id/family_settings"
