@@ -7,8 +7,11 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 /** Profiles stored on this TV only (no Google account needed). */
@@ -23,6 +26,7 @@ public final class FamilyProfiles {
 
     private final SharedPreferences mPrefs;
     private final List<FamilyProfile> mProfiles = new ArrayList<>();
+    private final List<Runnable> mListeners = new ArrayList<>();
 
     private FamilyProfiles(Context context) {
         mPrefs = context.getApplicationContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE);
@@ -61,6 +65,14 @@ public final class FamilyProfiles {
     public void setCurrent(FamilyProfile profile) {
         mPrefs.edit().putString(KEY_CURRENT, profile.id).apply();
         sChosenThisRun = true;
+        for (Runnable listener : mListeners) {
+            listener.run();
+        }
+    }
+
+    /** Called whenever the current profile changes or a profile's settings are saved. */
+    public void addListener(Runnable listener) {
+        mListeners.add(listener);
     }
 
     /** The picker is shown at start when there is more than one person to choose from. */
@@ -71,6 +83,9 @@ public final class FamilyProfiles {
     public FamilyProfile add(String name, boolean isKid, int ageGroup) {
         int color = FamilyProfile.COLORS[mProfiles.size() % FamilyProfile.COLORS.length];
         FamilyProfile profile = new FamilyProfile(UUID.randomUUID().toString(), name, color, isKid, ageGroup);
+        if (isKid) {
+            profile.applyAgeDefaults();
+        }
         mProfiles.add(profile);
         save();
         return profile;
@@ -78,6 +93,9 @@ public final class FamilyProfiles {
 
     public void update(FamilyProfile profile) {
         save();
+        for (Runnable listener : mListeners) {
+            listener.run();
+        }
     }
 
     /** The last adult profile can't be removed, so there is always someone to manage the others. */
@@ -115,6 +133,44 @@ public final class FamilyProfiles {
 
     public void setPin(String pin) {
         mPrefs.edit().putString(KEY_PIN, pin).apply();
+    }
+
+    // ---------------------------------------------------------------- daily watch time (kids)
+
+    private static String today() {
+        return new SimpleDateFormat("yyyyMMdd", Locale.US).format(new Date());
+    }
+
+    /** Seconds watched today, minus any extra time granted with the PIN. */
+    public int getUsedSecondsToday(FamilyProfile profile) {
+        String day = today();
+        int used = mPrefs.getInt("usage_" + profile.id + "_" + day, 0);
+        int bonus = mPrefs.getInt("bonus_" + profile.id + "_" + day, 0);
+        return Math.max(0, used - bonus);
+    }
+
+    public void addUsedSeconds(FamilyProfile profile, int seconds) {
+        String key = "usage_" + profile.id + "_" + today();
+        mPrefs.edit().putInt(key, mPrefs.getInt(key, 0) + seconds).apply();
+    }
+
+    public void grantExtraMinutes(FamilyProfile profile, int minutes) {
+        String key = "bonus_" + profile.id + "_" + today();
+        mPrefs.edit().putInt(key, mPrefs.getInt(key, 0) + minutes * 60).apply();
+    }
+
+    /** True when a kid with a daily limit has used it all today. */
+    public boolean isTimeUp(FamilyProfile profile) {
+        return profile.isKid && profile.dailyLimitMin > 0
+                && getUsedSecondsToday(profile) >= profile.dailyLimitMin * 60;
+    }
+
+    public int getMinutesLeft(FamilyProfile profile) {
+        if (!profile.isKid || profile.dailyLimitMin <= 0) {
+            return -1;
+        }
+        int left = profile.dailyLimitMin * 60 - getUsedSecondsToday(profile);
+        return Math.max(0, (left + 59) / 60);
     }
 
     private void load() {

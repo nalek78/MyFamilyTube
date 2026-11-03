@@ -31,6 +31,8 @@ import com.liskovsoft.smartyoutubetv2.common.utils.Utils.Processor;
 import com.liskovsoft.googlecommon.common.helpers.ServiceHelper;
 
 import java.lang.ref.WeakReference;
+import com.liskovsoft.smartyoutubetv2.common.misc.ContentGate;
+
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -111,6 +113,10 @@ public class PlaybackPresenter extends BasePresenter<PlaybackView> implements Pl
 
     public void openVideo(Video video) {
         if (video == null) {
+            return;
+        }
+
+        if (!ContentGate.allowsPlayback(getContext(), video)) { // MyFamilyTube parental control (no-op upstream)
             return;
         }
 

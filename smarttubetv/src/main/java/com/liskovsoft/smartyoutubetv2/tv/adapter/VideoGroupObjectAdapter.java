@@ -8,6 +8,7 @@ import com.liskovsoft.sharedutils.helpers.Helpers;
 import com.liskovsoft.sharedutils.misc.WeakHashSet;
 import com.liskovsoft.smartyoutubetv2.common.app.models.data.Video;
 import com.liskovsoft.smartyoutubetv2.common.app.models.data.VideoGroup;
+import com.liskovsoft.smartyoutubetv2.common.misc.ContentGate;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -76,6 +77,8 @@ public class VideoGroupObjectAdapter extends ObjectAdapter {
         if (group == null || group.getVideos() == null) {
             return;
         }
+
+        ContentGate.filter(group); // MyFamilyTube parental control (no-op upstream)
 
         if (group.getAction() == VideoGroup.ACTION_PREPEND) {
             prepend(group); // add at the begin of the existing group
