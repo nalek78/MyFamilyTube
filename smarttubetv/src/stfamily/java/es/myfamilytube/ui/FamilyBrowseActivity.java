@@ -32,6 +32,7 @@ import com.liskovsoft.smartyoutubetv2.tv.ui.common.LeanbackActivity;
 import java.util.ArrayList;
 import java.util.List;
 
+import es.myfamilytube.FamilyApplication;
 import es.myfamilytube.profiles.FamilyProfile;
 import es.myfamilytube.profiles.FamilyProfiles;
 
@@ -78,6 +79,7 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
     private Runnable mPendingTabSwitch;
     private String mHeroImageUrl;
     private boolean mFocusContentWhenLoaded;
+    private int mPendingUpdates;
     private TextView mProfileButton;
     private FamilyProfilesOverlay mProfilesOverlay;
 
@@ -115,6 +117,8 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
         mContent.setWindowAlignment(VerticalGridView.WINDOW_ALIGN_LOW_EDGE);
         mContent.setWindowAlignmentOffsetPercent(VerticalGridView.WINDOW_ALIGN_OFFSET_PERCENT_DISABLED);
         mContent.setItemAlignmentOffsetPercent(VerticalGridView.ITEM_ALIGN_OFFSET_PERCENT_DISABLED);
+        // Leanback grids keep focus inside by default: let Up from the first row reach the tabs
+        mContent.setFocusOutAllowed(true, false);
 
         mSettingsButton.setOnClickListener(v -> {
             if (mSettingsSection != null) {
@@ -143,6 +147,21 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
         if (FamilyProfiles.instance(this).shouldAskWhoIsWatching()) {
             mProfilesOverlay.show();
         }
+
+        showLastCrashIfAny();
+    }
+
+    /** If the app closed because of an error last time, show it so it can be reported. */
+    private void showLastCrashIfAny() {
+        String crash = FamilyApplication.takeLastCrash(this);
+        if (crash == null) {
+            return;
+        }
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("La app se cerró por un error")
+                .setMessage("Haz una foto a este mensaje y pásasela a quien te ayuda con la app:\n\n" + crash)
+                .setPositiveButton("Cerrar", null)
+                .show();
     }
 
     private void updateProfileButton() {
@@ -648,7 +667,21 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
 
     @Override
     public void updateSection(VideoGroup group) {
-        if (group == null || group.isShorts()) {
+        // Apply on the next frame: changing lists while they are laying out crashes RecyclerView
+        mPendingUpdates++;
+        mHandler.post(() -> {
+            mPendingUpdates--;
+            try {
+                updateSectionNow(group);
+            } catch (IllegalStateException | IndexOutOfBoundsException e) {
+                e.printStackTrace();
+                mRowsAdapter.notifyDataSetChanged();
+            }
+        });
+    }
+
+    private void updateSectionNow(VideoGroup group) {
+        if (isFinishing() || group == null || group.isShorts()) {
             return;
         }
         BrowseSection section = group.getSection();
@@ -664,7 +697,11 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
 
     @Override
     public void updateSection(SettingsGroup group) {
-        if (group == null || !belongsToCurrent(group.getCategory())) {
+        mHandler.post(() -> updateSettingsNow(group));
+    }
+
+    private void updateSettingsNow(SettingsGroup group) {
+        if (isFinishing() || group == null || !belongsToCurrent(group.getCategory())) {
             return;
         }
         mRows.clear();
@@ -677,9 +714,12 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
 
     @Override
     public void clearSection(BrowseSection section) {
-        if (belongsToCurrent(section)) {
-            clearContent();
-        }
+        // Same queue as the updates, so a clear never lands after newer rows
+        mHandler.post(() -> {
+            if (!isFinishing() && belongsToCurrent(section)) {
+                clearContent();
+            }
+        });
     }
 
     @Override
@@ -759,7 +799,7 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
 
     @Override
     public boolean isEmpty() {
-        return mRows.isEmpty();
+        return mRows.isEmpty() && mPendingUpdates == 0;
     }
 
     @Override

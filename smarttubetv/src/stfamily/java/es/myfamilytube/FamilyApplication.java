@@ -1,6 +1,16 @@
 package es.myfamilytube;
 
 import android.app.Activity;
+import android.content.Context;
+
+import com.liskovsoft.smartyoutubetv2.tv.BuildConfig;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 
 import com.liskovsoft.smartyoutubetv2.common.app.views.AddDeviceView;
 import com.liskovsoft.smartyoutubetv2.common.app.views.AppDialogView;
@@ -26,9 +36,12 @@ public class FamilyApplication extends MainApplication {
             AddDeviceView.class, ChannelView.class, ChannelUploadsView.class, WebBrowserView.class
     };
 
+    private static final String CRASH_FILE = "last_crash.txt";
+
     @Override
     public void onCreate() {
         super.onCreate();
+        installCrashRecorder();
 
         ViewManager viewManager = ViewManager.instance(this);
         viewManager.setRoot(FamilyBrowseActivity.class);
@@ -40,6 +53,59 @@ public class FamilyApplication extends MainApplication {
             if (activity != null) {
                 viewManager.register(view, activity, FamilyBrowseActivity.class);
             }
+        }
+    }
+
+    /** Saves the error of a crash so the next start can show it (we have no other way to see it). */
+    private void installCrashRecorder() {
+        Thread.UncaughtExceptionHandler previous = Thread.getDefaultUncaughtExceptionHandler();
+        Thread.setDefaultUncaughtExceptionHandler((thread, error) -> {
+            try {
+                StringWriter text = new StringWriter();
+                error.printStackTrace(new PrintWriter(text));
+                String trace = text.toString();
+                if (trace.length() > 3000) {
+                    trace = trace.substring(0, 3000);
+                }
+                FileOutputStream out = new FileOutputStream(new File(getFilesDir(), CRASH_FILE));
+                try {
+                    out.write(("MyFamilyTube " + BuildConfig.VERSION_NAME + "\n" + trace).getBytes("UTF-8"));
+                } finally {
+                    out.close();
+                }
+            } catch (Throwable ignored) {
+                // never fail while handling a crash
+            }
+            if (previous != null) {
+                previous.uncaughtException(thread, error);
+            }
+        });
+    }
+
+    /** Returns the saved crash (and forgets it), or null. */
+    public static String takeLastCrash(Context context) {
+        File file = new File(context.getFilesDir(), CRASH_FILE);
+        if (!file.exists()) {
+            return null;
+        }
+        FileInputStream in = null;
+        try {
+            in = new FileInputStream(file);
+            byte[] data = new byte[(int) Math.min(file.length(), 8000)];
+            int read = in.read(data);
+            return read > 0 ? new String(data, 0, read, "UTF-8") : null;
+        } catch (IOException e) {
+            return null;
+        } finally {
+            if (in != null) {
+                try {
+                    in.close();
+                } catch (IOException ignored) {
+                    // nothing to do
+                }
+            }
+            //noinspection ResultOfMethodCallIgnored
+            file.delete();
         }
     }
 }
