@@ -117,8 +117,7 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
         mContent.setWindowAlignment(VerticalGridView.WINDOW_ALIGN_LOW_EDGE);
         mContent.setWindowAlignmentOffsetPercent(VerticalGridView.WINDOW_ALIGN_OFFSET_PERCENT_DISABLED);
         mContent.setItemAlignmentOffsetPercent(VerticalGridView.ITEM_ALIGN_OFFSET_PERCENT_DISABLED);
-        // Leanback grids keep focus inside by default: let Up from the first row reach the tabs
-        mContent.setFocusOutAllowed(true, false);
+        // Up from the first row reaching the tabs: lb:focusOutFront="true" in family_browse.xml
 
         mSettingsButton.setOnClickListener(v -> {
             if (mSettingsSection != null) {
