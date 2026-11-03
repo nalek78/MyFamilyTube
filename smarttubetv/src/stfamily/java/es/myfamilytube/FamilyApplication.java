@@ -2,6 +2,7 @@ package es.myfamilytube;
 
 import android.app.Activity;
 import android.content.Context;
+import android.os.Bundle;
 
 import com.liskovsoft.smartyoutubetv2.tv.BuildConfig;
 
@@ -24,6 +25,8 @@ import com.liskovsoft.smartyoutubetv2.common.app.views.ViewManager;
 import com.liskovsoft.smartyoutubetv2.common.app.views.WebBrowserView;
 import com.liskovsoft.smartyoutubetv2.tv.ui.main.MainApplication;
 
+import es.myfamilytube.profiles.FamilyProfiles;
+import es.myfamilytube.profiles.FamilyRules;
 import es.myfamilytube.ui.FamilyBrowseActivity;
 
 /**
@@ -42,6 +45,8 @@ public class FamilyApplication extends MainApplication {
     public void onCreate() {
         super.onCreate();
         installCrashRecorder();
+        FamilyRules.install(this);
+        registerActivityLifecycleCallbacks(new ForegroundWatcher());
 
         ViewManager viewManager = ViewManager.instance(this);
         viewManager.setRoot(FamilyBrowseActivity.class);
@@ -53,6 +58,44 @@ public class FamilyApplication extends MainApplication {
             if (activity != null) {
                 viewManager.register(view, activity, FamilyBrowseActivity.class);
             }
+        }
+    }
+
+    /** Counts visible screens; going from none to one means the app was opened again. */
+    private static final class ForegroundWatcher implements ActivityLifecycleCallbacks {
+        private int mStarted;
+
+        @Override
+        public void onActivityStarted(Activity activity) {
+            if (mStarted == 0) {
+                FamilyProfiles.onAppForeground();
+            }
+            mStarted++;
+        }
+
+        @Override
+        public void onActivityStopped(Activity activity) {
+            mStarted = Math.max(0, mStarted - 1);
+        }
+
+        @Override
+        public void onActivityCreated(Activity activity, Bundle savedInstanceState) {
+        }
+
+        @Override
+        public void onActivityResumed(Activity activity) {
+        }
+
+        @Override
+        public void onActivityPaused(Activity activity) {
+        }
+
+        @Override
+        public void onActivitySaveInstanceState(Activity activity, Bundle outState) {
+        }
+
+        @Override
+        public void onActivityDestroyed(Activity activity) {
         }
     }
 

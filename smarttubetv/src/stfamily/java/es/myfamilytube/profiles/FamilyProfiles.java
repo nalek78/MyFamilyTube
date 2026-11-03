@@ -75,6 +75,11 @@ public final class FamilyProfiles {
         mListeners.add(listener);
     }
 
+    /** The app came to the front (opened, or back from the background): ask who is watching again. */
+    public static void onAppForeground() {
+        sChosenThisRun = false;
+    }
+
     /** The picker is shown at start when there is more than one person to choose from. */
     public boolean shouldAskWhoIsWatching() {
         return !sChosenThisRun && mProfiles.size() > 1;
@@ -93,8 +98,11 @@ public final class FamilyProfiles {
 
     public void update(FamilyProfile profile) {
         save();
-        for (Runnable listener : mListeners) {
-            listener.run();
+        // Only the profile in use changes what is on screen
+        if (profile.id.equals(getCurrent().id)) {
+            for (Runnable listener : mListeners) {
+                listener.run();
+            }
         }
     }
 

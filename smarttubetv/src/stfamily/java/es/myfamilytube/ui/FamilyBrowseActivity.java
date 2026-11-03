@@ -24,6 +24,8 @@ import com.liskovsoft.smartyoutubetv2.common.app.models.data.Video;
 import com.liskovsoft.smartyoutubetv2.common.app.models.data.VideoGroup;
 import com.liskovsoft.smartyoutubetv2.common.app.models.errors.ErrorFragmentData;
 import com.liskovsoft.smartyoutubetv2.common.app.presenters.BrowsePresenter;
+import com.liskovsoft.smartyoutubetv2.common.app.presenters.ChannelPresenter;
+import com.liskovsoft.smartyoutubetv2.common.misc.ContentGate;
 import com.liskovsoft.smartyoutubetv2.common.app.presenters.SearchPresenter;
 import com.liskovsoft.smartyoutubetv2.common.app.views.BrowseView;
 import com.liskovsoft.smartyoutubetv2.tv.R;
@@ -46,6 +48,7 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
     private static final int TAB_SEARCH = -1001;
     private static final int GRID_COLUMNS = 5;
     private static final int GRID_ROW_ID_BASE = -2000;
+    private static final int CHANNELS_ROW_ID = -3000;
     private static final int SCROLL_CONTINUE_NUM = 6;
     private static final long TAB_SWITCH_DELAY_MS = 350;
 
@@ -132,22 +135,41 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
 
         mProfileButton = findViewById(R.id.family_profile_button);
         mProfilesOverlay = new FamilyProfilesOverlay(this, findViewById(R.id.family_root), profile -> {
-            updateProfileButton();
+            onProfileChanged();
             mProfileButton.requestFocus();
         });
         mProfileButton.setOnClickListener(v -> mProfilesOverlay.show());
         mProfileButton.setOnFocusChangeListener((v, hasFocus) -> updateProfileButton());
         updateProfileButton();
+        // Saving a profile (approved channels, age…) re-applies the rules to what's on screen
+        FamilyProfiles.instance(this).addListener(() -> mHandler.post(this::onProfileChanged));
 
         mPresenter = BrowsePresenter.instance(this);
         mPresenter.setView(this);
         mPresenter.onViewInitialized();
 
-        if (FamilyProfiles.instance(this).shouldAskWhoIsWatching()) {
-            mProfilesOverlay.show();
-        }
-
         showLastCrashIfAny();
+    }
+
+    private FamilyProfile currentProfile() {
+        return FamilyProfiles.instance(this).getCurrent();
+    }
+
+    /** Profile switched or its settings changed: reload what is shown with the new rules. */
+    private void onProfileChanged() {
+        if (isFinishing()) {
+            return;
+        }
+        updateProfileButton();
+        rebuildTabs();
+        BrowseSection section = mCurrentSection;
+        if (section == null || !isShownSection(section)) {
+            section = mTabs.isEmpty() ? null : findSection(mTabs.get(0).sectionId);
+        }
+        mCurrentSection = null; // force a reload
+        if (section != null) {
+            openSection(section, false);
+        }
     }
 
     /** If the app closed because of an error last time, show it so it can be reported. */
@@ -164,15 +186,7 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
     }
 
     private void updateProfileButton() {
-        FamilyProfile profile = FamilyProfiles.instance(this).getCurrent();
-        mProfileButton.setText(profile.getInitial());
-        GradientDrawable circle = new GradientDrawable();
-        circle.setShape(GradientDrawable.OVAL);
-        circle.setColor(profile.color);
-        if (mProfileButton.hasFocus()) {
-            circle.setStroke((int) (3 * getResources().getDisplayMetrics().density), 0xFFFF3D33);
-        }
-        mProfileButton.setBackground(circle);
+        FamilyAvatars.apply(mProfileButton, currentProfile(), mProfileButton.hasFocus(), 3);
     }
 
     @Override
@@ -187,6 +201,27 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
             mPresenter.setView(this);
             mPresenter.onViewResumed();
         }
+        // Every time the app is opened (also from the background) ask who is watching
+        if (FamilyProfiles.instance(this).shouldAskWhoIsWatching() && !mProfilesOverlay.isShowing()) {
+            mProfilesOverlay.show();
+        } else if (mCurrentSection != null && FamilyProfiles.instance(this).isTimeUp(currentProfile())) {
+            showTimeUp();
+        }
+    }
+
+    /** A kid used all of today's time: nothing more until an adult adds time with the PIN. */
+    private void showTimeUp() {
+        mRows.clear();
+        mGridVideos.clear();
+        mRowsAdapter.notifyDataSetChanged();
+        setHero(null);
+        showMessage("Se ha acabado el tiempo de hoy.\nMañana podrás ver más vídeos.", "Más tiempo (PIN)",
+                () -> mProfilesOverlay.askPin(() -> {
+                    FamilyProfiles.instance(this).grantExtraMinutes(currentProfile(), 30);
+                    hideMessage();
+                    onProfileChanged();
+                }));
+        mMessageAction.requestFocus();
     }
 
     @Override
@@ -281,7 +316,12 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
         } else {
             mUpdateButton.setVisibility(View.GONE);
         }
-        mSettingsButton.setVisibility(mSettingsSection != null ? View.VISIBLE : View.GONE);
+        // Kids can't open the settings
+        boolean kid = currentProfile().isKid;
+        mSettingsButton.setVisibility(mSettingsSection != null && !kid ? View.VISIBLE : View.GONE);
+        if (kid) {
+            mUpdateButton.setVisibility(View.GONE);
+        }
         markCurrentTab();
     }
 
@@ -355,12 +395,21 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
     }
 
     private void openSection(BrowseSection section, boolean focusOnContent) {
+        FamilyProfile profile = currentProfile();
+        if (section == mSettingsSection && profile.isKid) {
+            return;
+        }
         boolean changed = mCurrentSection == null || mCurrentSection.getId() != section.getId();
         mCurrentSection = section;
         markCurrentTab();
+        if (FamilyProfiles.instance(this).isTimeUp(profile)) {
+            showTimeUp();
+            return;
+        }
         if (changed) {
             clearContent();
             mHero.setVisibility(section == mSettingsSection ? View.GONE : View.VISIBLE);
+            addKidChannelsRow(section);
             mPresenter.onSectionFocused(section.getId());
         }
         if (focusOnContent) {
@@ -387,17 +436,33 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
         return section != null && mCurrentSection != null && section.getId() == mCurrentSection.getId();
     }
 
+    /** Shorts are hidden for everyone; kids also go through the parental-control rules. */
     private List<Video> withoutShorts(List<Video> videos) {
         List<Video> result = new ArrayList<>();
         if (videos == null) {
             return result;
         }
         for (Video video : videos) {
-            if (video != null && !video.isShorts) {
+            if (video != null && !video.isShorts && ContentGate.allows(video)) {
                 result.add(video);
             }
         }
         return result;
+    }
+
+    /** On a kid's home, their approved channels come first as big buttons. */
+    private void addKidChannelsRow(BrowseSection section) {
+        FamilyProfile profile = currentProfile();
+        if (!profile.isKid || profile.approvedChannels.isEmpty() || isGridSection(section)
+                || findTab(section.getId()) == null || mTabs.get(0).sectionId != section.getId()) {
+            return;
+        }
+        FamilyRow row = new FamilyRow(CHANNELS_ROW_ID, "Tus canales", mCardListener);
+        for (java.util.Map.Entry<String, String> entry : profile.approvedChannels.entrySet()) {
+            row.items.add(new FamilyChannelItem(entry.getKey(), entry.getValue()));
+        }
+        mRows.add(row);
+        mRowsAdapter.notifyItemInserted(mRows.size() - 1);
     }
 
     private FamilyRow findRow(int id) {
@@ -562,16 +627,63 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
                 mPresenter.onVideoItemClicked((Video) item);
             } else if (item instanceof SettingsItem && ((SettingsItem) item).onClick != null) {
                 ((SettingsItem) item).onClick.run();
+            } else if (item instanceof FamilyChannelItem) {
+                ChannelPresenter.instance(FamilyBrowseActivity.this).openChannel(((FamilyChannelItem) item).channelId);
             }
         }
 
         @Override
         public void onCardLongClicked(Object item) {
-            if (item instanceof Video) {
-                mPresenter.onVideoItemLongClicked((Video) item);
+            if (!(item instanceof Video)) {
+                return;
             }
+            Video video = (Video) item;
+            if (currentProfile().isKid) {
+                return; // no menus for kids
+            }
+            showVideoMenu(video);
         }
     };
+
+    /** Adults: approve the channel for kids, or open the usual video menu. */
+    private void showVideoMenu(Video video) {
+        List<FamilyProfile> kids = new ArrayList<>();
+        for (FamilyProfile profile : FamilyProfiles.instance(this).getAll()) {
+            if (profile.isKid) {
+                kids.add(profile);
+            }
+        }
+        String channelName = !TextUtils.isEmpty(video.getAuthor()) ? video.getAuthor() : "este canal";
+        if (kids.isEmpty() || TextUtils.isEmpty(video.channelId)) {
+            mPresenter.onVideoItemLongClicked(video);
+            return;
+        }
+        List<String> options = new ArrayList<>();
+        for (FamilyProfile kid : kids) {
+            options.add(kid.isChannelApproved(video.channelId)
+                    ? "Quitar «" + channelName + "» de " + kid.name
+                    : "Aprobar «" + channelName + "» para " + kid.name);
+        }
+        options.add("Más opciones del vídeo");
+        new android.app.AlertDialog.Builder(this)
+                .setTitle(channelName)
+                .setItems(options.toArray(new String[0]), (dialog, which) -> {
+                    if (which >= kids.size()) {
+                        mPresenter.onVideoItemLongClicked(video);
+                        return;
+                    }
+                    FamilyProfile kid = kids.get(which);
+                    if (kid.isChannelApproved(video.channelId)) {
+                        kid.approvedChannels.remove(video.channelId);
+                        android.widget.Toast.makeText(this, "Quitado de " + kid.name, android.widget.Toast.LENGTH_SHORT).show();
+                    } else {
+                        kid.approvedChannels.put(video.channelId, channelName);
+                        android.widget.Toast.makeText(this, "Aprobado para " + kid.name, android.widget.Toast.LENGTH_SHORT).show();
+                    }
+                    FamilyProfiles.instance(this).update(kid);
+                })
+                .show();
+    }
 
     private void setHero(Video video) {
         if (video == null) {

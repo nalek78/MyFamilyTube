@@ -25,6 +25,7 @@ import com.liskovsoft.smartyoutubetv2.common.misc.MediaServiceManager;
 import com.liskovsoft.smartyoutubetv2.common.prefs.PlayerData;
 import com.liskovsoft.smartyoutubetv2.common.utils.Utils;
 import com.liskovsoft.youtubeapi.service.YouTubeServiceManager;
+import com.liskovsoft.smartyoutubetv2.common.misc.ContentGate;
 
 import io.reactivex.disposables.Disposable;
 
@@ -203,6 +204,11 @@ public class VideoLoaderController extends BasePlayerController {
      */
     private void loadVideo(Video item) {
         if (getPlayer() != null && item != null) {
+            // MyFamilyTube parental control: also covers autoplay and "next" (no-op upstream)
+            if (!ContentGate.allowsPlayback(getContext(), item)) {
+                getPlayer().finish();
+                return;
+            }
             mPlaylist.setCurrent(item);
             getPlayer().setVideo(item);
             getPlayer().resetPlayerState();

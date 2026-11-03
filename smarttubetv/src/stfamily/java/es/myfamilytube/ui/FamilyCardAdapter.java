@@ -131,13 +131,13 @@ final class FamilyCardAdapter extends RecyclerView.Adapter<FamilyCardAdapter.Car
                     Glide.with(thumb).clear(thumb);
                     thumb.setImageDrawable(null);
                 }
-            } else if (item instanceof SettingsItem) {
-                SettingsItem setting = (SettingsItem) item;
+            } else if (item instanceof SettingsItem || item instanceof FamilyChannelItem) {
+                String text = item instanceof SettingsItem ? ((SettingsItem) item).title : ((FamilyChannelItem) item).name;
                 Glide.with(thumb).clear(thumb);
                 thumb.setImageDrawable(null);
                 badge.setVisibility(View.GONE);
                 center.setVisibility(View.VISIBLE);
-                center.setText(setting.title);
+                center.setText(text);
                 title.setVisibility(View.GONE);
                 subtitle.setVisibility(View.GONE);
             }

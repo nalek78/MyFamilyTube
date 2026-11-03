@@ -20,11 +20,16 @@ public final class FamilyProfile {
     /** Avatar colours, picked in order for new profiles. */
     public static final int[] COLORS = {0xFF3D6FD9, 0xFF9B4DCA, 0xFF2E9E6B, 0xFFE08A1E, 0xFFD9534F, 0xFF2A8FA0};
 
+    /** Profile pictures (drawable family_avatar_<name>). */
+    public static final String[] AVATARS = {"cat", "dog", "bear", "rabbit", "panda", "fox", "owl", "robot"};
+
     public final String id;
     public String name;
     public int color;
     public boolean isKid;
     public int ageGroup;
+    /** Picture name from {@link #AVATARS}, or empty for the coloured initial. */
+    public String avatar = "";
     /** Kids: only videos from approved channels. */
     public boolean approvedOnly;
     /** Kids: minutes per day, 0 = no limit. */
@@ -81,6 +86,7 @@ public final class FamilyProfile {
         json.put("color", color);
         json.put("kid", isKid);
         json.put("age", ageGroup);
+        json.put("avatar", avatar);
         json.put("approvedOnly", approvedOnly);
         json.put("limit", dailyLimitMin);
         json.put("hideComments", hideComments);
@@ -99,6 +105,7 @@ public final class FamilyProfile {
                 json.optInt("color", COLORS[0]),
                 json.optBoolean("kid", false),
                 json.optInt("age", AGE_5_TO_8));
+        profile.avatar = json.optString("avatar", "");
         profile.approvedOnly = json.optBoolean("approvedOnly", false);
         profile.dailyLimitMin = json.optInt("limit", 0);
         profile.hideComments = json.optBoolean("hideComments", true);
