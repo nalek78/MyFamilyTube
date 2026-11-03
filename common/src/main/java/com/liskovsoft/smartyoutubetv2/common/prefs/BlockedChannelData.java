@@ -196,11 +196,11 @@ public class BlockedChannelData implements ProfileChangeListener {
     }
 
     public void persistNow() {
-        Utils.post(mPersistStateInt);
+        Utils.postPersist(mPersistStateInt, 0);
     }
 
     private void persistState() {
-        Utils.postDelayed(mPersistStateInt, 10_000);
+        Utils.postPersist(mPersistStateInt, 10_000);
     }
 
     private void persistStateInt() {

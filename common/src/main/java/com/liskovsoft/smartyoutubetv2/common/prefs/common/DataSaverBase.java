@@ -99,16 +99,16 @@ public abstract class DataSaverBase extends DataChangeBase {
     }
 
     public void persistNow() {
-        Utils.post(mPersistStateInt);
+        Utils.postPersist(mPersistStateInt, 0);
     }
 
     private void persistState() {
         onDataChange();
 
         if (mPersistImmediately) {
-            Utils.post(mPersistStateInt);
+            Utils.postPersist(mPersistStateInt, 0);
         } else {
-            Utils.postDelayed(mPersistStateInt, 10_000);
+            Utils.postPersist(mPersistStateInt, 10_000);
         }
     }
 

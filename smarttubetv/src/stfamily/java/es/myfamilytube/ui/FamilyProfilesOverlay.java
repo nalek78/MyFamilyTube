@@ -298,24 +298,8 @@ final class FamilyProfilesOverlay {
 
     /** Always asks for the PIN (when there is one). */
     void askPin(Runnable action) {
-        if (!mProfiles.hasPin()) {
-            action.run();
-            return;
-        }
-        EditText input = new EditText(mActivity);
-        input.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_VARIATION_PASSWORD);
-        new AlertDialog.Builder(mActivity)
-                .setTitle("PIN de control parental")
-                .setView(input)
-                .setPositiveButton("Aceptar", (dialog, which) -> {
-                    if (mProfiles.checkPin(input.getText().toString())) {
-                        action.run();
-                    } else {
-                        Toast.makeText(mActivity, "PIN incorrecto", Toast.LENGTH_SHORT).show();
-                    }
-                })
-                .setNegativeButton("Cancelar", null)
-                .show();
+        // Own number pad: the system keyboard used to cover the whole screen
+        FamilyPinPad.verify(mActivity, action);
     }
 
     // ---------------------------------------------------------------- editor
@@ -378,10 +362,8 @@ final class FamilyProfilesOverlay {
 
         TextView title = mRoot.findViewById(R.id.family_editor_title);
         EditText name = mRoot.findViewById(R.id.family_editor_name);
-        EditText pin = mRoot.findViewById(R.id.family_editor_pin);
         title.setText(profile == null ? "Nuevo perfil" : "Editar perfil");
         name.setText(profile != null ? profile.name : "");
-        pin.setText("");
         mRoot.findViewById(R.id.family_editor_delete)
                 .setVisibility(profile != null && mProfiles.canRemove(profile) ? View.VISIBLE : View.GONE);
 
@@ -465,14 +447,12 @@ final class FamilyProfilesOverlay {
             return;
         }
         if (mEditKid && !mProfiles.hasPin()) {
-            EditText pinView = mRoot.findViewById(R.id.family_editor_pin);
-            String pin = pinView.getText().toString();
-            if (pin.length() != 4) {
-                Toast.makeText(mActivity, "El PIN tiene que tener 4 cifras", Toast.LENGTH_SHORT).show();
-                pinView.requestFocus();
-                return;
-            }
-            mProfiles.setPin(pin);
+            // First kids profile: choose the parental PIN on our number pad, then save
+            FamilyPinPad.create(mActivity, pin -> {
+                mProfiles.setPin(pin);
+                saveEditor();
+            });
+            return;
         }
         FamilyProfile profile = mEditing != null ? mEditing : mProfiles.add(name, mEditKid, mEditAge);
         profile.name = name;

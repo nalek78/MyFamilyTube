@@ -780,11 +780,11 @@ public class PlayerTweaksData implements ProfileChangeListener {
     }
 
     public void persistNow() {
-        Utils.post(mPersistDataInt);
+        Utils.postPersist(mPersistDataInt, 0);
     }
 
     private void persistData() {
-        Utils.postDelayed(mPersistDataInt, 10_000);
+        Utils.postPersist(mPersistDataInt, 10_000);
     }
 
     private void persistDataInt() {
@@ -816,7 +816,7 @@ public class PlayerTweaksData implements ProfileChangeListener {
 
     @Override
     public void onProfileChanged() {
-        Utils.removeCallbacks(mPersistDataInt);
+        Utils.removePersist(mPersistDataInt);
         restoreData();
     }
 }

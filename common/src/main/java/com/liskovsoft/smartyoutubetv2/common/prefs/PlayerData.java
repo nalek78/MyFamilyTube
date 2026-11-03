@@ -865,12 +865,12 @@ public class PlayerData extends DataChangeBase implements PlayerConstants, Profi
     }
 
     public void persistNow() {
-        Utils.post(mPersistStateInt);
+        Utils.postPersist(mPersistStateInt, 0);
     }
 
     private void persistState() {
         onDataChange();
-        Utils.postDelayed(mPersistStateInt, 10_000);
+        Utils.postPersist(mPersistStateInt, 10_000);
     }
 
     private void persistStateInt() {
@@ -890,7 +890,7 @@ public class PlayerData extends DataChangeBase implements PlayerConstants, Profi
 
     @Override
     public void onProfileChanged() {
-        Utils.removeCallbacks(mPersistStateInt);
+        Utils.removePersist(mPersistStateInt);
 
         // reset on profile change
         mSpeeds.clear();

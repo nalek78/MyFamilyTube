@@ -540,6 +540,60 @@ public class Utils {
         customTabsIntent.launchUrl(context, Uri.parse(url));
     }
 
+    // MyFamilyTube: settings are written to files from a background thread.
+    // Writing them on the main thread froze the app ("app not responding") on TVs with slow storage.
+    private static android.os.Handler sPersistHandler;
+    private static final java.util.Map<Runnable, Runnable> sPersistWrappers = new java.util.HashMap<>();
+
+    private static synchronized android.os.Handler persistHandler() {
+        if (sPersistHandler == null) {
+            android.os.HandlerThread thread = new android.os.HandlerThread("prefs-writer", android.os.Process.THREAD_PRIORITY_BACKGROUND);
+            thread.start();
+            sPersistHandler = new android.os.Handler(thread.getLooper());
+        }
+        return sPersistHandler;
+    }
+
+    private static synchronized Runnable persistWrapper(Runnable callback) {
+        Runnable wrapper = sPersistWrappers.get(callback);
+        if (wrapper == null) {
+            wrapper = () -> {
+                try {
+                    callback.run();
+                } catch (Throwable e) {
+                    // e.g. data changed while being saved: the next save will write it
+                    e.printStackTrace();
+                }
+            };
+            sPersistWrappers.put(callback, wrapper);
+        }
+        return wrapper;
+    }
+
+    /** Saves later (or now with 0) on the background writer; a newer request replaces a pending one. */
+    public static void postPersist(Runnable callback, long delayMs) {
+        if (callback == null || delayMs < 0) {
+            return;
+        }
+
+        android.os.Handler handler = persistHandler();
+        Runnable wrapper = persistWrapper(callback);
+        handler.removeCallbacks(wrapper);
+        handler.postDelayed(wrapper, delayMs);
+    }
+
+    public static void removePersist(Runnable... callbacks) {
+        if (callbacks == null) {
+            return;
+        }
+
+        for (Runnable callback : callbacks) {
+            if (callback != null) {
+                persistHandler().removeCallbacks(persistWrapper(callback));
+            }
+        }
+    }
+
     public static void postDelayed(Runnable callback, long delayMs) {
         if (callback == null || delayMs < 0) {
             return;

@@ -659,11 +659,11 @@ public class GeneralData implements ProfileChangeListener {
     }
 
     public void persistNow() {
-        Utils.post(mPersistStateInt);
+        Utils.postPersist(mPersistStateInt, 0);
     }
 
     private void persistState() {
-        Utils.postDelayed(mPersistStateInt, 10_000);
+        Utils.postPersist(mPersistStateInt, 10_000);
     }
 
     private void persistStateInt() {
@@ -686,7 +686,7 @@ public class GeneralData implements ProfileChangeListener {
 
     @Override
     public void onProfileChanged() {
-        Utils.removeCallbacks(mPersistStateInt);
+        Utils.removePersist(mPersistStateInt);
         restoreState();
     }
 }

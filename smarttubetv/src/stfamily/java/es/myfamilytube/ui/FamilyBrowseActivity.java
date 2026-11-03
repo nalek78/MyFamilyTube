@@ -210,15 +210,66 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
         }
         updateProfileButton();
         rebuildTabs();
-        BrowseSection section = mCurrentSection;
-        if (section == null || !isShownSection(section)) {
-            section = mTabs.isEmpty() ? null : findSection(mTabs.get(0).sectionId);
-        }
+        disposePrefetch();
         mSectionCache.clear(); // what's allowed depends on the profile
+        // New profile: start on Inicio, and load Suscripciones and Biblioteca right after
+        BrowseSection section = mTabs.isEmpty() ? null : findSection(mTabs.get(0).sectionId);
         mCurrentSection = null; // force a reload
+        mPrefetchPending = true;
         if (section != null) {
-            openSection(section, false);
+            openSection(section, true);
         }
+    }
+
+    // ---------------------------------------------------------------- preloading
+
+    private final List<io.reactivex.disposables.Disposable> mPrefetch = new ArrayList<>();
+    private boolean mPrefetchPending = true;
+
+    private void disposePrefetch() {
+        for (io.reactivex.disposables.Disposable action : mPrefetch) {
+            action.dispose();
+        }
+        mPrefetch.clear();
+    }
+
+    /** Loads the other tabs in the background so they open instantly. */
+    private void startPrefetch() {
+        mPrefetchPending = false;
+        if (currentProfile().isKid) {
+            return; // kids only have Inicio and Buscar
+        }
+        com.liskovsoft.mediaserviceinterfaces.ContentService content =
+                com.liskovsoft.youtubeapi.service.YouTubeServiceManager.instance().getContentService();
+        prefetchGrid(MediaGroup.TYPE_SUBSCRIPTIONS, content.getSubscriptionsObserve());
+        prefetchGrid(MediaGroup.TYPE_HISTORY, content.getHistoryObserve());
+    }
+
+    private void prefetchGrid(int sectionId, io.reactivex.Observable<MediaGroup> source) {
+        BrowseSection section = findSection(sectionId);
+        if (section == null || source == null || (mCurrentSection != null && mCurrentSection.getId() == sectionId)) {
+            return;
+        }
+        long start = System.currentTimeMillis();
+        mPrefetch.add(source.subscribe(
+                mediaGroup -> runOnUiThread(() -> {
+                    if (isFinishing() || mediaGroup == null || (mCurrentSection != null && mCurrentSection.getId() == sectionId)) {
+                        return;
+                    }
+                    List<Video> videos = withoutShorts(VideoGroup.from(mediaGroup, section).getVideos());
+                    List<FamilyRow> rows = new ArrayList<>();
+                    for (int start2 = 0, r = 0; start2 < videos.size(); start2 += GRID_COLUMNS, r++) {
+                        FamilyRow row = new FamilyRow(GRID_ROW_ID_BASE - r, r == 0 ? section.getTitle() : null, mCardListener);
+                        row.items.addAll(videos.subList(start2, Math.min(videos.size(), start2 + GRID_COLUMNS)));
+                        rows.add(row);
+                    }
+                    if (!rows.isEmpty()) {
+                        mSectionCache.put(sectionId, new Snapshot(rows, videos));
+                        FamilyDiagnostics.instance(this).log("«" + section.getTitle() + "» precargada en "
+                                + (System.currentTimeMillis() - start) + " ms");
+                    }
+                }),
+                error -> FamilyDiagnostics.instance(this).log("No se pudo precargar «" + section.getTitle() + "»: " + error.getMessage())));
     }
 
     /** If the app closed by itself last time, say why (details in Ajustes › Diagnóstico). */
@@ -247,6 +298,8 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
         }
         // Every time the app is opened (also from the background) ask who is watching
         updateGreeting();
+        // Something may have been watched meanwhile: history must be fresh
+        mSectionCache.remove(MediaGroup.TYPE_HISTORY);
         if (FamilyProfiles.instance(this).shouldAskWhoIsWatching() && !mProfilesOverlay.isShowing()) {
             mSettingsOverlay.hide();
             // Mandatory: Back can't skip it (that would keep the last profile, maybe a grown-up's)
@@ -282,6 +335,7 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
     @Override
     protected void onDestroy() {
         mHandler.removeCallbacksAndMessages(null);
+        disposePrefetch();
         if (mPresenter != null) {
             mPresenter.onViewDestroyed();
         }
@@ -503,8 +557,8 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
     private final java.util.Map<Integer, Snapshot> mSectionCache = new java.util.HashMap<>();
 
     private boolean isCacheable(BrowseSection section) {
-        // History changes every time something is watched; settings are tiny
-        return section != null && section != mSettingsSection && section.getId() != MediaGroup.TYPE_HISTORY;
+        // Settings are tiny; history is dropped from the cache when coming back from a video (onResume)
+        return section != null && section != mSettingsSection;
     }
 
     /** Keeps what the section shows, if it finished loading, to show it again instantly. */
@@ -1046,6 +1100,11 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
             FamilyDiagnostics.instance(this).log("«" + mCurrentSection.getTitle() + "» cargada en "
                     + (System.currentTimeMillis() - mLoadStartMs) + " ms");
             mLoadStartMs = 0;
+            if (mPrefetchPending) {
+                // Inicio is on screen: now fetch the other tabs (one moment later, so it isn't slowed down)
+                mHandler.postDelayed(this::startPrefetch, 1500);
+                mPrefetchPending = false;
+            }
         }
         boolean overlayShowing = mProfilesOverlay != null && mProfilesOverlay.isShowing();
         if (mFocusContentWhenLoaded && !mRows.isEmpty() && !overlayShowing) {
