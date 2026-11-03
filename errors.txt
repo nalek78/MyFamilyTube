@@ -1,0 +1,225 @@
+72:Please instead set the namespace (or testNamespace) in the module's build.gradle file, as described here: https://developer.android.com/studio/build/configure-app-module#set-namespace
+78:Please instead set the namespace (or testNamespace) in the module's build.gradle file, as described here: https://developer.android.com/studio/build/configure-app-module#set-namespace
+84:Please instead set the namespace (or testNamespace) in the module's build.gradle file, as described here: https://developer.android.com/studio/build/configure-app-module#set-namespace
+97:Please instead set the namespace (or testNamespace) in the module's build.gradle file, as described here: https://developer.android.com/studio/build/configure-app-module#set-namespace
+188:Please instead set the namespace (or testNamespace) in the module's build.gradle file, as described here: https://developer.android.com/studio/build/configure-app-module#set-namespace
+198:Please instead set the namespace (or testNamespace) in the module's build.gradle file, as described here: https://developer.android.com/studio/build/configure-app-module#set-namespace
+210:Please instead set the namespace (or testNamespace) in the module's build.gradle file, as described here: https://developer.android.com/studio/build/configure-app-module#set-namespace
+223:Please instead set the namespace (or testNamespace) in the module's build.gradle file, as described here: https://developer.android.com/studio/build/configure-app-module#set-namespace
+236:Please instead set the namespace (or testNamespace) in the module's build.gradle file, as described here: https://developer.android.com/studio/build/configure-app-module#set-namespace
+249:Please instead set the namespace (or testNamespace) in the module's build.gradle file, as described here: https://developer.android.com/studio/build/configure-app-module#set-namespace
+261:Please instead set the namespace (or testNamespace) in the module's build.gradle file, as described here: https://developer.android.com/studio/build/configure-app-module#set-namespace
+274:Please instead set the namespace (or testNamespace) in the module's build.gradle file, as described here: https://developer.android.com/studio/build/configure-app-module#set-namespace
+289:Please instead set the namespace (or testNamespace) in the module's build.gradle file, as described here: https://developer.android.com/studio/build/configure-app-module#set-namespace
+297:Please instead set the namespace (or testNamespace) in the module's build.gradle file, as described here: https://developer.android.com/studio/build/configure-app-module#set-namespace
+312:Please instead set the namespace (or testNamespace) in the module's build.gradle file, as described here: https://developer.android.com/studio/build/configure-app-module#set-namespace
+328:Please instead set the namespace (or testNamespace) in the module's build.gradle file, as described here: https://developer.android.com/studio/build/configure-app-module#set-namespace
+336:Please instead set the namespace (or testNamespace) in the module's build.gradle file, as described here: https://developer.android.com/studio/build/configure-app-module#set-namespace
+350:Please instead set the namespace (or testNamespace) in the module's build.gradle file, as described here: https://developer.android.com/studio/build/configure-app-module#set-namespace
+366:Please instead set the namespace (or testNamespace) in the module's build.gradle file, as described here: https://developer.android.com/studio/build/configure-app-module#set-namespace
+375:Please instead set the namespace (or testNamespace) in the module's build.gradle file, as described here: https://developer.android.com/studio/build/configure-app-module#set-namespace
+395:Please instead set the namespace (or testNamespace) in the module's build.gradle file, as described here: https://developer.android.com/studio/build/configure-app-module#set-namespace
+405:Please instead set the namespace (or testNamespace) in the module's build.gradle file, as described here: https://developer.android.com/studio/build/configure-app-module#set-namespace
+427:Note: /home/runner/work/MyFamilyTube/MyFamilyTube/SharedModules/j2v8/src/main/java/com/eclipsesource/v8/utils/V8ObjectUtils.java uses or overrides a deprecated API.
+428:Note: Recompile with -Xlint:deprecation for details.
+458:Note: Some input files use or override a deprecated API.
+459:Note: Recompile with -Xlint:deprecation for details.
+468:Note: Some input files use or override a deprecated API.
+469:Note: Recompile with -Xlint:deprecation for details.
+477:Note: Some input files use or override a deprecated API.
+478:Note: Recompile with -Xlint:deprecation for details.
+500:Please instead set the namespace (or testNamespace) in the module's build.gradle file, as described here: https://developer.android.com/studio/build/configure-app-module#set-namespace
+576:Please instead set the namespace (or testNamespace) in the module's build.gradle file, as described here: https://developer.android.com/studio/build/configure-app-module#set-namespace
+603:Note: Some input files use or override a deprecated API.
+604:Note: Recompile with -Xlint:deprecation for details.
+612:Note: Some input files use or override a deprecated API.
+613:Note: Recompile with -Xlint:deprecation for details.
+618:Note: /home/runner/work/MyFamilyTube/MyFamilyTube/chatkit/src/main/java/com/stfalcon/chatkit/utils/RoundedImageView.java uses or overrides a deprecated API.
+619:Note: Recompile with -Xlint:deprecation for details.
+620:Note: Some input files use unchecked or unsafe operations.
+621:Note: Recompile with -Xlint:unchecked for details.
+628:Note: Some input files use or override a deprecated API.
+629:Note: Recompile with -Xlint:deprecation for details.
+641:Note: Some input files use or override a deprecated API.
+642:Note: Recompile with -Xlint:deprecation for details.
+650:Note: /home/runner/work/MyFamilyTube/MyFamilyTube/exoplayer-amzn-2.10.6/library/smoothstreaming/src/main/java/com/google/android/exoplayer2/source/smoothstreaming/SsMediaSource.java uses or overrides a deprecated API.
+651:Note: Recompile with -Xlint:deprecation for details.
+658:Note: Some input files use or override a deprecated API.
+659:Note: Recompile with -Xlint:deprecation for details.
+664:Note: Some input files use or override a deprecated API.
+665:Note: Recompile with -Xlint:deprecation for details.
+666:Note: Some input files use unchecked or unsafe operations.
+667:Note: Recompile with -Xlint:unchecked for details.
+675:Note: /home/runner/work/MyFamilyTube/MyFamilyTube/exoplayer-amzn-2.10.6/extensions/leanback/src/main/java/com/google/android/exoplayer2/ext/leanback/LeanbackPlayerAdapter.java uses or overrides a deprecated API.
+676:Note: Recompile with -Xlint:deprecation for details.
+686:Please instead set the namespace (or testNamespace) in the module's build.gradle file, as described here: https://developer.android.com/studio/build/configure-app-module#set-namespace
+694:Note: /home/runner/work/MyFamilyTube/MyFamilyTube/exoplayer-amzn-2.10.6/extensions/mediasession/src/main/java/com/google/android/exoplayer2/ext/mediasession/MediaSessionConnector.java uses or overrides a deprecated API.
+695:Note: Recompile with -Xlint:deprecation for details.
+1076:Unable to strip the following libraries, packaging them as they are: libj2v8.so.
+1394:Please instead set the namespace (or testNamespace) in the module's build.gradle file, as described here: https://developer.android.com/studio/build/configure-app-module#set-namespace
+1436:Unable to strip the following libraries, packaging them as they are: libconscrypt_jni.so, libcronet.105.0.5195.68.so, libglide-webp.so, libj2v8.so.
+1476:Note: /home/runner/work/MyFamilyTube/MyFamilyTube/exoplayer-amzn-2.10.6/library/dash/src/main/java/com/google/android/exoplayer2/source/dash/DashMediaSource.java uses or overrides a deprecated API.
+1477:Note: Recompile with -Xlint:deprecation for details.
+1487:Note: /home/runner/work/MyFamilyTube/MyFamilyTube/leanbackassistant/src/main/java/com/liskovsoft/leanbackassistant/channels/UpdateChannelsJobService.java uses or overrides a deprecated API.
+1488:Note: Recompile with -Xlint:deprecation for details.
+1521:Note: Some input files use or override a deprecated API.
+1522:Note: Recompile with -Xlint:deprecation for details.
+1543:Note: [1] Wrote GeneratedAppGlideModule with: [com.bumptech.glide.integration.webp.WebpGlideLibraryModule]
+1544:/home/runner/work/MyFamilyTube/MyFamilyTube/smarttubetv/src/stfamily/java/es/myfamilytube/ui/FamilyBrowseActivity.java:121: error: cannot find symbol
+1549:Note: Some input files use or override a deprecated API.
+1550:Note: Recompile with -Xlint:deprecation for details.
+1551:Note: Some input files use unchecked or unsafe operations.
+1552:Note: Recompile with -Xlint:unchecked for details.
+1555:> Task :smarttubetv:compileStfamilyReleaseJavaWithJavac FAILED
+1559:* What went wrong:
+1576:BUILD FAILED in 2m 13s
+> Task :sharedutils:copyReleaseJniLibsProjectOnly
+> Task :slidableactivity:copyReleaseJniLibsProjectOnly
+> Task :smarttubetv:mergeStfamilyReleaseJniLibFolders
+> Task :youtubeapi:copyStbetaReleaseJniLibsProjectOnly
+> Task :smarttubetv:mergeStfamilyReleaseNativeLibs
+> Task :smarttubetv:checkStfamilyReleaseDuplicateClasses
+
+> Task :smarttubetv:stripStfamilyReleaseDebugSymbols
+Unable to strip the following libraries, packaging them as they are: libconscrypt_jni.so, libcronet.105.0.5195.68.so, libglide-webp.so, libj2v8.so.
+
+> Task :smarttubetv:extractStfamilyReleaseNativeSymbolTables
+> Task :smarttubetv:mergeStfamilyReleaseNativeDebugMetadata NO-SOURCE
+> Task :smarttubetv:desugarStfamilyReleaseFileDependencies
+> Task :smarttubetv:mergeStfamilyReleaseShaders
+> Task :smarttubetv:compileStfamilyReleaseShaders NO-SOURCE
+> Task :smarttubetv:generateStfamilyReleaseAssets UP-TO-DATE
+> Task :smarttubetv:mergeStfamilyReleaseAssets
+> Task :smarttubetv:mergeStfamilyReleaseArtProfile
+> Task :smarttubetv:compressStfamilyReleaseAssets
+> Task :smarttubetv:processStfamilyReleaseJavaRes NO-SOURCE
+> Task :smarttubetv:collectStfamilyReleaseDependencies
+> Task :smarttubetv:processStfamilyReleaseResources
+> Task :smarttubetv:sdkStfamilyReleaseDependencyData
+> Task :smarttubetv:validateSigningStfamilyRelease
+> Task :smarttubetv:writeStfamilyReleaseAppMetadata
+> Task :smarttubetv:writeStfamilyReleaseSigningConfigVersions
+> Task :smarttubetv:optimizeStfamilyReleaseResources
+
+> Task :youtubeapi:compileStbetaReleaseKotlin
+w: file:///home/runner/work/MyFamilyTube/MyFamilyTube/MediaServiceCore/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/app/playerdata/TclPlayerDataExtractor.kt:111:60 Unnecessary safe call on a non-null receiver of type List<String?>?
+w: file:///home/runner/work/MyFamilyTube/MyFamilyTube/MediaServiceCore/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/app/potokennp2/generators/PoTokenV8.kt:34:5 Parameter 'context' is never used
+w: file:///home/runner/work/MyFamilyTube/MyFamilyTube/MediaServiceCore/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/app/potokennp2/generators/PoTokenV8.kt:109:13 The expression is unused
+w: file:///home/runner/work/MyFamilyTube/MyFamilyTube/MediaServiceCore/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/common/models/impl/mediaitem/MediaItemImpl.kt:44:5 Declaration return type inferred as 'FeedbackEndpoint' instead of 'FeedbackEndpoint?'. This will be fixed in Kotlin 1.9. Please specify the type explicitly to avoid future errors or unexpected changes in behavior. See https://youtrack.jetbrains.com/issue/KT-53982 for details.
+w: file:///home/runner/work/MyFamilyTube/MyFamilyTube/MediaServiceCore/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/innertube/core/HTTPClient.kt:50:13 Variable 'isWebKids' is assigned but never accessed
+w: file:///home/runner/work/MyFamilyTube/MyFamilyTube/MediaServiceCore/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/innertube/core/HTTPClient.kt:58:13 The value 'processedIsWebKids' assigned to 'var isWebKids: Boolean? defined in com.liskovsoft.youtubeapi.innertube.core.HTTPClient.fetch' is never used
+w: file:///home/runner/work/MyFamilyTube/MyFamilyTube/MediaServiceCore/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/innertube/core/Player.kt:222:20 Parameter 'poToken' is never used
+w: file:///home/runner/work/MyFamilyTube/MyFamilyTube/MediaServiceCore/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/innertube/core/Session.kt:69:28 Parameter 'options' is never used
+w: file:///home/runner/work/MyFamilyTube/MyFamilyTube/MediaServiceCore/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/search/v2/SearchService2.kt:66:32 Variable 'country' initializer is redundant
+w: file:///home/runner/work/MyFamilyTube/MyFamilyTube/MediaServiceCore/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/search/v2/SearchService2.kt:78:13 Name shadowed: searchText
+
+> Task :youtubeapi:compileStbetaReleaseJavaWithJavac
+> Task :youtubeapi:bundleLibResStbetaRelease
+> Task :youtubeapi:extractStbetaReleaseAnnotations
+> Task :youtubeapi:bundleLibRuntimeToJarStbetaRelease
+> Task :youtubeapi:bundleLibCompileToJarStbetaRelease
+> Task :youtubeapi:mergeStbetaReleaseGeneratedProguardFiles
+
+> Task :exoplayer-library-dash:compileStbetaReleaseJavaWithJavac
+Note: /home/runner/work/MyFamilyTube/MyFamilyTube/exoplayer-amzn-2.10.6/library/dash/src/main/java/com/google/android/exoplayer2/source/dash/DashMediaSource.java uses or overrides a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+
+> Task :exoplayer-library-dash:bundleLibCompileToJarStbetaRelease
+> Task :youtubeapi:createFullJarStbetaRelease
+> Task :exoplayer-library-sabr:extractIncludeStbetaReleaseProto
+> Task :exoplayer-library-sabr:generateStbetaReleaseProto
+> Task :exoplayer-library-sabr:compileStbetaReleaseJavaWithJavac
+> Task :exoplayer-library-sabr:bundleLibCompileToJarStbetaRelease
+
+> Task :leanbackassistant:compileStbetaReleaseJavaWithJavac
+Note: /home/runner/work/MyFamilyTube/MyFamilyTube/leanbackassistant/src/main/java/com/liskovsoft/leanbackassistant/channels/UpdateChannelsJobService.java uses or overrides a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+
+> Task :exoplayer-library:compileStbetaReleaseJavaWithJavac
+> Task :exoplayer-library:bundleLibCompileToJarStbetaRelease
+> Task :leanbackassistant:bundleLibCompileToJarStbetaRelease
+> Task :exoplayer-library:extractStbetaReleaseAnnotations
+> Task :exoplayer-library:mergeStbetaReleaseGeneratedProguardFiles
+> Task :exoplayer-library:mergeStbetaReleaseConsumerProguardFiles
+> Task :exoplayer-library:syncStbetaReleaseLibJars
+> Task :exoplayer-library:bundleStbetaReleaseLocalLintAar
+> Task :exoplayer-library-dash:mergeStbetaReleaseGeneratedProguardFiles
+> Task :exoplayer-library-dash:mergeStbetaReleaseConsumerProguardFiles
+> Task :exoplayer-library-dash:extractStbetaReleaseAnnotations
+> Task :exoplayer-library-sabr:extractStbetaReleaseAnnotations
+> Task :exoplayer-library-dash:syncStbetaReleaseLibJars
+> Task :exoplayer-library-dash:bundleStbetaReleaseLocalLintAar
+> Task :exoplayer-library-sabr:mergeStbetaReleaseGeneratedProguardFiles
+> Task :exoplayer-library-sabr:mergeStbetaReleaseConsumerProguardFiles
+> Task :exoplayer-library-sabr:syncStbetaReleaseLibJars
+> Task :exoplayer-library-sabr:bundleStbetaReleaseLocalLintAar
+> Task :leanbackassistant:extractStbetaReleaseAnnotations
+> Task :leanbackassistant:mergeStbetaReleaseGeneratedProguardFiles
+> Task :leanbackassistant:mergeStbetaReleaseConsumerProguardFiles
+> Task :leanbackassistant:syncStbetaReleaseLibJars
+> Task :leanbackassistant:bundleStbetaReleaseLocalLintAar
+> Task :youtubeapi:mergeStbetaReleaseConsumerProguardFiles
+> Task :youtubeapi:mergeStbetaReleaseJavaResource
+> Task :exoplayer-library:bundleLibRuntimeToJarStbetaRelease
+> Task :common:compileStbetaReleaseKotlin
+> Task :youtubeapi:syncStbetaReleaseLibJars
+> Task :common:bundleLibResStbetaRelease
+
+> Task :common:compileStbetaReleaseJavaWithJavac
+Note: Some input files use or override a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+
+> Task :common:bundleLibRuntimeToJarStbetaRelease
+> Task :common:extractStbetaReleaseAnnotations
+> Task :common:createFullJarStbetaRelease
+> Task :common:mergeStbetaReleaseGeneratedProguardFiles
+> Task :common:mergeStbetaReleaseConsumerProguardFiles
+> Task :common:mergeStbetaReleaseJavaResource
+> Task :youtubeapi:bundleStbetaReleaseLocalLintAar
+> Task :common:syncStbetaReleaseLibJars
+> Task :common:bundleStbetaReleaseLocalLintAar
+> Task :exoplayer-library:createFullJarStbetaRelease
+> Task :exoplayer-library-dash:bundleLibRuntimeToJarStbetaRelease
+> Task :exoplayer-library-dash:createFullJarStbetaRelease
+> Task :exoplayer-library-sabr:bundleLibRuntimeToJarStbetaRelease
+> Task :exoplayer-library-sabr:createFullJarStbetaRelease
+> Task :leanbackassistant:bundleLibRuntimeToJarStbetaRelease
+> Task :leanbackassistant:createFullJarStbetaRelease
+> Task :common:bundleLibCompileToJarStbetaRelease
+
+> Task :smarttubetv:compileStfamilyReleaseJavaWithJavac
+Note: [1] Wrote GeneratedAppGlideModule with: [com.bumptech.glide.integration.webp.WebpGlideLibraryModule]
+/home/runner/work/MyFamilyTube/MyFamilyTube/smarttubetv/src/stfamily/java/es/myfamilytube/ui/FamilyBrowseActivity.java:121: error: cannot find symbol
+        mContent.setFocusOutAllowed(true, false);
+                ^
+  symbol:   method setFocusOutAllowed(boolean,boolean)
+  location: variable mContent of type VerticalGridView
+Note: Some input files use or override a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+Note: Some input files use unchecked or unsafe operations.
+Note: Recompile with -Xlint:unchecked for details.
+1 error
+
+> Task :smarttubetv:compileStfamilyReleaseJavaWithJavac FAILED
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':smarttubetv:compileStfamilyReleaseJavaWithJavac'.
+> Compilation failed; see the compiler error output for details.
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+
+* Get more help at https://help.gradle.org
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 8.0.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+See https://docs.gradle.org/7.5/userguide/command_line_interface.html#sec:command_line_warnings
+
+BUILD FAILED in 2m 13s
+775 actionable tasks: 775 executed
