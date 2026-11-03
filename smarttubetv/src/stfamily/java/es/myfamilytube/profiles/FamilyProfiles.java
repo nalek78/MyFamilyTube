@@ -131,6 +131,29 @@ public final class FamilyProfiles {
         save();
     }
 
+    /** Ask the parental PIN to enter a grown-up's profile (default on, so kids can't just pick one). */
+    public boolean isAdultPinEnabled() {
+        return mPrefs.getBoolean("adult_pin", true);
+    }
+
+    public void setAdultPinEnabled(boolean enabled) {
+        mPrefs.edit().putBoolean("adult_pin", enabled).apply();
+    }
+
+    /** Whether choosing this profile needs the PIN. */
+    public boolean needsPinFor(FamilyProfile profile) {
+        return !profile.isKid && hasPin() && isAdultPinEnabled() && hasKids();
+    }
+
+    public boolean hasKids() {
+        for (FamilyProfile p : mProfiles) {
+            if (p.isKid) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public boolean hasPin() {
         return mPrefs.contains(KEY_PIN);
     }

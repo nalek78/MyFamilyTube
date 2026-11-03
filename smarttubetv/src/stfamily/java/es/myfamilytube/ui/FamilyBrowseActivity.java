@@ -92,6 +92,7 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
     private Runnable mPendingHero;
     private TextView mProfileButton;
     private FamilyProfilesOverlay mProfilesOverlay;
+    private FamilySettingsOverlay mSettingsOverlay;
 
     private static final class TabInfo {
         final int sectionId;
@@ -129,9 +130,27 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
         mContent.setItemAlignmentOffsetPercent(VerticalGridView.ITEM_ALIGN_OFFSET_PERCENT_DISABLED);
         // Up from the first row reaching the tabs: lb:focusOutFront="true" in family_browse.xml
 
+        mSettingsOverlay = new FamilySettingsOverlay(this, findViewById(R.id.family_root), new FamilySettingsOverlay.Host() {
+            @Override
+            public void openProfiles() {
+                mProfilesOverlay.showManage();
+            }
+
+            @Override
+            public void openDiagnostics() {
+                FamilyDiagnosticsDialog.show(FamilyBrowseActivity.this);
+            }
+
+            @Override
+            public void openAdvanced() {
+                if (mSettingsSection != null) {
+                    openSection(mSettingsSection, true);
+                }
+            }
+        });
         mSettingsButton.setOnClickListener(v -> {
-            if (mSettingsSection != null) {
-                openSection(mSettingsSection, true);
+            if (!currentProfile().isKid) {
+                mSettingsOverlay.show();
             }
         });
         mUpdateButton.setOnClickListener(v -> {
@@ -153,9 +172,31 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
 
         mPresenter = BrowsePresenter.instance(this);
         mPresenter.setView(this);
+        enableKidsSectionOnce();
         mPresenter.onViewInitialized();
 
         showLastCrashIfAny();
+    }
+
+    /** The engine hides YouTube Kids' home by default; we need it for kids profiles. */
+    private void enableKidsSectionOnce() {
+        android.content.SharedPreferences prefs = getSharedPreferences("family_ui", MODE_PRIVATE);
+        if (!prefs.getBoolean("kids_section_enabled", false)) {
+            mPresenter.enableSection(MediaGroup.TYPE_KIDS_HOME, true);
+            prefs.edit().putBoolean("kids_section_enabled", true).apply();
+        }
+    }
+
+    /** Kids see "Hola, Leo · quedan 35 min" instead of the app name. */
+    private void updateGreeting() {
+        TextView logo = findViewById(R.id.family_logo);
+        FamilyProfile profile = currentProfile();
+        if (!profile.isKid) {
+            logo.setText(R.string.app_name);
+            return;
+        }
+        int left = FamilyProfiles.instance(this).getMinutesLeft(profile);
+        logo.setText("Hola, " + profile.name + (left >= 0 ? "  ·  quedan " + left + " min" : ""));
     }
 
     private FamilyProfile currentProfile() {
@@ -205,8 +246,11 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
             mPresenter.onViewResumed();
         }
         // Every time the app is opened (also from the background) ask who is watching
+        updateGreeting();
         if (FamilyProfiles.instance(this).shouldAskWhoIsWatching() && !mProfilesOverlay.isShowing()) {
-            mProfilesOverlay.show();
+            mSettingsOverlay.hide();
+            // Mandatory: Back can't skip it (that would keep the last profile, maybe a grown-up's)
+            mProfilesOverlay.showMandatory();
         } else if (mCurrentSection != null && FamilyProfiles.instance(this).isTimeUp(currentProfile())) {
             showTimeUp();
         }
@@ -246,7 +290,16 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
 
     @Override
     public void onBackPressed() {
+        if (mSettingsOverlay != null && mSettingsOverlay.onBack()) {
+            return;
+        }
         if (mProfilesOverlay != null && mProfilesOverlay.onBack()) {
+            return;
+        }
+        if (mCurrentSection != null && mCurrentSection == mSettingsSection) {
+            // Back from the advanced settings returns to our settings list
+            openSection(findSection(mTabs.get(0).sectionId), false);
+            mSettingsOverlay.show();
             return;
         }
         // From the videos, Back goes up to the tabs; from the tabs it exits as usual
@@ -285,23 +338,27 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
         mSettingsSection = null;
         mUpdateSection = null;
 
+        boolean isKid = currentProfile().isKid;
         BrowseSection home = null;
-        for (int candidate : HOME_CANDIDATES) {
-            home = findSection(candidate);
-            if (home != null) {
-                break;
-            }
+        if (isKid) {
+            // Kids get YouTube Kids' own home, not the grown-ups' one
+            home = findSection(MediaGroup.TYPE_KIDS_HOME);
+        }
+        for (int i = 0; home == null && i < HOME_CANDIDATES.length; i++) {
+            home = findSection(HOME_CANDIDATES[i]);
         }
         if (home != null) {
             addTab(home.getId(), "Inicio");
         }
-        if (findSection(MediaGroup.TYPE_SUBSCRIPTIONS) != null) {
+        // Subscriptions and history are the grown-ups' ones (shared by the engine): not for kids
+        if (!isKid && findSection(MediaGroup.TYPE_SUBSCRIPTIONS) != null) {
             addTab(MediaGroup.TYPE_SUBSCRIPTIONS, "Suscripciones");
         }
-        if (findSection(MediaGroup.TYPE_HISTORY) != null) {
+        if (!isKid && findSection(MediaGroup.TYPE_HISTORY) != null) {
             addTab(MediaGroup.TYPE_HISTORY, "Biblioteca");
         }
         addTab(TAB_SEARCH, "Buscar");
+        updateGreeting();
 
         for (BrowseSection section : mSections) {
             if (section.getId() == MediaGroup.TYPE_SETTINGS) {
@@ -892,11 +949,14 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
         if (isFinishing() || group == null || !belongsToCurrent(group.getCategory())) {
             return;
         }
+        // Advanced (SmartTube) settings: several rows of cards so they all fit on screen
         mRows.clear();
-        FamilyRow row = new FamilyRow(GRID_ROW_ID_BASE + 1, "Ajustes", mCardListener);
-        row.items.add(new SettingsItem("Diagnóstico (registro de errores)", () -> FamilyDiagnosticsDialog.show(this)));
-        row.items.addAll(group.getItems());
-        mRows.add(row);
+        List<Object> items = new ArrayList<>(group.getItems());
+        for (int start = 0, r = 0; start < items.size(); start += GRID_COLUMNS, r++) {
+            FamilyRow row = new FamilyRow(GRID_ROW_ID_BASE + 100 + r, r == 0 ? "Ajustes avanzados" : null, mCardListener);
+            row.items.addAll(items.subList(start, Math.min(items.size(), start + GRID_COLUMNS)));
+            mRows.add(row);
+        }
         mRowsAdapter.notifyDataSetChanged();
         onRowsArrived();
     }

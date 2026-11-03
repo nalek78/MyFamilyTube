@@ -38,6 +38,7 @@ final class FamilyProfilesOverlay {
     private TextView mManageButton;
     private View mEditor;
     private boolean mManageMode;
+    private boolean mMandatory;
 
     // Editor state
     private FamilyProfile mEditing; // null = new profile
@@ -62,9 +63,41 @@ final class FamilyProfilesOverlay {
 
     void show() {
         ensureViews();
+        mMandatory = false;
         mManageMode = false;
         mRoot.setVisibility(View.VISIBLE);
         showPicker();
+    }
+
+    /** At app start: a profile must be chosen; Back closes the app instead of skipping. */
+    void showMandatory() {
+        show();
+        mMandatory = true;
+    }
+
+    /** Straight to "Gestionar perfiles" (from the settings), after the PIN when needed. */
+    void showManage() {
+        askPinToManage(() -> {
+            ensureViews();
+            mMandatory = false;
+            mManageMode = true;
+            mRoot.setVisibility(View.VISIBLE);
+            showPicker();
+        });
+    }
+
+    /**
+     * Managing profiles needs the PIN unless a grown-up already typed it to get in
+     * (that's the case when grown-up profiles are PIN protected).
+     */
+    private void askPinToManage(Runnable action) {
+        FamilyProfile current = mProfiles.getCurrent();
+        boolean alreadyUnlocked = !current.isKid && mProfiles.isAdultPinEnabled();
+        if (alreadyUnlocked) {
+            action.run();
+        } else {
+            askPin(action);
+        }
     }
 
     void hide() {
@@ -80,9 +113,11 @@ final class FamilyProfilesOverlay {
         }
         if (mEditor.getVisibility() == View.VISIBLE) {
             showPicker();
-        } else if (mManageMode) {
+        } else if (mManageMode && mMandatory) {
             mManageMode = false;
             showPicker();
+        } else if (mMandatory) {
+            mActivity.finish(); // leave the app; next time it asks again
         } else {
             hide();
         }
@@ -105,10 +140,18 @@ final class FamilyProfilesOverlay {
         mManageButton = mRoot.findViewById(R.id.family_picker_manage);
         mEditor = mRoot.findViewById(R.id.family_editor);
 
-        mManageButton.setOnClickListener(v -> askPinThen(() -> {
-            mManageMode = !mManageMode;
-            showPicker();
-        }));
+        mManageButton.setOnClickListener(v -> {
+            if (mManageMode) {
+                mManageMode = false;
+                showPicker();
+            } else {
+                // From the picker nobody has typed the PIN yet
+                askPin(() -> {
+                    mManageMode = true;
+                    showPicker();
+                });
+            }
+        });
 
         mRoot.findViewById(R.id.family_editor_adult).setOnClickListener(v -> { mEditKid = false; refreshEditor(); });
         mRoot.findViewById(R.id.family_editor_kid).setOnClickListener(v -> {
@@ -178,7 +221,13 @@ final class FamilyProfilesOverlay {
             }
         }
         View add = createAddItem();
-        add.setOnClickListener(v -> askPinThen(() -> openEditor(null)));
+        add.setOnClickListener(v -> {
+            if (mManageMode) {
+                openEditor(null); // PIN already typed to enter "Gestionar"
+            } else {
+                askPin(() -> openEditor(null));
+            }
+        });
         mItems.addView(add);
 
         View target = focusTarget != null ? focusTarget : add;
@@ -224,10 +273,9 @@ final class FamilyProfilesOverlay {
             openEditor(profile);
             return;
         }
-        FamilyProfile current = mProfiles.getCurrent();
-        boolean leavingKid = current.isKid && !profile.isKid && current != profile;
-        if (leavingKid) {
-            askPinThen(() -> choose(profile));
+        // Grown-up profiles are PIN protected once there are kids, even if it was the last one used
+        if (mProfiles.needsPinFor(profile)) {
+            askPin(() -> choose(profile));
         } else {
             choose(profile);
         }
