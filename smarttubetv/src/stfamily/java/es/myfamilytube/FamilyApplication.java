@@ -1,18 +1,11 @@
 package es.myfamilytube;
 
 import android.app.Activity;
-import android.content.Context;
+import android.content.ComponentCallbacks2;
 import android.os.Bundle;
 
-import com.liskovsoft.smartyoutubetv2.tv.BuildConfig;
-
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.io.StringWriter;
-
+import com.bumptech.glide.Glide;
+import com.bumptech.glide.MemoryCategory;
 import com.liskovsoft.smartyoutubetv2.common.app.views.AddDeviceView;
 import com.liskovsoft.smartyoutubetv2.common.app.views.AppDialogView;
 import com.liskovsoft.smartyoutubetv2.common.app.views.BrowseView;
@@ -39,12 +32,23 @@ public class FamilyApplication extends MainApplication {
             AddDeviceView.class, ChannelView.class, ChannelUploadsView.class, WebBrowserView.class
     };
 
-    private static final String CRASH_FILE = "last_crash.txt";
-
     @Override
     public void onCreate() {
         super.onCreate();
-        installCrashRecorder();
+        FamilyDiagnostics diagnostics = FamilyDiagnostics.instance(this);
+        installCrashRecorder(diagnostics);
+
+        diagnostics.log("Inicio · " + diagnostics.deviceSummary().replace('\n', ' '));
+        String problem = diagnostics.checkPreviousExits();
+        if (problem != null) {
+            diagnostics.setPendingProblem(problem);
+        }
+
+        // On TVs with little memory keep fewer pictures in RAM
+        if (diagnostics.isLowMemoryDevice()) {
+            Glide.get(this).setMemoryCategory(MemoryCategory.LOW);
+        }
+
         FamilyRules.install(this);
         registerActivityLifecycleCallbacks(new ForegroundWatcher());
 
@@ -59,6 +63,25 @@ public class FamilyApplication extends MainApplication {
                 viewManager.register(view, activity, FamilyBrowseActivity.class);
             }
         }
+    }
+
+    @Override
+    public void onTrimMemory(int level) {
+        super.onTrimMemory(level);
+        if (level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW && level < ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN
+                || level >= ComponentCallbacks2.TRIM_MEMORY_MODERATE) {
+            FamilyDiagnostics.instance(this).log("Aviso de memoria baja del sistema (nivel " + level + ")");
+        }
+        if (level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW) {
+            Glide.get(this).clearMemory();
+        }
+    }
+
+    @Override
+    public void onLowMemory() {
+        super.onLowMemory();
+        FamilyDiagnostics.instance(this).log("El sistema está casi sin memoria");
+        Glide.get(this).clearMemory();
     }
 
     /** Counts visible screens; going from none to one means the app was opened again. */
@@ -80,6 +103,7 @@ public class FamilyApplication extends MainApplication {
 
         @Override
         public void onActivityCreated(Activity activity, Bundle savedInstanceState) {
+            FamilyDiagnostics.instance(activity).log("Pantalla " + activity.getClass().getSimpleName());
         }
 
         @Override
@@ -99,23 +123,13 @@ public class FamilyApplication extends MainApplication {
         }
     }
 
-    /** Saves the error of a crash so the next start can show it (we have no other way to see it). */
-    private void installCrashRecorder() {
+    /** Writes Java errors to the diagnostics log (the system record doesn't keep them on older TVs). */
+    private void installCrashRecorder(FamilyDiagnostics diagnostics) {
         Thread.UncaughtExceptionHandler previous = Thread.getDefaultUncaughtExceptionHandler();
         Thread.setDefaultUncaughtExceptionHandler((thread, error) -> {
             try {
-                StringWriter text = new StringWriter();
-                error.printStackTrace(new PrintWriter(text));
-                String trace = text.toString();
-                if (trace.length() > 3000) {
-                    trace = trace.substring(0, 3000);
-                }
-                FileOutputStream out = new FileOutputStream(new File(getFilesDir(), CRASH_FILE));
-                try {
-                    out.write(("MyFamilyTube " + BuildConfig.VERSION_NAME + "\n" + trace).getBytes("UTF-8"));
-                } finally {
-                    out.close();
-                }
+                diagnostics.log("ERROR en " + thread.getName() + ": " + compactTrace(error));
+                diagnostics.setPendingProblem("error de la app");
             } catch (Throwable ignored) {
                 // never fail while handling a crash
             }
@@ -125,30 +139,20 @@ public class FamilyApplication extends MainApplication {
         });
     }
 
-    /** Returns the saved crash (and forgets it), or null. */
-    public static String takeLastCrash(Context context) {
-        File file = new File(context.getFilesDir(), CRASH_FILE);
-        if (!file.exists()) {
-            return null;
-        }
-        FileInputStream in = null;
-        try {
-            in = new FileInputStream(file);
-            byte[] data = new byte[(int) Math.min(file.length(), 8000)];
-            int read = in.read(data);
-            return read > 0 ? new String(data, 0, read, "UTF-8") : null;
-        } catch (IOException e) {
-            return null;
-        } finally {
-            if (in != null) {
-                try {
-                    in.close();
-                } catch (IOException ignored) {
-                    // nothing to do
-                }
+    /** The error, its first lines and its root cause, on few lines. */
+    private static String compactTrace(Throwable error) {
+        StringBuilder sb = new StringBuilder();
+        Throwable current = error;
+        int depth = 0;
+        while (current != null && depth < 3) {
+            sb.append(depth == 0 ? "" : " | causa: ").append(current);
+            StackTraceElement[] stack = current.getStackTrace();
+            for (int i = 0; i < Math.min(6, stack.length); i++) {
+                sb.append(" | ").append(stack[i]);
             }
-            //noinspection ResultOfMethodCallIgnored
-            file.delete();
+            current = current.getCause() != current ? current.getCause() : null;
+            depth++;
         }
+        return sb.length() > 2500 ? sb.substring(0, 2500) : sb.toString();
     }
 }

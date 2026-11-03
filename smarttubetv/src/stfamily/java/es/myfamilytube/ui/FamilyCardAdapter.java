@@ -1,5 +1,6 @@
 package es.myfamilytube.ui;
 
+import android.os.Build;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -11,8 +12,7 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
-import com.bumptech.glide.load.resource.bitmap.CenterCrop;
-import com.bumptech.glide.load.resource.bitmap.RoundedCorners;
+import com.bumptech.glide.load.DecodeFormat;
 import com.liskovsoft.smartyoutubetv2.common.app.models.data.SettingsItem;
 import com.liskovsoft.smartyoutubetv2.common.app.models.data.Video;
 import com.liskovsoft.smartyoutubetv2.tv.R;
@@ -90,7 +90,8 @@ final class FamilyCardAdapter extends RecyclerView.Adapter<FamilyCardAdapter.Car
         final TextView badge;
         final TextView title;
         final TextView subtitle;
-        private final int mRadiusPx;
+        private final int mThumbW;
+        private final int mThumbH;
 
         CardHolder(View view) {
             super(view);
@@ -99,7 +100,12 @@ final class FamilyCardAdapter extends RecyclerView.Adapter<FamilyCardAdapter.Car
             badge = view.findViewById(R.id.family_card_badge);
             title = view.findViewById(R.id.family_card_title);
             subtitle = view.findViewById(R.id.family_card_subtitle);
-            mRadiusPx = view.getResources().getDimensionPixelSize(R.dimen.family_radius);
+            mThumbW = view.getResources().getDimensionPixelSize(R.dimen.family_card_w);
+            mThumbH = view.getResources().getDimensionPixelSize(R.dimen.family_card_h);
+            View frame = view.findViewById(R.id.family_card_thumb_frame);
+            if (Build.VERSION.SDK_INT >= 21) {
+                frame.setClipToOutline(true); // rounded corners from the frame's background shape
+            }
         }
 
         void bind(Object item) {
@@ -123,9 +129,14 @@ final class FamilyCardAdapter extends RecyclerView.Adapter<FamilyCardAdapter.Car
 
                 String url = video.getCardImageUrl();
                 if (!TextUtils.isEmpty(url)) {
+                    // Decode at the card's size with 2 bytes per pixel: far less memory on small TVs.
+                    // Rounded corners come from clipping the frame, not from an extra bitmap copy.
                     Glide.with(thumb)
                             .load(url)
-                            .transform(new CenterCrop(), new RoundedCorners(mRadiusPx))
+                            .override(mThumbW, mThumbH)
+                            .format(DecodeFormat.PREFER_RGB_565)
+                            .centerCrop()
+                            .dontAnimate()
                             .into(thumb);
                 } else {
                     Glide.with(thumb).clear(thumb);

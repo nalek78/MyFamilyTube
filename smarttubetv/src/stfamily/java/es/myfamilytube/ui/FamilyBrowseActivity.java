@@ -16,6 +16,7 @@ import android.widget.TextView;
 import androidx.leanback.widget.VerticalGridView;
 
 import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.DecodeFormat;
 import com.liskovsoft.mediaserviceinterfaces.data.MediaGroup;
 import com.liskovsoft.smartyoutubetv2.common.app.models.data.BrowseSection;
 import com.liskovsoft.smartyoutubetv2.common.app.models.data.SettingsGroup;
@@ -34,7 +35,7 @@ import com.liskovsoft.smartyoutubetv2.tv.ui.common.LeanbackActivity;
 import java.util.ArrayList;
 import java.util.List;
 
-import es.myfamilytube.FamilyApplication;
+import es.myfamilytube.FamilyDiagnostics;
 import es.myfamilytube.profiles.FamilyProfile;
 import es.myfamilytube.profiles.FamilyProfiles;
 
@@ -50,7 +51,10 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
     private static final int GRID_ROW_ID_BASE = -2000;
     private static final int CHANNELS_ROW_ID = -3000;
     private static final int SCROLL_CONTINUE_NUM = 6;
-    private static final long TAB_SWITCH_DELAY_MS = 350;
+    /** Waiting a bit on a tab before loading avoids starting a load for every tab you pass over. */
+    private static final long TAB_SWITCH_DELAY_MS = 450;
+    /** A section seen less than this long ago comes back instantly from memory. */
+    private static final long CACHE_MAX_AGE_MS = 15 * 60 * 1000;
 
     private BrowsePresenter mPresenter;
     private final Handler mHandler = new Handler(Looper.getMainLooper());
@@ -83,6 +87,9 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
     private String mHeroImageUrl;
     private boolean mFocusContentWhenLoaded;
     private int mPendingUpdates;
+    /** When the current section started downloading (0 = not loading), to log how long it takes. */
+    private long mLoadStartMs;
+    private Runnable mPendingHero;
     private TextView mProfileButton;
     private FamilyProfilesOverlay mProfilesOverlay;
 
@@ -166,23 +173,19 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
         if (section == null || !isShownSection(section)) {
             section = mTabs.isEmpty() ? null : findSection(mTabs.get(0).sectionId);
         }
+        mSectionCache.clear(); // what's allowed depends on the profile
         mCurrentSection = null; // force a reload
         if (section != null) {
             openSection(section, false);
         }
     }
 
-    /** If the app closed because of an error last time, show it so it can be reported. */
+    /** If the app closed by itself last time, say why (details in Ajustes › Diagnóstico). */
     private void showLastCrashIfAny() {
-        String crash = FamilyApplication.takeLastCrash(this);
-        if (crash == null) {
-            return;
+        String problem = FamilyDiagnostics.instance(this).takePendingProblem();
+        if (problem != null && !currentProfile().isKid) {
+            FamilyDiagnosticsDialog.showProblem(this, problem);
         }
-        new android.app.AlertDialog.Builder(this)
-                .setTitle("La app se cerró por un error")
-                .setMessage("Haz una foto a este mensaje y pásasela a quien te ayuda con la app:\n\n" + crash)
-                .setPositiveButton("Cerrar", null)
-                .show();
     }
 
     private void updateProfileButton() {
@@ -400,6 +403,9 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
             return;
         }
         boolean changed = mCurrentSection == null || mCurrentSection.getId() != section.getId();
+        if (changed) {
+            saveToCache(mCurrentSection);
+        }
         mCurrentSection = section;
         markCurrentTab();
         if (FamilyProfiles.instance(this).isTimeUp(profile)) {
@@ -409,12 +415,59 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
         if (changed) {
             clearContent();
             mHero.setVisibility(section == mSettingsSection ? View.GONE : View.VISIBLE);
-            addKidChannelsRow(section);
-            mPresenter.onSectionFocused(section.getId());
+            if (restoreFromCache(section)) {
+                // Instant: the engine just switches section without downloading it again
+                mPresenter.onSectionFocusedNoReload(section.getId());
+            } else {
+                addKidChannelsRow(section);
+                mLoadStartMs = System.currentTimeMillis();
+                mPresenter.onSectionFocused(section.getId());
+            }
         }
         if (focusOnContent) {
             focusOnContent();
         }
+    }
+
+    // ---------------------------------------------------------------- section cache
+
+    private static final class Snapshot {
+        final List<FamilyRow> rows;
+        final List<Video> grid;
+        final long timeMs;
+
+        Snapshot(List<FamilyRow> rows, List<Video> grid) {
+            this.rows = new ArrayList<>(rows);
+            this.grid = new ArrayList<>(grid);
+            this.timeMs = System.currentTimeMillis();
+        }
+    }
+
+    private final java.util.Map<Integer, Snapshot> mSectionCache = new java.util.HashMap<>();
+
+    private boolean isCacheable(BrowseSection section) {
+        // History changes every time something is watched; settings are tiny
+        return section != null && section != mSettingsSection && section.getId() != MediaGroup.TYPE_HISTORY;
+    }
+
+    /** Keeps what the section shows, if it finished loading, to show it again instantly. */
+    private void saveToCache(BrowseSection section) {
+        if (!isCacheable(section) || mRows.isEmpty() || isProgressBarShowing() || mLoadStartMs > 0) {
+            return;
+        }
+        mSectionCache.put(section.getId(), new Snapshot(mRows, mGridVideos));
+    }
+
+    private boolean restoreFromCache(BrowseSection section) {
+        Snapshot snapshot = isCacheable(section) ? mSectionCache.get(section.getId()) : null;
+        if (snapshot == null || System.currentTimeMillis() - snapshot.timeMs > CACHE_MAX_AGE_MS) {
+            mSectionCache.remove(section.getId());
+            return false;
+        }
+        mRows.addAll(snapshot.rows);
+        mGridVideos.addAll(snapshot.grid);
+        mRowsAdapter.notifyDataSetChanged();
+        return true;
     }
 
     // ---------------------------------------------------------------- content
@@ -488,7 +541,9 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
         }
 
         if (action == VideoGroup.ACTION_REPLACE && group.getPosition() == -1) {
+            // A full (re)load starts: empty the screen but keep the kid's channels on top
             clearContent();
+            addKidChannelsRow(mCurrentSection);
             row = null;
         }
 
@@ -501,6 +556,9 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
             row = new FamilyRow(group.getId(), group.getTitle(), mCardListener);
             row.items.addAll(videos);
             int position = group.getPosition();
+            if (position >= 0 && !mRows.isEmpty() && mRows.get(0).id == CHANNELS_ROW_ID) {
+                position++; // engine positions don't count our "Tus canales" row
+            }
             if (position < 0 || position > mRows.size()) {
                 position = mRows.size();
             }
@@ -687,6 +745,9 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
 
     private void setHero(Video video) {
         if (video == null) {
+            if (mPendingHero != null) {
+                mHandler.removeCallbacks(mPendingHero);
+            }
             mHeroTitle.setText(null);
             mHeroMeta.setText(null);
             mHeroImageUrl = null;
@@ -698,19 +759,35 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
         CharSequence second = video.getSecondTitle();
         mHeroMeta.setText(!TextUtils.isEmpty(second) ? second : video.getAuthor());
 
-        String url = video.getBackgroundUrl();
-        if (TextUtils.isEmpty(url)) {
-            url = video.getCardImageUrl();
+        // The small card picture is enough for a faded background and uses far less memory.
+        // Load it only once the remote stops on a card, not for every card it passes over.
+        String url = video.getCardImageUrl();
+        if (TextUtils.equals(url, mHeroImageUrl)) {
+            return;
         }
-        if (!TextUtils.equals(url, mHeroImageUrl)) {
-            mHeroImageUrl = url;
+        mHeroImageUrl = url;
+        if (mPendingHero != null) {
+            mHandler.removeCallbacks(mPendingHero);
+        }
+        mPendingHero = () -> {
+            if (isFinishing() || isDestroyed()) {
+                return;
+            }
             if (TextUtils.isEmpty(url)) {
                 Glide.with(mHeroImage).clear(mHeroImage);
                 mHeroImage.setImageDrawable(null);
             } else {
-                Glide.with(mHeroImage).load(url).centerCrop().into(mHeroImage);
+                Glide.with(mHeroImage)
+                        .load(url)
+                        .override(mHeroImage.getWidth() / 2 > 0 ? mHeroImage.getWidth() / 2 : 480,
+                                mHeroImage.getHeight() / 2 > 0 ? mHeroImage.getHeight() / 2 : 270)
+                        .format(DecodeFormat.PREFER_RGB_565)
+                        .centerCrop()
+                        .dontAnimate()
+                        .into(mHeroImage);
             }
-        }
+        };
+        mHandler.postDelayed(mPendingHero, 300);
     }
 
     private void showMessage(String text, String action, Runnable onAction) {
@@ -817,6 +894,7 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
         }
         mRows.clear();
         FamilyRow row = new FamilyRow(GRID_ROW_ID_BASE + 1, "Ajustes", mCardListener);
+        row.items.add(new SettingsItem("Diagnóstico (registro de errores)", () -> FamilyDiagnosticsDialog.show(this)));
         row.items.addAll(group.getItems());
         mRows.add(row);
         mRowsAdapter.notifyDataSetChanged();
@@ -868,6 +946,9 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
             hideMessage();
             return;
         }
+        mLoadStartMs = 0;
+        FamilyDiagnostics.instance(this).log("Error al cargar «" + (mCurrentSection != null ? mCurrentSection.getTitle() : "?")
+                + "»: " + data.getMessage());
         showMessage(data.getMessage(), data.getActionText(), data::onAction);
         mMessageAction.requestFocus();
     }
@@ -901,6 +982,11 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
 
     private void onRowsArrived() {
         hideMessage();
+        if (mLoadStartMs > 0 && mCurrentSection != null) {
+            FamilyDiagnostics.instance(this).log("«" + mCurrentSection.getTitle() + "» cargada en "
+                    + (System.currentTimeMillis() - mLoadStartMs) + " ms");
+            mLoadStartMs = 0;
+        }
         boolean overlayShowing = mProfilesOverlay != null && mProfilesOverlay.isShowing();
         if (mFocusContentWhenLoaded && !mRows.isEmpty() && !overlayShowing) {
             mFocusContentWhenLoaded = false;

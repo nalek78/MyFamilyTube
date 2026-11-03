@@ -30,6 +30,7 @@ final class FamilyRowsAdapter extends RecyclerView.Adapter<FamilyRowsAdapter.Row
         View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.family_row, parent, false);
         RowHolder holder = new RowHolder(view);
         holder.grid.setRecycledViewPool(mCardPool);
+        holder.grid.setHasFixedSize(true); // rows never change height: skip relayouts
         holder.grid.setHorizontalSpacing(view.getResources().getDimensionPixelSize(R.dimen.family_card_gap));
         holder.grid.setWindowAlignment(HorizontalGridView.WINDOW_ALIGN_LOW_EDGE);
         holder.grid.setWindowAlignmentOffsetPercent(HorizontalGridView.WINDOW_ALIGN_OFFSET_PERCENT_DISABLED);

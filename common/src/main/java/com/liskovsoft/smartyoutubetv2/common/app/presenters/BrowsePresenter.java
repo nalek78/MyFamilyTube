@@ -499,6 +499,20 @@ public class BrowsePresenter extends BasePresenter<BrowseView> implements Sectio
         restoreSelectedItems(); // Don't place anywhere else
     }
 
+    /**
+     * MyFamilyTube: select a section whose content the view already shows from its cache,
+     * without downloading it again. Paging (onScrollEnd) keeps working with the cached videos.
+     */
+    public void onSectionFocusedNoReload(int sectionId) {
+        saveSelectedItems();
+        disposeActions(); // drop pending loads of the previous section
+        mCurrentSection = findSectionById(sectionId);
+        mCurrentVideo = null;
+        if (getView() != null) {
+            getView().showProgressBar(false);
+        }
+    }
+
     @Override
     public void onSectionLongPressed(int sectionId) {
         SectionMenuPresenter.instance(getContext()).showMenu(findSectionById(sectionId));
