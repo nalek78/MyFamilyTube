@@ -303,7 +303,15 @@ public class ViewManager {
         YouTubeServiceManager.instance().invalidateCache();
         // Note, also deletes cached flags (internal cache)
         // Note, deletes cached apks (external cache)
-        FileHelpers.deleteCache(mContext);
+        // MyFamilyTube: in the background, deleting many files froze the app on slow storage
+        Context context = mContext;
+        new Thread(() -> {
+            try {
+                FileHelpers.deleteCache(context);
+            } catch (Throwable e) {
+                e.printStackTrace();
+            }
+        }, "clear-cache").start();
         LocaleUpdater.clearCache();
     }
 

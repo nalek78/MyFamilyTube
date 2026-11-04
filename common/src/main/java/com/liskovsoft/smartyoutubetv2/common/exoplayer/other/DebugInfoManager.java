@@ -394,10 +394,36 @@ public final class DebugInfoManager implements Runnable, Player.EventListener {
     private void appendDeviceNameSDKCache() {
         appendRow("Device name", Helpers.getDeviceName());
         appendRow("Android SDK", VERSION.SDK_INT);
-        appendRow("Disk cache size (MB)", String.valueOf(
-                (FileHelpers.getDirSize(FileHelpers.getCacheDir(mContext)) + FileHelpers.getDirSize(FileHelpers.getExternalCacheDir(mContext)))
-                        / 1024 / 1024
-        ));
+        // MyFamilyTube: walking the cache folders every second on the main thread froze the app
+        // on TVs with slow storage. Measure in the background, at most every 30 s, and show the last value.
+        appendRow("Disk cache size (MB)", sCacheSizeMb < 0 ? "…" : String.valueOf(sCacheSizeMb));
+        refreshCacheSizeInBackground();
+    }
+
+    private static volatile long sCacheSizeMb = -1;
+    private static volatile long sCacheSizeTimeMs;
+    private static volatile boolean sCacheSizeRunning;
+
+    private void refreshCacheSizeInBackground() {
+        long now = System.currentTimeMillis();
+        if (sCacheSizeRunning || now - sCacheSizeTimeMs < 30_000) {
+            return;
+        }
+        sCacheSizeRunning = true;
+        sCacheSizeTimeMs = now;
+        Context context = mContext.getApplicationContext();
+        Thread thread = new Thread(() -> {
+            try {
+                sCacheSizeMb = (FileHelpers.getDirSize(FileHelpers.getCacheDir(context))
+                        + FileHelpers.getDirSize(FileHelpers.getExternalCacheDir(context))) / 1024 / 1024;
+            } catch (Throwable e) {
+                // not important: keep the last value
+            } finally {
+                sCacheSizeRunning = false;
+            }
+        }, "cache-size");
+        thread.setPriority(Thread.MIN_PRIORITY);
+        thread.start();
     }
 
     private void appendMemoryInfo() {
