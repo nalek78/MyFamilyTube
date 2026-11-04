@@ -63,8 +63,12 @@ public final class FamilyProfiles {
     }
 
     public void setCurrent(FamilyProfile profile) {
+        boolean changed = !profile.id.equals(getCurrent().id);
         mPrefs.edit().putString(KEY_CURRENT, profile.id).apply();
         sChosenThisRun = true;
+        if (!changed) {
+            return; // same person again: nothing to reload
+        }
         for (Runnable listener : mListeners) {
             listener.run();
         }

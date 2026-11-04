@@ -92,6 +92,7 @@ public class FamilyApplication extends MainApplication {
         public void onActivityStarted(Activity activity) {
             if (mStarted == 0) {
                 FamilyProfiles.onAppForeground();
+                FamilyBrowseActivity.onAppForeground();
             }
             mStarted++;
         }

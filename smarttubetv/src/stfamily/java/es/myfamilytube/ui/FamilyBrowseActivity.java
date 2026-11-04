@@ -89,6 +89,17 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
     private int mPendingUpdates;
     /** When the current section started downloading (0 = not loading), to log how long it takes. */
     private long mLoadStartMs;
+    /** Last time a direction key was pressed: tabs only switch section when reached with the remote. */
+    private long mLastNavKeyMs;
+    private View mWelcome;
+    private Runnable mWelcomeMin;
+    private Runnable mWelcomeMax;
+    /** Set whenever the app comes to the front; the next resume shows the welcome screen. */
+    private static boolean sWelcomePending = true;
+
+    public static void onAppForeground() {
+        sWelcomePending = true;
+    }
     private Runnable mPendingHero;
     private TextView mProfileButton;
     private FamilyProfilesOverlay mProfilesOverlay;
@@ -121,6 +132,7 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
         mProgress = findViewById(R.id.family_progress);
         mUpdateButton = findViewById(R.id.family_update);
         mSettingsButton = findViewById(R.id.family_settings);
+        mWelcome = findViewById(R.id.family_welcome);
 
         mRowsAdapter = new FamilyRowsAdapter(mRows);
         mContent.setAdapter(mRowsAdapter);
@@ -144,6 +156,7 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
             @Override
             public void openAdvanced() {
                 if (mSettingsSection != null) {
+                    mSettingsButton.requestFocus(); // keep focus off the tabs
                     openSection(mSettingsSection, true);
                 }
             }
@@ -161,8 +174,14 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
 
         mProfileButton = findViewById(R.id.family_profile_button);
         mProfilesOverlay = new FamilyProfilesOverlay(this, findViewById(R.id.family_root), profile -> {
-            onProfileChanged();
-            mProfileButton.requestFocus();
+            // A different profile reloads through the FamilyProfiles listener; the same one keeps what is loaded
+            updateProfileButton();
+            updateGreeting();
+            if (!mRows.isEmpty()) {
+                focusOnContent();
+            } else {
+                mProfileButton.requestFocus();
+            }
         });
         mProfileButton.setOnClickListener(v -> mProfilesOverlay.show());
         mProfileButton.setOnFocusChangeListener((v, hasFocus) -> updateProfileButton());
@@ -210,9 +229,17 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
         }
         updateProfileButton();
         rebuildTabs();
-        disposePrefetch();
-        mSectionCache.clear(); // what's allowed depends on the profile
-        // New profile: start on Inicio, and load Suscripciones and Biblioteca right after
+        // Inicio depends on the profile (kids get YouTube Kids). Suscripciones and Biblioteca are the
+        // same for every grown-up and are filtered when shown, so their preloaded copies stay.
+        Snapshot subscriptions = mSectionCache.get(MediaGroup.TYPE_SUBSCRIPTIONS);
+        Snapshot history = mSectionCache.get(MediaGroup.TYPE_HISTORY);
+        mSectionCache.clear();
+        if (subscriptions != null) {
+            mSectionCache.put(MediaGroup.TYPE_SUBSCRIPTIONS, subscriptions);
+        }
+        if (history != null) {
+            mSectionCache.put(MediaGroup.TYPE_HISTORY, history);
+        }
         BrowseSection section = mTabs.isEmpty() ? null : findSection(mTabs.get(0).sectionId);
         mCurrentSection = null; // force a reload
         mPrefetchPending = true;
@@ -225,51 +252,72 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
 
     private final List<io.reactivex.disposables.Disposable> mPrefetch = new ArrayList<>();
     private boolean mPrefetchPending = true;
+    private int mPrefetchRunning;
+    private Runnable mOnPrefetchDone;
 
     private void disposePrefetch() {
         for (io.reactivex.disposables.Disposable action : mPrefetch) {
             action.dispose();
         }
         mPrefetch.clear();
+        mPrefetchRunning = 0;
     }
 
-    /** Loads the other tabs in the background so they open instantly. */
+    /** Loads Suscripciones and Biblioteca in the background so they open instantly. */
     private void startPrefetch() {
         mPrefetchPending = false;
-        if (currentProfile().isKid) {
-            return; // kids only have Inicio and Buscar
+        if (mPrefetchRunning > 0) {
+            return; // already on its way
         }
         com.liskovsoft.mediaserviceinterfaces.ContentService content =
                 com.liskovsoft.youtubeapi.service.YouTubeServiceManager.instance().getContentService();
         prefetchGrid(MediaGroup.TYPE_SUBSCRIPTIONS, content.getSubscriptionsObserve());
         prefetchGrid(MediaGroup.TYPE_HISTORY, content.getHistoryObserve());
+        checkPrefetchDone();
     }
 
     private void prefetchGrid(int sectionId, io.reactivex.Observable<MediaGroup> source) {
         BrowseSection section = findSection(sectionId);
-        if (section == null || source == null || (mCurrentSection != null && mCurrentSection.getId() == sectionId)) {
+        Snapshot cached = mSectionCache.get(sectionId);
+        boolean fresh = cached != null && System.currentTimeMillis() - cached.timeMs < CACHE_MAX_AGE_MS;
+        if (section == null || source == null || fresh || (mCurrentSection != null && mCurrentSection.getId() == sectionId)) {
             return;
         }
         long start = System.currentTimeMillis();
+        mPrefetchRunning++;
         mPrefetch.add(source.subscribe(
                 mediaGroup -> runOnUiThread(() -> {
-                    if (isFinishing() || mediaGroup == null || (mCurrentSection != null && mCurrentSection.getId() == sectionId)) {
-                        return;
+                    mPrefetchRunning = Math.max(0, mPrefetchRunning - 1);
+                    if (!isFinishing() && mediaGroup != null
+                            && (mCurrentSection == null || mCurrentSection.getId() != sectionId)) {
+                        // Keep everything except Shorts: each profile's rules are applied when it is shown
+                        List<Video> videos = new ArrayList<>();
+                        for (Video video : VideoGroup.from(mediaGroup, section).getVideos()) {
+                            if (video != null && !video.isShorts) {
+                                videos.add(video);
+                            }
+                        }
+                        if (!videos.isEmpty()) {
+                            mSectionCache.put(sectionId, new Snapshot(new ArrayList<>(), videos));
+                            FamilyDiagnostics.instance(this).log("«" + section.getTitle() + "» precargada en "
+                                    + (System.currentTimeMillis() - start) + " ms");
+                        }
                     }
-                    List<Video> videos = withoutShorts(VideoGroup.from(mediaGroup, section).getVideos());
-                    List<FamilyRow> rows = new ArrayList<>();
-                    for (int start2 = 0, r = 0; start2 < videos.size(); start2 += GRID_COLUMNS, r++) {
-                        FamilyRow row = new FamilyRow(GRID_ROW_ID_BASE - r, r == 0 ? section.getTitle() : null, mCardListener);
-                        row.items.addAll(videos.subList(start2, Math.min(videos.size(), start2 + GRID_COLUMNS)));
-                        rows.add(row);
-                    }
-                    if (!rows.isEmpty()) {
-                        mSectionCache.put(sectionId, new Snapshot(rows, videos));
-                        FamilyDiagnostics.instance(this).log("«" + section.getTitle() + "» precargada en "
-                                + (System.currentTimeMillis() - start) + " ms");
-                    }
+                    checkPrefetchDone();
                 }),
-                error -> FamilyDiagnostics.instance(this).log("No se pudo precargar «" + section.getTitle() + "»: " + error.getMessage())));
+                error -> runOnUiThread(() -> {
+                    mPrefetchRunning = Math.max(0, mPrefetchRunning - 1);
+                    FamilyDiagnostics.instance(this).log("No se pudo precargar «" + section.getTitle() + "»: " + error.getMessage());
+                    checkPrefetchDone();
+                })));
+    }
+
+    private void checkPrefetchDone() {
+        if (mPrefetchRunning == 0 && mOnPrefetchDone != null) {
+            Runnable done = mOnPrefetchDone;
+            mOnPrefetchDone = null;
+            done.run();
+        }
     }
 
     /** If the app closed by itself last time, say why (details in Ajustes › Diagnóstico). */
@@ -296,17 +344,110 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
             mPresenter.setView(this);
             mPresenter.onViewResumed();
         }
-        // Every time the app is opened (also from the background) ask who is watching
         updateGreeting();
         // Something may have been watched meanwhile: history must be fresh
         mSectionCache.remove(MediaGroup.TYPE_HISTORY);
-        if (FamilyProfiles.instance(this).shouldAskWhoIsWatching() && !mProfilesOverlay.isShowing()) {
+        if (sWelcomePending) {
+            // Every time the app is opened (also from the background): welcome screen first,
+            // then "¿Quién está viendo?"
+            sWelcomePending = false;
+            mSettingsOverlay.hide();
+            mProfilesOverlay.hide();
+            showWelcome();
+        } else if (mWelcome.getVisibility() == View.VISIBLE) {
+            // Still on the welcome screen: it moves on by itself
+        } else if (FamilyProfiles.instance(this).shouldAskWhoIsWatching() && !mProfilesOverlay.isShowing()) {
             mSettingsOverlay.hide();
             // Mandatory: Back can't skip it (that would keep the last profile, maybe a grown-up's)
             mProfilesOverlay.showMandatory();
         } else if (mCurrentSection != null && FamilyProfiles.instance(this).isTimeUp(currentProfile())) {
             showTimeUp();
         }
+    }
+
+    // ---------------------------------------------------------------- welcome screen
+
+    private static final long WELCOME_MIN_MS = 1800;
+    private static final long WELCOME_MAX_MS = 6000;
+
+    /** Logo while Suscripciones and Biblioteca load; at least a moment, never longer than a few seconds. */
+    private void showWelcome() {
+        if (mWelcomeMin != null) {
+            mHandler.removeCallbacks(mWelcomeMin);
+        }
+        if (mWelcomeMax != null) {
+            mHandler.removeCallbacks(mWelcomeMax);
+        }
+        mWelcome.animate().cancel();
+        mWelcome.setAlpha(1f);
+        mWelcome.setVisibility(View.VISIBLE);
+        mWelcome.requestFocus();
+
+        final boolean[] minTimePassed = {false};
+        final boolean[] dataLoaded = {false};
+        Runnable maybeHide = () -> {
+            if (minTimePassed[0] && dataLoaded[0]) {
+                hideWelcome();
+            }
+        };
+        mOnPrefetchDone = () -> {
+            dataLoaded[0] = true;
+            maybeHide.run();
+        };
+        mWelcomeMin = () -> {
+            minTimePassed[0] = true;
+            maybeHide.run();
+        };
+        mWelcomeMax = this::hideWelcome;
+        mHandler.postDelayed(mWelcomeMin, WELCOME_MIN_MS);
+        mHandler.postDelayed(mWelcomeMax, WELCOME_MAX_MS);
+        startPrefetch();
+    }
+
+    private void hideWelcome() {
+        if (mWelcome.getVisibility() != View.VISIBLE || isFinishing()) {
+            return;
+        }
+        mOnPrefetchDone = null;
+        mHandler.removeCallbacks(mWelcomeMin);
+        mHandler.removeCallbacks(mWelcomeMax);
+        mWelcome.animate().alpha(0f).setDuration(250).withEndAction(() -> {
+            mWelcome.setVisibility(View.GONE);
+            mWelcome.setAlpha(1f);
+        }).start();
+        if (FamilyProfiles.instance(this).shouldAskWhoIsWatching()) {
+            mProfilesOverlay.showMandatory();
+        } else if (FamilyProfiles.instance(this).isTimeUp(currentProfile())) {
+            showTimeUp();
+        } else {
+            focusOnContent();
+        }
+    }
+
+    @Override
+    public boolean dispatchKeyEvent(android.view.KeyEvent event) {
+        if (mWelcome != null && mWelcome.getVisibility() == View.VISIBLE) {
+            // Nothing to do on the welcome screen; Back leaves the app
+            if (event.getKeyCode() == android.view.KeyEvent.KEYCODE_BACK && event.getAction() == android.view.KeyEvent.ACTION_UP) {
+                finish();
+            }
+            return true;
+        }
+        if (event.getAction() == android.view.KeyEvent.ACTION_DOWN) {
+            int key = event.getKeyCode();
+            if (key == android.view.KeyEvent.KEYCODE_DPAD_LEFT || key == android.view.KeyEvent.KEYCODE_DPAD_RIGHT
+                    || key == android.view.KeyEvent.KEYCODE_DPAD_UP || key == android.view.KeyEvent.KEYCODE_DPAD_DOWN) {
+                mLastNavKeyMs = android.os.SystemClock.uptimeMillis();
+            }
+        }
+        return super.dispatchKeyEvent(event);
+    }
+
+    /** Something is drawn over the home screen (welcome, profiles, settings): don't move focus behind it. */
+    private boolean isOverlayShowing() {
+        return (mWelcome != null && mWelcome.getVisibility() == View.VISIBLE)
+                || (mProfilesOverlay != null && mProfilesOverlay.isShowing())
+                || (mSettingsOverlay != null && mSettingsOverlay.isShowing());
     }
 
     /** A kid used all of today's time: nothing more until an adult adds time with the PIN. */
@@ -457,6 +598,11 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
                 if (!hasFocus) {
                     return;
                 }
+                // Only when the user moved here with the remote: focus also lands on a tab by itself
+                // (e.g. when a screen on top closes) and that must not change the section
+                if (android.os.SystemClock.uptimeMillis() - mLastNavKeyMs > 700) {
+                    return;
+                }
                 // Moving across tabs with the remote switches section after a short pause
                 if (mPendingTabSwitch != null) {
                     mHandler.removeCallbacks(mPendingTabSwitch);
@@ -575,9 +721,17 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
             mSectionCache.remove(section.getId());
             return false;
         }
-        mRows.addAll(snapshot.rows);
-        mGridVideos.addAll(snapshot.grid);
-        mRowsAdapter.notifyDataSetChanged();
+        if (isGridSection(section)) {
+            // Grids are rebuilt from the videos with the current profile's rules
+            mGridVideos.addAll(withoutShorts(snapshot.grid));
+            if (mGridVideos.isEmpty()) {
+                return false;
+            }
+            rebuildGridRows(0);
+        } else {
+            mRows.addAll(snapshot.rows);
+            mRowsAdapter.notifyDataSetChanged();
+        }
         return true;
     }
 
@@ -1080,7 +1234,7 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
     @Override
     public void focusOnContent() {
         mHandler.post(() -> {
-            if (mProfilesOverlay != null && mProfilesOverlay.isShowing()) {
+            if (isOverlayShowing()) {
                 return; // don't steal focus from "¿Quién está viendo?"
             }
             if (!mRows.isEmpty()) {
@@ -1106,7 +1260,7 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
                 mPrefetchPending = false;
             }
         }
-        boolean overlayShowing = mProfilesOverlay != null && mProfilesOverlay.isShowing();
+        boolean overlayShowing = isOverlayShowing();
         if (mFocusContentWhenLoaded && !mRows.isEmpty() && !overlayShowing) {
             mFocusContentWhenLoaded = false;
             mHandler.post(() -> mContent.requestFocus());
