@@ -46,9 +46,11 @@ public final class ContentGate {
         if (rules == null || group == null || group.getVideos() == null) {
             return;
         }
+        // A whole "Shorts" shelf (e.g. on a channel page) goes, even if its videos aren't marked one by one
+        boolean shortsShelf = group.getTitle() != null && group.getTitle().trim().equalsIgnoreCase("shorts");
         List<Video> videos = new ArrayList<>(group.getVideos());
         for (Video video : videos) {
-            if (video != null && !rules.allows(video)) {
+            if (video != null && (shortsShelf || !rules.allows(video))) {
                 group.remove(video);
             }
         }

@@ -74,12 +74,13 @@ public final class FamilyRules implements ContentGate.Rules {
 
     @Override
     public boolean allows(Video video) {
+        // MyFamilyTube has no Shorts, for anyone and on every screen (channels, search, suggestions…)
+        if (video.isShorts || normalize(video.getTitle()).contains("#shorts")) {
+            return false;
+        }
         FamilyProfile kid = kid();
         if (kid == null) {
             return true;
-        }
-        if (video.isShorts) {
-            return false;
         }
         if (kid.approvedOnly) {
             return kid.isChannelApproved(video.channelId);
