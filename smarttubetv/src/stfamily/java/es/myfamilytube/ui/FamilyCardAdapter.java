@@ -23,6 +23,12 @@ final class FamilyCardAdapter extends RecyclerView.Adapter<FamilyCardAdapter.Car
         void onCardFocused(FamilyRow row, Object item, int position);
         void onCardClicked(Object item);
         void onCardLongClicked(Object item);
+
+        /** Focus moved onto (true) or off (false) a card: used for the thumbnail preview. */
+        void onCardFocusChanged(View card, Object item, boolean hasFocus);
+
+        /** The card is about to be reused for another item. */
+        void onCardRecycled(View card);
     }
 
     private static final float FOCUS_SCALE = 1.06f;
@@ -50,6 +56,9 @@ final class FamilyCardAdapter extends RecyclerView.Adapter<FamilyCardAdapter.Car
             float scale = hasFocus ? FOCUS_SCALE : 1f;
             v.animate().scaleX(scale).scaleY(scale).setDuration(120).start();
             int pos = holder.getAdapterPosition();
+            if (pos != RecyclerView.NO_POSITION && pos < mRow.items.size()) {
+                mListener.onCardFocusChanged(v, mRow.items.get(pos), hasFocus);
+            }
             if (hasFocus && pos != RecyclerView.NO_POSITION && pos < mRow.items.size()) {
                 mRow.selected = pos;
                 mListener.onCardFocused(mRow, mRow.items.get(pos), pos);
@@ -73,6 +82,7 @@ final class FamilyCardAdapter extends RecyclerView.Adapter<FamilyCardAdapter.Car
 
     @Override
     public void onViewRecycled(@NonNull CardHolder holder) {
+        mListener.onCardRecycled(holder.itemView);
         holder.itemView.setScaleX(1f);
         holder.itemView.setScaleY(1f);
         Glide.with(holder.thumb).clear(holder.thumb);

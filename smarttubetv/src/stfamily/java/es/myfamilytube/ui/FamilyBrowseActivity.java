@@ -105,6 +105,7 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
     private TextView mProfileButton;
     private FamilyProfilesOverlay mProfilesOverlay;
     private FamilySettingsOverlay mSettingsOverlay;
+    private FamilyPreview mPreview;
 
     private static final class TabInfo {
         final int sectionId;
@@ -134,6 +135,14 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
         mUpdateButton = findViewById(R.id.family_update);
         mSettingsButton = findViewById(R.id.family_settings);
         mWelcome = findViewById(R.id.family_welcome);
+        mPreview = new FamilyPreview(this, seconds -> {
+            // Previews count towards a kid's daily time
+            FamilyProfile profile = currentProfile();
+            if (profile.isKid) {
+                FamilyProfiles.instance(this).addUsedSeconds(profile, seconds);
+                updateGreeting();
+            }
+        });
 
         mRowsAdapter = new FamilyRowsAdapter(mRows);
         mContent.setAdapter(mRowsAdapter);
@@ -494,6 +503,7 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
     @Override
     protected void onPause() {
         super.onPause();
+        mPreview.release(); // never keep a player (and its decoder) while another screen is open
         if (mPresenter != null) {
             mPresenter.onViewPaused();
         }
@@ -973,6 +983,7 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
 
         @Override
         public void onCardClicked(Object item) {
+            mPreview.stop();
             if (item instanceof Video) {
                 mPresenter.onVideoItemClicked((Video) item);
             } else if (item instanceof SettingsItem && ((SettingsItem) item).onClick != null) {
@@ -980,6 +991,21 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
             } else if (item instanceof FamilyChannelItem) {
                 ChannelPresenter.instance(FamilyBrowseActivity.this).openChannel(((FamilyChannelItem) item).channelId);
             }
+        }
+
+        @Override
+        public void onCardFocusChanged(View card, Object item, boolean hasFocus) {
+            if (!hasFocus) {
+                mPreview.onCardGone(card);
+            } else if (item instanceof Video && !isOverlayShowing()
+                    && !FamilyProfiles.instance(FamilyBrowseActivity.this).isTimeUp(currentProfile())) {
+                mPreview.onCardFocused(card, (Video) item);
+            }
+        }
+
+        @Override
+        public void onCardRecycled(View card) {
+            mPreview.onCardGone(card);
         }
 
         @Override

@@ -167,6 +167,19 @@ final class FamilySettingsOverlay {
                 sponsor.setSponsorBlockEnabled(index == 0);
             }
         });
+        choice("Vista previa en la miniatura", "Al quedarte en un vídeo, se reproduce su primer minuto con sonido", new Choice() {
+            public String[] labels() {
+                return YES_NO;
+            }
+
+            public int current() {
+                return FamilyPreview.isEnabled(mActivity) ? 0 : 1;
+            }
+
+            public void set(int index) {
+                FamilyPreview.setEnabled(mActivity, index == 0);
+            }
+        });
         choice("Memoria para el vídeo", "«Baja» si la tele va justa o la app se cierra sola", new Choice() {
             final int[] buffers = {PlayerConstants.BUFFER_LOW, PlayerConstants.BUFFER_MEDIUM, PlayerConstants.BUFFER_HIGH};
 
