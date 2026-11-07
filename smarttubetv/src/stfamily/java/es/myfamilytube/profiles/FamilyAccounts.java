@@ -4,7 +4,7 @@ import android.content.Context;
 import android.text.TextUtils;
 
 import com.liskovsoft.mediaserviceinterfaces.oauth.Account;
-import com.liskovsoft.mediaserviceinterfaces.oauth.SignInService;
+import com.liskovsoft.mediaserviceinterfaces.SignInService;
 import com.liskovsoft.smartyoutubetv2.common.app.presenters.dialogs.AccountSelectionPresenter;
 import com.liskovsoft.youtubeapi.service.YouTubeServiceManager;
 
