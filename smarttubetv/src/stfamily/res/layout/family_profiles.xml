@@ -103,6 +103,29 @@
 
             <TextView
                 style="@style/FamilyLabel"
+                android:text="Cuenta de Google" />
+
+            <TextView
+                android:id="@+id/family_editor_account"
+                style="@style/FamilyTab"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:background="@drawable/family_input_bg"
+                android:maxWidth="520dp"
+                android:paddingLeft="18dp"
+                android:paddingRight="18dp" />
+
+            <TextView
+                android:layout_width="480dp"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:gravity="center"
+                android:text="Sus suscripciones, historial y listas. Al elegir el perfil, la app cambia a esa cuenta."
+                android:textColor="@color/family_text3"
+                android:textSize="13sp" />
+
+            <TextView
+                style="@style/FamilyLabel"
                 android:text="Imagen" />
 
             <LinearLayout

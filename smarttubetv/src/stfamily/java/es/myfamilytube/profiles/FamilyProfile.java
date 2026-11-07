@@ -30,6 +30,8 @@ public final class FamilyProfile {
     public int ageGroup;
     /** Picture name from {@link #AVATARS}, or empty for the coloured initial. */
     public String avatar = "";
+    /** Google account used by this profile (its e-mail), or empty for none. See FamilyAccounts. */
+    public String accountKey = "";
     /** Kids: only videos from approved channels. */
     public boolean approvedOnly;
     /** Kids: minutes per day, 0 = no limit. */
@@ -87,6 +89,7 @@ public final class FamilyProfile {
         json.put("kid", isKid);
         json.put("age", ageGroup);
         json.put("avatar", avatar);
+        json.put("account", accountKey);
         json.put("approvedOnly", approvedOnly);
         json.put("limit", dailyLimitMin);
         json.put("hideComments", hideComments);
@@ -106,6 +109,7 @@ public final class FamilyProfile {
                 json.optBoolean("kid", false),
                 json.optInt("age", AGE_5_TO_8));
         profile.avatar = json.optString("avatar", "");
+        profile.accountKey = json.optString("account", "");
         profile.approvedOnly = json.optBoolean("approvedOnly", false);
         profile.dailyLimitMin = json.optInt("limit", 0);
         profile.hideComments = json.optBoolean("hideComments", true);

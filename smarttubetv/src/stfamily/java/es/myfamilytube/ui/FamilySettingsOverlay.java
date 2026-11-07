@@ -204,6 +204,15 @@ final class FamilySettingsOverlay {
             }
         });
 
+        link(profiles.hasPin() ? "Cambiar PIN" : "Crear PIN",
+                profiles.hasPin() ? "Primero el PIN actual, luego el nuevo dos veces"
+                        : "Se pedirá para entrar en perfiles de adulto y cambiar el control parental",
+                () -> FamilyPinPad.verify(mActivity, () -> FamilyPinPad.create(mActivity, pin -> {
+                    profiles.setPin(pin);
+                    android.widget.Toast.makeText(mActivity, "PIN cambiado", android.widget.Toast.LENGTH_SHORT).show();
+                    build(); // "Crear PIN" becomes "Cambiar PIN"
+                })));
+
         header("Ayuda");
         link("Diagnóstico", "Registro de errores para enviar si la app falla", mCallbacks::openDiagnostics);
         link("Ajustes avanzados", "Todas las opciones de SmartTube", () -> {

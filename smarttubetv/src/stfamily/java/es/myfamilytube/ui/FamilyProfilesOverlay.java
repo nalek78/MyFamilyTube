@@ -18,6 +18,12 @@ import com.liskovsoft.smartyoutubetv2.tv.R;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import com.liskovsoft.mediaserviceinterfaces.oauth.Account;
+import com.liskovsoft.smartyoutubetv2.common.app.presenters.SignInPresenter;
+
+import java.util.List;
+
+import es.myfamilytube.profiles.FamilyAccounts;
 import es.myfamilytube.profiles.FamilyProfile;
 import es.myfamilytube.profiles.FamilyProfiles;
 
@@ -45,6 +51,9 @@ final class FamilyProfilesOverlay {
     private boolean mEditKid;
     private int mEditAge = FamilyProfile.AGE_5_TO_8;
     private String mEditAvatar = "";
+    private String mEditAccount = "";
+    /** Accounts there were before "Añadir otra cuenta", to spot the new one when sign-in returns. */
+    private java.util.Set<String> mAccountsBeforeSignIn;
     private boolean mEditApprovedOnly;
     private int mEditLimitMin;
     private boolean mEditHideComments = true;
@@ -186,6 +195,7 @@ final class FamilyProfilesOverlay {
         mRoot.findViewById(R.id.family_editor_comments_show).setOnClickListener(v -> { mEditHideComments = false; refreshEditor(); });
 
         buildAvatarChoices();
+        mRoot.findViewById(R.id.family_editor_account).setOnClickListener(v -> chooseAccount());
 
         mRoot.findViewById(R.id.family_editor_save).setOnClickListener(v -> saveEditor());
         mRoot.findViewById(R.id.family_editor_cancel).setOnClickListener(v -> showPicker());
@@ -352,6 +362,7 @@ final class FamilyProfilesOverlay {
         mEditKid = profile != null && profile.isKid;
         mEditAge = profile != null ? profile.ageGroup : FamilyProfile.AGE_5_TO_8;
         mEditAvatar = profile != null ? profile.avatar : "";
+        mEditAccount = profile != null ? profile.accountKey : "";
         mEditApprovedOnly = profile != null && profile.approvedOnly;
         mEditLimitMin = profile != null ? profile.dailyLimitMin : 0;
         mEditHideComments = profile == null || profile.hideComments;
@@ -375,6 +386,7 @@ final class FamilyProfilesOverlay {
     }
 
     private void refreshEditor() {
+        ((TextView) mRoot.findViewById(R.id.family_editor_account)).setText(FamilyAccounts.labelOfKey(mEditAccount) + "  ›");
         mRoot.findViewById(R.id.family_editor_adult).setActivated(!mEditKid);
         mRoot.findViewById(R.id.family_editor_kid).setActivated(mEditKid);
         mRoot.findViewById(R.id.family_editor_kid_options).setVisibility(mEditKid ? View.VISIBLE : View.GONE);
@@ -434,6 +446,61 @@ final class FamilyProfilesOverlay {
         }
     }
 
+    /** No account, one of the accounts signed in on this TV, or sign in a new one. */
+    private void chooseAccount() {
+        List<Account> accounts = FamilyAccounts.list();
+        String[] options = new String[accounts.size() + 2];
+        options[0] = "Sin cuenta";
+        for (int i = 0; i < accounts.size(); i++) {
+            options[i + 1] = FamilyAccounts.labelOf(accounts.get(i));
+        }
+        options[options.length - 1] = "Añadir otra cuenta de Google…";
+        new AlertDialog.Builder(mActivity)
+                .setTitle("Cuenta de Google del perfil")
+                .setItems(options, (dialog, which) -> {
+                    if (which == 0) {
+                        mEditAccount = "";
+                    } else if (which <= accounts.size()) {
+                        mEditAccount = FamilyAccounts.keyOf(accounts.get(which - 1));
+                    } else {
+                        startSignIn();
+                        return;
+                    }
+                    refreshEditor();
+                })
+                .show();
+    }
+
+    /** Opens SmartTube's sign-in screen (code to type at youtube.com/activate on a phone). */
+    private void startSignIn() {
+        mAccountsBeforeSignIn = FamilyAccounts.keys();
+        SignInPresenter.instance(mActivity).start();
+    }
+
+    /** Back from the sign-in screen: give the new account to the profile being edited. */
+    void onResumed() {
+        if (mAccountsBeforeSignIn == null) {
+            return;
+        }
+        java.util.Set<String> before = mAccountsBeforeSignIn;
+        mAccountsBeforeSignIn = null;
+        String added = null;
+        for (String key : FamilyAccounts.keys()) {
+            if (!before.contains(key)) {
+                added = key;
+            }
+        }
+        if (added != null) {
+            mEditAccount = added;
+            Toast.makeText(mActivity, "Cuenta añadida. Pulsa Guardar.", Toast.LENGTH_LONG).show();
+        }
+        // Signing in switches the whole app to the new account: go back to the one in use
+        FamilyAccounts.applyFor(mActivity, mProfiles.getCurrent());
+        if (mRoot != null && mEditor.getVisibility() == View.VISIBLE) {
+            refreshEditor();
+        }
+    }
+
     private void saveEditor() {
         EditText nameView = mRoot.findViewById(R.id.family_editor_name);
         String name = nameView.getText().toString().trim();
@@ -459,6 +526,7 @@ final class FamilyProfilesOverlay {
         profile.isKid = mEditKid;
         profile.ageGroup = mEditAge;
         profile.avatar = mEditAvatar;
+        profile.accountKey = mEditAccount;
         profile.approvedOnly = mEditApprovedOnly;
         profile.dailyLimitMin = mEditLimitMin;
         profile.hideComments = mEditHideComments;

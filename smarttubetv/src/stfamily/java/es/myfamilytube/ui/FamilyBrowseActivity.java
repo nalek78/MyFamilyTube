@@ -36,6 +36,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import es.myfamilytube.FamilyDiagnostics;
+import es.myfamilytube.profiles.FamilyAccounts;
 import es.myfamilytube.profiles.FamilyProfile;
 import es.myfamilytube.profiles.FamilyProfiles;
 
@@ -206,6 +207,25 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
         }
     }
 
+    /** The engine keeps the list of sections per Google account: turn YouTube Kids on for each one once. */
+    private final java.util.Set<String> mKidsSectionTried = new java.util.HashSet<>();
+
+    private final Runnable mKidsSectionCheck = () -> {
+        if (isFinishing() || mSections.isEmpty() || !currentProfile().isKid
+                || findSection(MediaGroup.TYPE_KIDS_HOME) != null) {
+            return;
+        }
+        if (mKidsSectionTried.add(FamilyAccounts.currentKey())) {
+            mPresenter.enableSection(MediaGroup.TYPE_KIDS_HOME, true);
+        }
+    };
+
+    /** Checked once the engine has finished adding its sections (they arrive one by one). */
+    private void ensureKidsSection() {
+        mHandler.removeCallbacks(mKidsSectionCheck);
+        mHandler.post(mKidsSectionCheck);
+    }
+
     /** Kids see "Hola, Leo · quedan 35 min" instead of the app name. */
     private void updateGreeting() {
         TextView logo = findViewById(R.id.family_logo);
@@ -228,11 +248,16 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
             return;
         }
         updateProfileButton();
+        // Each profile can have its own Google account: switch to it (the engine then rebuilds its sections)
+        boolean accountChanged = FamilyAccounts.applyFor(this, currentProfile());
+        if (accountChanged) {
+            disposePrefetch(); // what was being preloaded belongs to the other account
+        }
         rebuildTabs();
-        // Inicio depends on the profile (kids get YouTube Kids). Suscripciones and Biblioteca are the
-        // same for every grown-up and are filtered when shown, so their preloaded copies stay.
-        Snapshot subscriptions = mSectionCache.get(MediaGroup.TYPE_SUBSCRIPTIONS);
-        Snapshot history = mSectionCache.get(MediaGroup.TYPE_HISTORY);
+        // Inicio depends on the profile (kids get YouTube Kids). Suscripciones and Biblioteca depend only
+        // on the account and are filtered when shown, so their preloaded copies stay if it didn't change.
+        Snapshot subscriptions = accountChanged ? null : mSectionCache.get(MediaGroup.TYPE_SUBSCRIPTIONS);
+        Snapshot history = accountChanged ? null : mSectionCache.get(MediaGroup.TYPE_HISTORY);
         mSectionCache.clear();
         if (subscriptions != null) {
             mSectionCache.put(MediaGroup.TYPE_SUBSCRIPTIONS, subscriptions);
@@ -344,6 +369,7 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
             mPresenter.setView(this);
             mPresenter.onViewResumed();
         }
+        mProfilesOverlay.onResumed(); // back from adding a Google account?
         updateGreeting();
         // Something may have been watched meanwhile: history must be fresh
         mSectionCache.remove(MediaGroup.TYPE_HISTORY);
@@ -534,6 +560,7 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
         mUpdateSection = null;
 
         boolean isKid = currentProfile().isKid;
+        ensureKidsSection();
         BrowseSection home = null;
         if (isKid) {
             // Kids get YouTube Kids' own home, not the grown-ups' one
