@@ -1300,7 +1300,6 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
         return mProgress.getVisibility() == View.VISIBLE;
     }
 
-    @Override
     private boolean isInTopBar(View view) {
         View topBar = findViewById(R.id.family_topbar);
         for (android.view.ViewParent p = view.getParent(); p instanceof View; p = p.getParent()) {
@@ -1326,6 +1325,7 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
         mSettingsButton.requestFocus();
     }
 
+    @Override
     public void focusOnContent() {
         mHandler.post(() -> {
             if (isOverlayShowing()) {
