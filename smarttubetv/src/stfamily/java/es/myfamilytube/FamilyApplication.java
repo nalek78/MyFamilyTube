@@ -6,6 +6,7 @@ import android.os.Bundle;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.MemoryCategory;
+import com.liskovsoft.smartyoutubetv2.common.app.presenters.dialogs.AccountSelectionPresenter;
 import com.liskovsoft.smartyoutubetv2.common.app.views.AddDeviceView;
 import com.liskovsoft.smartyoutubetv2.common.app.views.AppDialogView;
 import com.liskovsoft.smartyoutubetv2.common.app.views.BrowseView;
@@ -50,6 +51,9 @@ public class FamilyApplication extends MainApplication {
         }
 
         FamilyRules.install(this);
+
+        // No "choose a Google account" screen: the profile chosen in «¿Quién está viendo?» brings its account
+        AccountSelectionPresenter.sChooserDisabled = true;
         registerActivityLifecycleCallbacks(new ForegroundWatcher());
 
         ViewManager viewManager = ViewManager.instance(this);

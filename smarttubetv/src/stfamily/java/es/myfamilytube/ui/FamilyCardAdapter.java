@@ -35,16 +35,32 @@ final class FamilyCardAdapter extends RecyclerView.Adapter<FamilyCardAdapter.Car
     private final FamilyRow mRow;
     private final Listener mListener;
 
+    private int mViewType = 100;
+
     FamilyCardAdapter(FamilyRow row, Listener listener) {
         mRow = row;
         mListener = listener;
+    }
+
+    /** Called before (re)attaching to a row so new cards use the current size. */
+    void setCardSizePercent(int percent) {
+        mViewType = percent;
     }
 
     @NonNull
     @Override
     public CardHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.family_card, parent, false);
+        // Size chosen in Ajustes › Pantalla › Tamaño de las miniaturas
+        view.getLayoutParams().width = FamilyCardSize.cardWidth(parent.getContext());
+        view.findViewById(R.id.family_card_thumb_frame).getLayoutParams().height = FamilyCardSize.thumbHeight(parent.getContext());
         return new CardHolder(view);
+    }
+
+    /** The size is the view type, so cards of an old size are never reused after changing it. */
+    @Override
+    public int getItemViewType(int position) {
+        return mViewType;
     }
 
     @Override
@@ -110,8 +126,8 @@ final class FamilyCardAdapter extends RecyclerView.Adapter<FamilyCardAdapter.Car
             badge = view.findViewById(R.id.family_card_badge);
             title = view.findViewById(R.id.family_card_title);
             subtitle = view.findViewById(R.id.family_card_subtitle);
-            mThumbW = view.getResources().getDimensionPixelSize(R.dimen.family_card_w);
-            mThumbH = view.getResources().getDimensionPixelSize(R.dimen.family_card_h);
+            mThumbW = FamilyCardSize.cardWidth(view.getContext());
+            mThumbH = FamilyCardSize.thumbHeight(view.getContext());
             View frame = view.findViewById(R.id.family_card_thumb_frame);
             if (Build.VERSION.SDK_INT >= 21) {
                 frame.setClipToOutline(true); // rounded corners from the frame's background shape

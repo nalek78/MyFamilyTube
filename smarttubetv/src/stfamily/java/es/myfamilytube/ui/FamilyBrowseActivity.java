@@ -144,7 +144,7 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
             }
         });
 
-        mRowsAdapter = new FamilyRowsAdapter(mRows);
+        mRowsAdapter = new FamilyRowsAdapter(mRows, FamilyCardSize.percent(this));
         mContent.setAdapter(mRowsAdapter);
         mContent.setItemSpacing(getResources().getDimensionPixelSize(R.dimen.family_card_gap));
         mContent.setWindowAlignment(VerticalGridView.WINDOW_ALIGN_LOW_EDGE);
@@ -161,6 +161,11 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
             @Override
             public void openDiagnostics() {
                 FamilyDiagnosticsDialog.show(FamilyBrowseActivity.this);
+            }
+
+            @Override
+            public void onCardSizeChanged() {
+                mRowsAdapter.setCardSizePercent(FamilyCardSize.percent(FamilyBrowseActivity.this));
             }
 
             @Override
@@ -473,6 +478,17 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
             if (key == android.view.KeyEvent.KEYCODE_DPAD_LEFT || key == android.view.KeyEvent.KEYCODE_DPAD_RIGHT
                     || key == android.view.KeyEvent.KEYCODE_DPAD_UP || key == android.view.KeyEvent.KEYCODE_DPAD_DOWN) {
                 mLastNavKeyMs = android.os.SystemClock.uptimeMillis();
+                if (!isOverlayShowing()) {
+                    View focused = getCurrentFocus();
+                    if (focused == null) {
+                        // Focus got lost somewhere: bring it back instead of leaving the remote dead
+                        restoreFocus();
+                        return true;
+                    }
+                    if (key == android.view.KeyEvent.KEYCODE_DPAD_UP && isInTopBar(focused)) {
+                        return true; // nothing above the top bar: keep focus where it is
+                    }
+                }
             }
         }
         return super.dispatchKeyEvent(event);
@@ -1285,6 +1301,31 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
     }
 
     @Override
+    private boolean isInTopBar(View view) {
+        View topBar = findViewById(R.id.family_topbar);
+        for (android.view.ViewParent p = view.getParent(); p instanceof View; p = p.getParent()) {
+            if (p == topBar) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Puts focus back on the rows, or on the current tab when there are none. */
+    private void restoreFocus() {
+        if (!mRows.isEmpty() && mContent.requestFocus()) {
+            return;
+        }
+        TabInfo tab = mCurrentSection != null ? findTab(mCurrentSection.getId()) : null;
+        if (tab != null && tab.view.requestFocus()) {
+            return;
+        }
+        if (mMessageAction.getVisibility() == View.VISIBLE && mMessageAction.requestFocus()) {
+            return;
+        }
+        mSettingsButton.requestFocus();
+    }
+
     public void focusOnContent() {
         mHandler.post(() -> {
             if (isOverlayShowing()) {

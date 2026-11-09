@@ -27,6 +27,9 @@ final class FamilySettingsOverlay {
         void openDiagnostics();
 
         void openAdvanced();
+
+        /** Ajustes › Pantalla › Tamaño de las miniaturas changed. */
+        void onCardSizeChanged();
     }
 
     /** A setting with a few values that OK cycles through. */
@@ -193,6 +196,22 @@ final class FamilySettingsOverlay {
 
             public void set(int index) {
                 player.setVideoBufferType(buffers[index]);
+            }
+        });
+
+        header("Pantalla");
+        choice("Tamaño de las miniaturas", "Normal, un 15 % más grande o un 30 % más grande", new Choice() {
+            public String[] labels() {
+                return FamilyCardSize.LABELS;
+            }
+
+            public int current() {
+                return FamilyCardSize.index(mActivity);
+            }
+
+            public void set(int index) {
+                FamilyCardSize.setPercent(mActivity, FamilyCardSize.PERCENTS[index]);
+                mCallbacks.onCardSizeChanged();
             }
         });
 

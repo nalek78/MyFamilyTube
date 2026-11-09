@@ -19,9 +19,29 @@ final class FamilyRowsAdapter extends RecyclerView.Adapter<FamilyRowsAdapter.Row
     private final List<FamilyRow> mRows;
     private final RecyclerView.RecycledViewPool mCardPool = new RecyclerView.RecycledViewPool();
 
-    FamilyRowsAdapter(List<FamilyRow> rows) {
+    FamilyRowsAdapter(List<FamilyRow> rows, int cardSizePercent) {
         mRows = rows;
-        mCardPool.setMaxRecycledViews(0, 40);
+        mCardSizePercent = cardSizePercent;
+        mCardPool.setMaxRecycledViews(cardSizePercent, 40);
+    }
+
+    /** Rows are built for one card size; a new size makes new rows and cards. */
+    @Override
+    public int getItemViewType(int position) {
+        return mCardSizePercent;
+    }
+
+    private int mCardSizePercent;
+
+    /** Applies a new thumbnail size: cards of the old size are dropped, not reused. */
+    void setCardSizePercent(int percent) {
+        if (percent == mCardSizePercent) {
+            return;
+        }
+        mCardPool.clear();
+        mCardSizePercent = percent;
+        mCardPool.setMaxRecycledViews(percent, 40);
+        notifyDataSetChanged();
     }
 
     @NonNull
@@ -29,10 +49,14 @@ final class FamilyRowsAdapter extends RecyclerView.Adapter<FamilyRowsAdapter.Row
     public RowHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.family_row, parent, false);
         RowHolder holder = new RowHolder(view);
+        holder.grid.getLayoutParams().height = FamilyCardSize.rowHeight(parent.getContext());
+        // Keep the focused card away from the left edge: zoomed on focus it must stay on screen
+        int side = view.getResources().getDimensionPixelSize(R.dimen.family_side);
         holder.grid.setRecycledViewPool(mCardPool);
         holder.grid.setHasFixedSize(true); // rows never change height: skip relayouts
         holder.grid.setHorizontalSpacing(view.getResources().getDimensionPixelSize(R.dimen.family_card_gap));
         holder.grid.setWindowAlignment(HorizontalGridView.WINDOW_ALIGN_LOW_EDGE);
+        holder.grid.setWindowAlignmentOffset(side);
         holder.grid.setWindowAlignmentOffsetPercent(HorizontalGridView.WINDOW_ALIGN_OFFSET_PERCENT_DISABLED);
         holder.grid.setItemAlignmentOffsetPercent(HorizontalGridView.ITEM_ALIGN_OFFSET_PERCENT_DISABLED);
         return holder;
@@ -48,6 +72,7 @@ final class FamilyRowsAdapter extends RecyclerView.Adapter<FamilyRowsAdapter.Row
             holder.title.setText(row.title);
         }
         if (holder.grid.getAdapter() != row.adapter) {
+            row.adapter.setCardSizePercent(mCardSizePercent);
             holder.grid.setAdapter(row.adapter);
         }
         if (row.selected > 0 && row.selected < row.items.size()) {

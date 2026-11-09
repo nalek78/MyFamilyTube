@@ -51,7 +51,14 @@ public class AccountSelectionPresenter extends BasePresenter<Void> {
         show(false);
     }
 
+    /** MyFamilyTube: each family profile already has its account, so the chooser is never shown. */
+    public static boolean sChooserDisabled;
+
     public void show(boolean force) {
+        if (sChooserDisabled) {
+            return;
+        }
+
         if (!AccountsData.instance(getContext()).isSelectAccountOnBootEnabled() && !force) {
             // user don't want to see selection dialog
             return;
