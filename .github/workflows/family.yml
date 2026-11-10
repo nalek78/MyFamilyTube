@@ -12,8 +12,6 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      FAMILY_BUILD_NUMBER: ${{ github.run_number }}
 
     steps:
       - name: Descargar código
@@ -68,34 +66,61 @@ jobs:
 
       - name: Preparar APKs y ficheros de actualización
         if: github.ref == 'refs/heads/master'
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          N=${FAMILY_BUILD_NUMBER}
-          cp smarttubetv/build/outputs/apk/stfamily/release/*_universal.apk MyFamilyTube.apk
-          cp smarttubetv/build/outputs/apk/stfamilymobile/release/*_universal.apk MyFamilyTube-movil.apk
+          # Each app has its own version (versiones.properties). An app whose number didn't change
+          # keeps the APK and update file of the previous release, so it gets no update notice.
+          TV=$(grep -E '^tv=' versiones.properties | cut -d= -f2 | tr -d '[:space:]')
+          MOVIL=$(grep -E '^movil=' versiones.properties | cut -d= -f2 | tr -d '[:space:]')
+          TAG="tv-1.0.${TV}_movil-1.0.${MOVIL}"
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "::error::Ya existe una versión con TV 1.0.${TV} y Móvil 1.0.${MOVIL}: sube el número de la app que ha cambiado en versiones.properties"
+            exit 1
+          fi
+          PREV=$(gh release view --json tagName -q .tagName 2>/dev/null || true)
+          mkdir -p prev
+          if [ -n "$PREV" ]; then
+            gh release download "$PREV" -D prev -p '*.json' -p '*.apk' || true
+          fi
           CHANGE=$(git log -1 --pretty=%s | sed 's/"/\\"/g')
-          for APP in MyFamilyTube:myfamilytube MyFamilyTube-movil:myfamilytube-movil; do
-            APK="${APP%%:*}"
-            JSON="${APP##*:}"
-            cat > "${JSON}.json" <<EOF
+          NOTES=""
+          for APP in "MyFamilyTube:myfamilytube:stfamily:${TV}:TV" "MyFamilyTube-movil:myfamilytube-movil:stfamilymobile:${MOVIL}:Móvil"; do
+            IFS=: read -r APK JSON FLAVOR VER LABEL <<< "$APP"
+            OLD=$(grep -o '"versionCode": *[0-9]*' "prev/${JSON}.json" 2>/dev/null | grep -o '[0-9]*$' || true)
+            if [ "$OLD" = "$VER" ] && [ -f "prev/${APK}.apk" ]; then
+              cp "prev/${APK}.apk" "${APK}.apk"
+              cp "prev/${JSON}.json" "${JSON}.json"
+              NOTES="${NOTES}${LABEL} 1.0.${VER}: sin cambios"$'\n'
+            else
+              cp smarttubetv/build/outputs/apk/${FLAVOR}/release/*_universal.apk "${APK}.apk"
+              cat > "${JSON}.json" <<EOF
           {
             "package": {
-              "downloadUrl": "https://github.com/${{ github.repository }}/releases/download/v1.0.${N}/${APK}.apk"
+              "downloadUrl": "https://github.com/${{ github.repository }}/releases/download/${TAG}/${APK}.apk"
             },
-            "1.0.${N}": {
-              "versionCode": ${N},
+            "1.0.${VER}": {
+              "versionCode": ${VER},
               "changelog": ["${CHANGE}"]
             }
           }
           EOF
+              NOTES="${NOTES}${LABEL} 1.0.${VER}: nueva"$'\n'
+            fi
           done
+          {
+            echo "TAG=${TAG}"
+            echo "TITLE=MyFamilyTube · TV 1.0.${TV} · Móvil 1.0.${MOVIL}"
+          } >> "$GITHUB_ENV"
+          printf '%s\n%s' "$NOTES" "$(git log -1 --pretty=%B)" > notes.txt
 
       - name: Publicar Release
         if: github.ref == 'refs/heads/master'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "v1.0.${FAMILY_BUILD_NUMBER}" MyFamilyTube.apk myfamilytube.json \
+          gh release create "$TAG" MyFamilyTube.apk myfamilytube.json \
             MyFamilyTube-movil.apk myfamilytube-movil.json \
-            --title "MyFamilyTube 1.0.${FAMILY_BUILD_NUMBER}" \
-            --notes "$(git log -1 --pretty=%B)" \
+            --title "$TITLE" \
+            --notes-file notes.txt \
             --latest

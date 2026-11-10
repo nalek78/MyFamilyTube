@@ -40,6 +40,16 @@ if (new File("${projectDir}/google-services.json").exists() && (getGradle().getS
     apply plugin: 'com.google.firebase.crashlytics'
 }
 
+// MyFamilyTube: version of each app (tv / movil), kept in versiones.properties
+def familyVersion(String app) {
+    def props = new Properties()
+    def file = rootProject.file('versiones.properties')
+    if (file.exists()) {
+        file.withInputStream { props.load(it) }
+    }
+    return (props.getProperty(app) ?: '1').trim().toInteger()
+}
+
 android {
     // FIX: Default interface methods are only supported starting with Android N (--min-api 24)
     compileOptions {
@@ -183,18 +193,19 @@ android {
             applicationId "es.myfamilytube"
             targetSdkVersion project.properties.compileSdkVersion
             matchingFallbacks = ['stbeta']
-            def buildNumber = System.getenv("FAMILY_BUILD_NUMBER")
-            versionCode buildNumber ? buildNumber.toInteger() : 1
-            versionName "1.0." + (buildNumber ?: "0")
+            // Each app has its own version, in versiones.properties (repository root)
+            def tvVersion = familyVersion('tv')
+            versionCode tvVersion
+            versionName "1.0." + tvVersion
         }
         // MyFamilyTube for phones: same engine, profiles and parental control, touch screens
         stfamilymobile {
             applicationId "es.myfamilytube.movil"
             targetSdkVersion project.properties.compileSdkVersion
             matchingFallbacks = ['stbeta']
-            def buildNumber = System.getenv("FAMILY_BUILD_NUMBER")
-            versionCode buildNumber ? buildNumber.toInteger() : 1
-            versionName "1.0." + (buildNumber ?: "0")
+            def mobileVersion = familyVersion('movil')
+            versionCode mobileVersion
+            versionName "1.0." + mobileVersion
         }
     }
 
