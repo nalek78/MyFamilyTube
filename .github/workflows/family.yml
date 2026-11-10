@@ -50,6 +50,23 @@ jobs:
           ./gradlew assembleStfamilyRelease assembleStfamilymobileRelease 2>&1 | tee build.log
           exit ${PIPESTATUS[0]}
 
+      - name: Comprobar enlaces de YouTube del móvil
+        if: github.ref == 'refs/heads/prueba'
+        run: |
+          M=$(find smarttubetv/build/intermediates -path '*stfamilymobileRelease*' -name AndroidManifest.xml | grep -i merged | head -1)
+          echo "Manifiesto: $M"
+          python3 - "$M" <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          A = '{http://schemas.android.com/apk/res/android}'
+          root = ET.parse(sys.argv[1]).getroot()
+          for act in root.iter('activity'):
+              for f in act.findall('intent-filter'):
+                  actions = [a.get(A + 'name').split('.')[-1] for a in f.findall('action')]
+                  if 'VIEW' in actions or 'SEND' in actions:
+                      data = [':'.join(filter(None, [d.get(A + 'scheme'), d.get(A + 'host'), d.get(A + 'pathPrefix') or d.get(A + 'pathPattern')])) for d in f.findall('data')]
+                      print(act.get(A + 'name').split('.')[-1], actions, data)
+          PY
+
       - name: Guardar el error si falla (rama build-log)
         if: failure()
         run: |

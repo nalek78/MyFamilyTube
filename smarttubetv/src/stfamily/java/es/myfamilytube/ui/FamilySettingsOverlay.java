@@ -232,6 +232,14 @@ final class FamilySettingsOverlay {
         });
         }
 
+        if (FamilyLayouts.mobile) { // phone only
+            header("Enlaces");
+            link("Abrir los enlaces de YouTube con esta app", "Los vídeos que te envíen se abrirán aquí, sin Shorts y con el control parental", () -> {
+                hide();
+                FamilyLinks.showSetup(mActivity);
+            });
+        }
+
         header("Familia");
         link("Perfiles y control parental", "Crear o cambiar perfiles, edad, canales aprobados, tiempo", () -> {
             hide();

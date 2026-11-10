@@ -98,8 +98,20 @@ public class MobileHomeActivity extends MotherActivity implements BrowseView, Mo
     private final List<io.reactivex.disposables.Disposable> mPrefetch = new ArrayList<>();
     private final Set<String> mKidsSectionTried = new HashSet<>();
 
+    /** A YouTube link opened from another app, waiting for the profile to be chosen. */
+    private static android.content.Intent sPendingLink;
+    private static boolean sAlive;
+
     public static void onAppForeground() {
         sWelcomePending = true;
+    }
+
+    static void setPendingLink(android.content.Intent link) {
+        sPendingLink = link;
+    }
+
+    static boolean isAlive() {
+        return sAlive;
     }
 
     @Override
@@ -110,6 +122,7 @@ public class MobileHomeActivity extends MotherActivity implements BrowseView, Mo
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        sAlive = true;
         setContentView(R.layout.mobile_home);
 
         mList = findViewById(R.id.mobile_list);
@@ -132,6 +145,7 @@ public class MobileHomeActivity extends MotherActivity implements BrowseView, Mo
             // A different profile reloads through the FamilyProfiles listener
             updateProfileButton();
             updateGreeting();
+            mHandler.post(this::runPendingLink);
         });
         mSettingsOverlay = new FamilySettingsOverlay(this, root, new FamilySettingsOverlay.Host() {
             @Override
@@ -201,7 +215,53 @@ public class MobileHomeActivity extends MotherActivity implements BrowseView, Mo
             mProfilesOverlay.showMandatory();
         } else if (FamilyProfiles.instance(this).isTimeUp(currentProfile())) {
             showTimeUp();
+        } else if (mWelcome.getVisibility() != View.VISIBLE && !mProfilesOverlay.isShowing()) {
+            runPendingLink();
         }
+    }
+
+    @Override
+    protected void onNewIntent(android.content.Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+    }
+
+    /** Opens the waiting YouTube link (video, list, channel or search) for the profile now watching. */
+    private void runPendingLink() {
+        android.content.Intent link = sPendingLink;
+        if (link == null || isFinishing() || FamilyProfiles.instance(this).shouldAskWhoIsWatching()) {
+            return;
+        }
+        sPendingLink = null;
+        if (FamilyProfiles.instance(this).isTimeUp(currentProfile())) {
+            showTimeUp();
+            return;
+        }
+        String videoId = com.liskovsoft.smartyoutubetv2.common.utils.IntentExtractor.extractVideoId(link);
+        if (videoId != null) {
+            long timeMs = com.liskovsoft.smartyoutubetv2.common.utils.IntentExtractor.extractVideoTimeMs(link);
+            com.liskovsoft.smartyoutubetv2.common.app.presenters.PlaybackPresenter.instance(this)
+                    .openVideo(videoId, false, timeMs, false);
+            return;
+        }
+        String playlistId = com.liskovsoft.smartyoutubetv2.common.utils.IntentExtractor.extractPlaylistId(link);
+        if (playlistId != null) {
+            Video video = new Video();
+            video.playlistId = playlistId;
+            com.liskovsoft.smartyoutubetv2.common.app.presenters.ChannelUploadsPresenter.instance(this).openChannel(video);
+            return;
+        }
+        String channelId = com.liskovsoft.smartyoutubetv2.common.utils.IntentExtractor.extractChannelId(link);
+        if (channelId != null) {
+            ChannelPresenter.instance(this).openChannel(channelId);
+            return;
+        }
+        String searchText = com.liskovsoft.smartyoutubetv2.common.utils.IntentExtractor.extractSearchText(link);
+        if (searchText != null) {
+            SearchPresenter.instance(this).startSearch(searchText);
+            return;
+        }
+        android.widget.Toast.makeText(this, "No se ha podido abrir ese enlace", android.widget.Toast.LENGTH_SHORT).show();
     }
 
     @Override
@@ -213,6 +273,7 @@ public class MobileHomeActivity extends MotherActivity implements BrowseView, Mo
     @Override
     protected void onDestroy() {
         mHandler.removeCallbacksAndMessages(null);
+        sAlive = false;
         disposePrefetch();
         if (mPresenter.getView() == this) {
             mPresenter.onViewDestroyed();
@@ -598,6 +659,8 @@ public class MobileHomeActivity extends MotherActivity implements BrowseView, Mo
             mProfilesOverlay.showMandatory();
         } else if (FamilyProfiles.instance(this).isTimeUp(currentProfile())) {
             showTimeUp();
+        } else {
+            runPendingLink();
         }
     }
 
