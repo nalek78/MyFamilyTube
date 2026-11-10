@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Add a Google account on the phone: Google's own page opens with the code already filled in -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/family_bg"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/mobile_bar"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingLeft="4dp">
+
+        <ImageView
+            android:id="@+id/mobile_sign_in_back"
+            style="@style/MobileIconButton"
+            android:contentDescription="Atrás"
+            android:src="@drawable/mobile_ic_back" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="8dp"
+            android:text="Añadir cuenta de Google"
+            android:textColor="@color/family_text"
+            android:textSize="20sp"
+            android:fontFamily="sans-serif-medium" />
+    </LinearLayout>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="24dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:lineSpacingExtra="4dp"
+                android:text="Se abrirá la página de Google. Elige tu cuenta (o inicia sesión) y pulsa «Permitir». Después vuelve aquí: la cuenta se añadirá sola."
+                android:textColor="@color/family_text2"
+                android:textSize="16sp" />
+
+            <TextView
+                android:id="@+id/mobile_sign_in_button"
+                android:layout_width="match_parent"
+                android:layout_height="60dp"
+                android:layout_marginTop="28dp"
+                android:background="@drawable/family_pill_red"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:text="Iniciar sesión con Google"
+                android:textColor="#FFFFFF"
+                android:textSize="18sp"
+                android:fontFamily="sans-serif-medium" />
+
+            <ProgressBar
+                android:id="@+id/mobile_sign_in_progress"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="24dp"
+                android:indeterminateTint="@color/family_ring" />
+
+            <TextView
+                android:id="@+id/mobile_sign_in_status"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:gravity="center"
+                android:text="Preparando…"
+                android:textColor="@color/family_text3"
+                android:textSize="15sp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="36dp"
+                android:text="Si la página pide un código, es este (ya está copiado):"
+                android:textColor="@color/family_text3"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/mobile_sign_in_code"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/mobile_chip_bg"
+                android:gravity="center"
+                android:letterSpacing="0.12"
+                android:padding="14dp"
+                android:textColor="@color/family_text"
+                android:textIsSelectable="true"
+                android:textSize="28sp"
+                android:fontFamily="monospace" />
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>

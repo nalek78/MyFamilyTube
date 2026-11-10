@@ -21,6 +21,7 @@ import es.myfamilytube.ui.MobileChannelUploadsActivity;
 import es.myfamilytube.ui.MobileHomeActivity;
 import es.myfamilytube.ui.MobilePlayerActivity;
 import es.myfamilytube.ui.MobileSearchActivity;
+import es.myfamilytube.ui.MobileSignInActivity;
 
 /**
  * MyFamilyTube for phones. Everything the TV app sets up (diagnostics, parental control,
@@ -29,7 +30,7 @@ import es.myfamilytube.ui.MobileSearchActivity;
 public class MobileApplication extends FamilyApplication {
     /** Screens kept from the TV app (dialogs, sign-in…): they work with touch too. */
     private static final Class<?>[] KEPT_VIEWS = {
-            AppDialogView.class, SignInView.class, AddDeviceView.class, WebBrowserView.class
+            AppDialogView.class, AddDeviceView.class, WebBrowserView.class
     };
 
     @Override
@@ -37,6 +38,8 @@ public class MobileApplication extends FamilyApplication {
         super.onCreate();
 
         FamilyLayouts.mobile = true;
+        // Phones keep their own screen size (the TV app scales everything to 1920 px)
+        com.liskovsoft.smartyoutubetv2.common.misc.MotherActivity.sTvDensity = false;
         FamilyLayouts.profiles = R.layout.mobile_profiles;
         FamilyLayouts.profileItem = R.layout.mobile_profile_item;
         FamilyLayouts.settings = R.layout.mobile_settings;
@@ -50,6 +53,7 @@ public class MobileApplication extends FamilyApplication {
         viewManager.register(SearchView.class, MobileSearchActivity.class, MobileHomeActivity.class);
         viewManager.register(ChannelView.class, MobileChannelActivity.class, MobileHomeActivity.class);
         viewManager.register(ChannelUploadsView.class, MobileChannelUploadsActivity.class, MobileHomeActivity.class);
+        viewManager.register(SignInView.class, MobileSignInActivity.class, MobileHomeActivity.class);
         for (Class<?> view : KEPT_VIEWS) {
             Class<? extends Activity> activity = viewManager.getActivity(view);
             if (activity != null) {
@@ -66,7 +70,7 @@ public class MobileApplication extends FamilyApplication {
 
         @Override
         public void onActivityStarted(Activity activity) {
-            if (mStarted == 0) {
+            if (mStarted == 0 && !es.myfamilytube.profiles.FamilyAccounts.signInPending) {
                 MobileHomeActivity.onAppForeground();
             }
             mStarted++;

@@ -27,6 +27,9 @@ public final class FamilyAccounts {
     }
 
     /** Stable way to recognise an account: its e-mail, else its name. */
+    /** Adding a Google account (on the phone the browser opens): coming back isn't "opening the app". */
+    public static volatile boolean signInPending;
+
     public static String keyOf(Account account) {
         if (account == null) {
             return "";

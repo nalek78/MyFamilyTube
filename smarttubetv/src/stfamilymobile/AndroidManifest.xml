@@ -52,6 +52,12 @@
             android:windowSoftInputMode="adjustResize|stateVisible" />
 
         <activity
+            android:name="es.myfamilytube.ui.MobileSignInActivity"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|layoutDirection|keyboardHidden"
+            android:screenOrientation="unspecified"
+            android:theme="@style/MobileTheme" />
+
+        <activity
             android:name="es.myfamilytube.ui.MobileChannelActivity"
             android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|layoutDirection|keyboardHidden"
             android:screenOrientation="unspecified"

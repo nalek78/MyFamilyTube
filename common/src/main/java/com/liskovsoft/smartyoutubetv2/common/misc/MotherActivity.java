@@ -42,6 +42,8 @@ public class MotherActivity extends FragmentActivity {
     private static final float DEFAULT_DENSITY = 2.0f; // xhdpi
     private static final float DEFAULT_WIDTH = 1920f; // xhdpi
     private static DisplayMetrics sCachedDisplayMetrics;
+    /** MyFamilyTube for phones turns this off: phones keep their own size (no TV 1920 px scaling). */
+    public static boolean sTvDensity = true;
     protected static boolean sIsInPipMode;
     private ScreensaverManager mScreensaverManager;
     // Make static in case Don't keep activities enabled in Developer settings
@@ -198,7 +200,7 @@ public class MotherActivity extends FragmentActivity {
 
         if (context != null) {
             // NOTE: Use only cached metrics. Because metrics creation involves using WindowManager, which isn't available at this stage.
-            contextWrapper = LocaleContextWrapper.wrap(context, LocaleUpdater.getSavedLocale(context), sCachedDisplayMetrics);
+            contextWrapper = LocaleContextWrapper.wrap(context, LocaleUpdater.getSavedLocale(context), sTvDensity ? sCachedDisplayMetrics : null);
         }
 
         super.attachBaseContext(contextWrapper);
@@ -258,6 +260,9 @@ public class MotherActivity extends FragmentActivity {
     }
 
     private void initDpi() {
+        if (!sTvDensity) {
+            return;
+        }
         getResources().getDisplayMetrics().setTo(getDisplayMetrics(this));
     }
 

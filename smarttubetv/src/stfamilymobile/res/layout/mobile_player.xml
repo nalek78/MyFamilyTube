@@ -91,15 +91,15 @@
                 <ImageView
                     android:id="@+id/mobile_player_prev"
                     style="@style/MobileIconButton"
-                    android:layout_width="52dp"
-                    android:layout_height="52dp"
+                    android:layout_width="60dp"
+                    android:layout_height="60dp"
                     android:contentDescription="Anterior"
                     android:src="@drawable/mobile_ic_prev" />
 
                 <ImageView
                     android:id="@+id/mobile_player_play"
-                    android:layout_width="64dp"
-                    android:layout_height="64dp"
+                    android:layout_width="76dp"
+                    android:layout_height="76dp"
                     android:layout_marginLeft="28dp"
                     android:layout_marginRight="28dp"
                     android:background="@drawable/mobile_round_dark"
@@ -112,8 +112,8 @@
                 <ImageView
                     android:id="@+id/mobile_player_next"
                     style="@style/MobileIconButton"
-                    android:layout_width="52dp"
-                    android:layout_height="52dp"
+                    android:layout_width="60dp"
+                    android:layout_height="60dp"
                     android:contentDescription="Siguiente"
                     android:src="@drawable/mobile_ic_next" />
             </LinearLayout>

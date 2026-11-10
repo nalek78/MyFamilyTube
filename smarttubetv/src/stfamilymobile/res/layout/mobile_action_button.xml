@@ -16,8 +16,8 @@
 
     <ImageView
         android:id="@+id/mobile_action_icon"
-        android:layout_width="20dp"
-        android:layout_height="20dp"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
         android:importantForAccessibility="no"
         android:scaleType="fitCenter" />
 
@@ -28,5 +28,5 @@
         android:layout_marginLeft="6dp"
         android:singleLine="true"
         android:textColor="@color/family_text"
-        android:textSize="13sp" />
+        android:textSize="14sp" />
 </LinearLayout>

@@ -317,7 +317,7 @@ final class FamilyProfilesOverlay {
     private void buildAvatarChoices() {
         LinearLayout row = mRoot.findViewById(R.id.family_editor_avatars);
         row.removeAllViews();
-        int size = (int) dp(54);
+        int size = (int) dp(FamilyLayouts.mobile ? 66 : 54);
         int margin = (int) dp(6);
         // First choice: the coloured initial, then the pictures
         String[] choices = new String[FamilyProfile.AVATARS.length + 1];
@@ -474,6 +474,7 @@ final class FamilyProfilesOverlay {
     /** Opens SmartTube's sign-in screen (code to type at youtube.com/activate on a phone). */
     private void startSignIn() {
         mAccountsBeforeSignIn = FamilyAccounts.keys();
+        FamilyAccounts.signInPending = true;
         SignInPresenter.instance(mActivity).start();
     }
 
@@ -484,6 +485,7 @@ final class FamilyProfilesOverlay {
         }
         java.util.Set<String> before = mAccountsBeforeSignIn;
         mAccountsBeforeSignIn = null;
+        FamilyAccounts.signInPending = false;
         String added = null;
         for (String key : FamilyAccounts.keys()) {
             if (!before.contains(key)) {
