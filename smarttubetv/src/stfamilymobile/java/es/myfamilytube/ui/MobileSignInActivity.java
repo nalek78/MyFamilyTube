@@ -55,6 +55,14 @@ public class MobileSignInActivity extends MotherActivity implements SignInView {
         mPresenter.onViewInitialized();
     }
 
+    private final MobileHaptics mHaptics = new MobileHaptics();
+
+    @Override
+    public boolean dispatchTouchEvent(android.view.MotionEvent event) {
+        mHaptics.onTouch(this, event);
+        return super.dispatchTouchEvent(event);
+    }
+
     @Override
     protected void onResume() {
         super.onResume();

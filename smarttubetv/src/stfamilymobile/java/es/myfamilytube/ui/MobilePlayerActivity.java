@@ -649,6 +649,7 @@ public class MobilePlayerActivity extends MotherActivity implements PlaybackView
                     target = Math.min(target, duration - 1000);
                 }
                 seekTo(Math.max(0, target));
+                MobileHaptics.tap(mVideoFrame);
                 showSeekHint(forward ? "» 10 s" : "« 10 s");
                 return true;
             }
@@ -858,6 +859,19 @@ public class MobilePlayerActivity extends MotherActivity implements PlaybackView
     @Override
     public void onVideoLongClicked(Video video) {
         MobileVideoMenu.show(this, video, () -> mPresenter.onSuggestionItemLongClicked(video));
+    }
+
+    @Override
+    public void onThumbnailClicked(View card, Video video) {
+        onVideoClicked(video); // a video is already playing: open the new one
+    }
+
+    private final MobileHaptics mHaptics = new MobileHaptics();
+
+    @Override
+    public boolean dispatchTouchEvent(MotionEvent event) {
+        mHaptics.onTouch(this, event);
+        return super.dispatchTouchEvent(event);
     }
 
     @Override

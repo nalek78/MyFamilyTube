@@ -170,8 +170,9 @@ final class FamilySettingsOverlay {
                 sponsor.setSponsorBlockEnabled(index == 0);
             }
         });
-        if (!FamilyLayouts.mobile) // TV only: previews start when the remote rests on a card
-        choice("Vista previa en la miniatura", "Al quedarte en un vídeo, se reproduce su primer minuto con sonido", new Choice() {
+        choice("Vista previa en la miniatura", FamilyLayouts.mobile
+                ? "Al tocar la miniatura, el vídeo se reproduce ahí con sonido; tócala otra vez para abrirlo"
+                : "Al quedarte en un vídeo, se reproduce su primer minuto con sonido", new Choice() {
             public String[] labels() {
                 return YES_NO;
             }

@@ -30,6 +30,9 @@ final class MobileFeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHold
 
         void onVideoLongClicked(Video video);
 
+        /** Tap on the picture (preview on the phone lists). */
+        void onThumbnailClicked(View card, Video video);
+
         void onChannelClicked(FamilyChannelItem channel);
 
         /** The user is getting near the end of the list. */
@@ -54,11 +57,16 @@ final class MobileFeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHold
     private final Listener mListener;
     private final boolean mCompact;
     private final List<Object> mItems = new ArrayList<>();
+    private MobilePreview mPreview;
 
     /** @param compact small rows (picture left) instead of big cards */
     MobileFeedAdapter(Listener listener, boolean compact) {
         mListener = listener;
         mCompact = compact;
+    }
+
+    void setPreview(MobilePreview preview) {
+        mPreview = preview;
     }
 
     void setItems(List<Object> items) {
@@ -109,7 +117,15 @@ final class MobileFeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHold
         if (holder instanceof VideoHolder) {
             Video video = (Video) item;
             ((VideoHolder) holder).bind(video);
+            if (mPreview != null) {
+                mPreview.onBound(holder.itemView, video);
+            }
             holder.itemView.setOnClickListener(v -> mListener.onVideoClicked(video));
+            ((VideoHolder) holder).frame.setOnClickListener(v -> mListener.onThumbnailClicked(holder.itemView, video));
+            ((VideoHolder) holder).frame.setOnLongClickListener(v -> {
+                mListener.onVideoLongClicked(video);
+                return true;
+            });
             holder.itemView.setOnLongClickListener(v -> {
                 mListener.onVideoLongClicked(video);
                 return true;
@@ -165,6 +181,7 @@ final class MobileFeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHold
         final TextView badge;
         final TextView title;
         final TextView subtitle;
+        final View frame;
         private final int mThumbW;
         private final int mThumbH;
 
@@ -174,7 +191,7 @@ final class MobileFeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHold
             badge = view.findViewById(R.id.mobile_card_badge);
             title = view.findViewById(R.id.mobile_card_title);
             subtitle = view.findViewById(R.id.mobile_card_subtitle);
-            View frame = view.findViewById(R.id.family_card_thumb_frame);
+            frame = view.findViewById(R.id.family_card_thumb_frame);
             if (android.os.Build.VERSION.SDK_INT >= 21) {
                 frame.setClipToOutline(true); // rounded corners from the frame's shape
             }

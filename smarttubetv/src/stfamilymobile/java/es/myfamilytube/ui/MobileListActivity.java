@@ -30,6 +30,8 @@ abstract class MobileListActivity extends MotherActivity implements MobileFeedAd
     private ProgressBar mProgress;
     private TextView mMessage;
     private Video mLastScrollEnd;
+    protected MobilePreview mPreview;
+    private final MobileHaptics mHaptics = new MobileHaptics();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -43,8 +45,39 @@ abstract class MobileListActivity extends MotherActivity implements MobileFeedAd
         mList = findViewById(R.id.mobile_list);
         mList.setLayoutManager(new LinearLayoutManager(this));
         mAdapter = new MobileFeedAdapter(this, false);
+        mPreview = new MobilePreview(this);
+        mAdapter.setPreview(mPreview);
         mList.setAdapter(mAdapter);
+        mList.addOnChildAttachStateChangeListener(new RecyclerView.OnChildAttachStateChangeListener() {
+            @Override
+            public void onChildViewAttachedToWindow(View view) {
+            }
+
+            @Override
+            public void onChildViewDetachedFromWindow(View view) {
+                mPreview.onDetached(view);
+            }
+        });
         findViewById(R.id.mobile_back).setOnClickListener(v -> onBackPressed());
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        mPreview.release();
+    }
+
+    @Override
+    public boolean dispatchTouchEvent(android.view.MotionEvent event) {
+        mHaptics.onTouch(this, event);
+        return super.dispatchTouchEvent(event);
+    }
+
+    @Override
+    public void onThumbnailClicked(View card, Video video) {
+        if (!mPreview.onThumbnailTapped(card, video)) {
+            onVideoClicked(video);
+        }
     }
 
     @Override

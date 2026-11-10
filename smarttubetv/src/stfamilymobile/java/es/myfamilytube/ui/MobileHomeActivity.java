@@ -86,6 +86,8 @@ public class MobileHomeActivity extends MotherActivity implements BrowseView, Mo
     private View mWelcome;
     private FamilyProfilesOverlay mProfilesOverlay;
     private FamilySettingsOverlay mSettingsOverlay;
+    private MobilePreview mPreview;
+    private final MobileHaptics mHaptics = new MobileHaptics();
 
     private long mLoadStartMs;
     private int mPendingUpdates;
@@ -138,7 +140,19 @@ public class MobileHomeActivity extends MotherActivity implements BrowseView, Mo
 
         mList.setLayoutManager(new LinearLayoutManager(this));
         mAdapter = new MobileFeedAdapter(this, false);
+        mPreview = new MobilePreview(this);
+        mAdapter.setPreview(mPreview);
         mList.setAdapter(mAdapter);
+        mList.addOnChildAttachStateChangeListener(new RecyclerView.OnChildAttachStateChangeListener() {
+            @Override
+            public void onChildViewAttachedToWindow(View view) {
+            }
+
+            @Override
+            public void onChildViewDetachedFromWindow(View view) {
+                mPreview.onDetached(view);
+            }
+        });
 
         ViewGroup root = findViewById(R.id.mobile_root);
         mProfilesOverlay = new FamilyProfilesOverlay(this, root, profile -> {
@@ -267,6 +281,7 @@ public class MobileHomeActivity extends MotherActivity implements BrowseView, Mo
     @Override
     protected void onPause() {
         super.onPause();
+        mPreview.release();
         mPresenter.onViewPaused();
     }
 
@@ -495,6 +510,7 @@ public class MobileHomeActivity extends MotherActivity implements BrowseView, Mo
             return;
         }
         hideMessage();
+        mPreview.stop();
         mLastScrollEnd = null;
         mList.scrollToPosition(0);
         if (section == mSettingsSection) {
@@ -557,8 +573,22 @@ public class MobileHomeActivity extends MotherActivity implements BrowseView, Mo
     // ---------------------------------------------------------------- list events
 
     @Override
+    public boolean dispatchTouchEvent(android.view.MotionEvent event) {
+        mHaptics.onTouch(this, event);
+        return super.dispatchTouchEvent(event);
+    }
+
+    @Override
     public void onVideoClicked(Video video) {
+        mPreview.stop();
         mPresenter.onVideoItemClicked(video);
+    }
+
+    @Override
+    public void onThumbnailClicked(View card, Video video) {
+        if (!mPreview.onThumbnailTapped(card, video)) {
+            onVideoClicked(video);
+        }
     }
 
     @Override

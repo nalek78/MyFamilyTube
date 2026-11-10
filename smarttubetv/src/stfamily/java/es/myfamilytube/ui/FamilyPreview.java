@@ -66,6 +66,8 @@ final class FamilyPreview {
     private TextureView mTexture;
     private Runnable mPendingStart;
     private long mPlayStartMs;
+    /** TV: the preview only goes on while the card keeps the focus. Phone: started by a tap. */
+    private boolean mRequireFocus = true;
 
     private final Runnable mTimeUp = this::stop;
     private final Runnable mUnmute = () -> {
@@ -94,8 +96,20 @@ final class FamilyPreview {
             return;
         }
         mCard = card;
+        mRequireFocus = true;
         mPendingStart = () -> load(card, video);
         mHandler.postDelayed(mPendingStart, START_DELAY_MS);
+    }
+
+    /** Phone: the thumbnail was tapped, start right away. */
+    void startNow(View card, Video video) {
+        stop();
+        if (video == null || video.isLive || video.videoId == null) {
+            return;
+        }
+        mCard = card;
+        mRequireFocus = false;
+        load(card, video);
     }
 
     /** The card left the screen or lost focus. */
@@ -165,7 +179,7 @@ final class FamilyPreview {
 
     private void play(View card, MediaItemFormatInfo info) {
         mFormatAction = null;
-        if (card != mCard || !card.hasFocus() || mActivity.isFinishing() || info == null || info.isUnplayable()) {
+        if (card != mCard || (mRequireFocus && !card.hasFocus()) || mActivity.isFinishing() || info == null || info.isUnplayable()) {
             return;
         }
         MediaSource source = buildSource(info);
