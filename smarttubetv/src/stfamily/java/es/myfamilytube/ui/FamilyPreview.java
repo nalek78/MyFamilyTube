@@ -9,7 +9,16 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 
+import android.text.TextUtils;
+
+import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.DefaultLoadControl;
+import com.google.android.exoplayer2.Format;
+import com.google.android.exoplayer2.source.TrackGroup;
+import com.google.android.exoplayer2.source.TrackGroupArray;
+import com.google.android.exoplayer2.trackselection.MappingTrackSelector;
+import com.google.android.exoplayer2.trackselection.TrackSelectionArray;
+import com.liskovsoft.smartyoutubetv2.common.prefs.PlayerData;
 import com.google.android.exoplayer2.ExoPlaybackException;
 import com.google.android.exoplayer2.ExoPlayerFactory;
 import com.google.android.exoplayer2.Player;
@@ -47,6 +56,9 @@ final class FamilyPreview {
     private final Listener mListener;
     private final Handler mHandler = new Handler(Looper.getMainLooper());
     private SimpleExoPlayer mPlayer;
+    private DefaultTrackSelector mSelector;
+    /** The audio track of this preview has been chosen (sound is muted until then). */
+    private boolean mAudioChosen;
     private ExoMediaSourceFactory mSourceFactory;
     private Disposable mFormatAction;
     private View mCard;
@@ -56,6 +68,11 @@ final class FamilyPreview {
     private long mPlayStartMs;
 
     private final Runnable mTimeUp = this::stop;
+    private final Runnable mUnmute = () -> {
+        if (mPlayer != null && mTexture != null) {
+            mPlayer.setVolume(1f);
+        }
+    };
 
     FamilyPreview(Activity activity, Listener listener) {
         mActivity = activity;
@@ -99,6 +116,7 @@ final class FamilyPreview {
             mPendingStart = null;
         }
         mHandler.removeCallbacks(mTimeUp);
+        mHandler.removeCallbacks(mUnmute);
         if (mFormatAction != null) {
             mFormatAction.dispose();
             mFormatAction = null;
@@ -169,7 +187,10 @@ final class FamilyPreview {
         mTexture = texture;
 
         mPlayer.setVideoTextureView(texture);
-        mPlayer.setVolume(1f);
+        // Silent until the right audio track is picked (videos may carry several dubbed languages)
+        mAudioChosen = false;
+        mSelector.setParameters(mSelector.buildUponParameters().clearSelectionOverrides());
+        mPlayer.setVolume(0f);
         mPlayer.prepare(source);
         mPlayer.setPlayWhenReady(true);
         mPlayStartMs = System.currentTimeMillis();
@@ -199,12 +220,78 @@ final class FamilyPreview {
         return null;
     }
 
+    /**
+     * Same rule as the real player: the audio language chosen in the player's settings, if any;
+     * otherwise the video's original track (YouTube adds automatic dubs, e.g. Portuguese).
+     */
+    /** @return true when a different track was requested (the switch happens a moment later) */
+    private boolean chooseAudioTrack(TrackSelectionArray selections) {
+        MappingTrackSelector.MappedTrackInfo info = mSelector.getCurrentMappedTrackInfo();
+        if (info == null) {
+            return false;
+        }
+        String saved = PlayerData.instance(mActivity).getAudioLanguage();
+        if ("in".equals(saved)) {
+            saved = "id"; // same fix as the real player
+        }
+        for (int renderer = 0; renderer < info.getRendererCount(); renderer++) {
+            if (info.getRendererType(renderer) != C.TRACK_TYPE_AUDIO) {
+                continue;
+            }
+            TrackGroupArray groups = info.getTrackGroups(renderer);
+            int[] wanted = TextUtils.isEmpty(saved) ? null : findAudio(groups, saved, false);
+            if (wanted == null) {
+                wanted = findAudio(groups, "original", true);
+            }
+            if (wanted == null || isSelected(selections, renderer, groups.get(wanted[0]).getFormat(wanted[1]))) {
+                return false; // nothing to change
+            }
+            mSelector.setParameters(mSelector.buildUponParameters().setSelectionOverride(renderer, groups,
+                    new DefaultTrackSelector.SelectionOverride(wanted[0], wanted[1])));
+            return true;
+        }
+        return false;
+    }
+
+    /** Whether the current selection already uses an audio track in that language. */
+    private static boolean isSelected(TrackSelectionArray selections, int renderer, Format wanted) {
+        if (selections == null || renderer >= selections.length || selections.get(renderer) == null) {
+            return false;
+        }
+        Format current = selections.get(renderer).getSelectedFormat();
+        return current != null && current.language != null && current.language.equals(wanted.language);
+    }
+
+    /** @return {group, track} of the lowest-bitrate audio whose language matches, or null */
+    private static int[] findAudio(TrackGroupArray groups, String language, boolean contains) {
+        int[] best = null;
+        int bestBitrate = Integer.MAX_VALUE;
+        for (int g = 0; g < groups.length; g++) {
+            TrackGroup group = groups.get(g);
+            for (int t = 0; t < group.length; t++) {
+                Format format = group.getFormat(t);
+                String lang = format.language;
+                if (lang == null) {
+                    continue;
+                }
+                boolean match = contains ? lang.contains(language) : lang.startsWith(language);
+                int bitrate = format.bitrate > 0 ? format.bitrate : Integer.MAX_VALUE - 1;
+                if (match && bitrate < bestBitrate) {
+                    best = new int[]{g, t};
+                    bestBitrate = bitrate;
+                }
+            }
+        }
+        return best;
+    }
+
     private void ensurePlayer() {
         if (mPlayer != null) {
             return;
         }
         // Low quality and a small buffer: enough for a thumbnail, light on a modest TV
         DefaultTrackSelector selector = new DefaultTrackSelector();
+        mSelector = selector;
         selector.setParameters(selector.buildUponParameters()
                 .setMaxVideoSize(854, 480)
                 .setMaxVideoBitrate(1_500_000));
@@ -226,6 +313,23 @@ final class FamilyPreview {
                 if (playbackState == Player.STATE_ENDED) {
                     stop();
                 }
+            }
+
+            @Override
+            public void onTracksChanged(TrackGroupArray trackGroups, TrackSelectionArray trackSelections) {
+                if (mPlayer == null) {
+                    return;
+                }
+                if (!mAudioChosen) {
+                    mAudioChosen = true;
+                    if (chooseAudioTrack(trackSelections)) {
+                        // Switching: unmute when the new selection arrives (or shortly after, just in case)
+                        mHandler.postDelayed(mUnmute, 1500);
+                        return;
+                    }
+                }
+                mHandler.removeCallbacks(mUnmute);
+                mUnmute.run();
             }
 
             @Override
