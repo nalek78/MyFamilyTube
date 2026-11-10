@@ -57,11 +57,14 @@ import es.myfamilytube.profiles.FamilyProfiles;
  * with its own screen: video on top with tap/double-tap controls, details and suggestions below,
  * and the whole screen when the phone is turned sideways.
  */
-public class MobilePlayerActivity extends MotherActivity implements PlaybackView, MobileFeedAdapter.Listener {
+public class MobilePlayerActivity extends MotherActivity implements PlaybackView, MobileFeedAdapter.Listener,
+        MobilePlaybackService.Controls {
     private static final long HIDE_CONTROLS_MS = 3500;
     private static final long JUMP_MS = 10_000;
     private static final int COLOR_ON = 0xFFFF3D33;
     private static final int COLOR_OFF = 0xFFF2F2F2;
+    private static final String ACTION_PIP_PLAY_PAUSE = "es.myfamilytube.PIP_PLAY_PAUSE";
+    private static final int REQUEST_NOTIFICATIONS = 4803;
 
     private final Handler mHandler = new Handler(Looper.getMainLooper());
     private PlaybackPresenter mPresenter;
@@ -70,6 +73,24 @@ public class MobilePlayerActivity extends MotherActivity implements PlaybackView
     private SimpleExoPlayer mPlayer;
     private boolean mEngineBlocked;
     private boolean mFinished;
+    private boolean mResumed;
+    private boolean mInPip;
+    private android.support.v4.media.session.MediaSessionCompat mMediaSession;
+    private com.google.android.exoplayer2.ext.mediasession.MediaSessionConnector mSessionConnector;
+    private boolean mReceiversRegistered;
+
+    /** Headphones unplugged / bluetooth off: pause, like any player. */
+    private final android.content.BroadcastReceiver mNoisyReceiver = new android.content.BroadcastReceiver() {
+        @Override
+        public void onReceive(android.content.Context context, android.content.Intent intent) {
+            if (android.media.AudioManager.ACTION_AUDIO_BECOMING_NOISY.equals(intent.getAction()) && getPlayWhenReady()) {
+                setPlayWhenReady(false);
+                mPresenter.onPauseClicked();
+            } else if (ACTION_PIP_PLAY_PAUSE.equals(intent.getAction())) {
+                togglePlay();
+            }
+        }
+    };
 
     private View mVideoFrame;
     private com.google.android.exoplayer2.ui.PlayerView mPlayerView;
@@ -117,6 +138,8 @@ public class MobilePlayerActivity extends MotherActivity implements PlaybackView
             updatePlayButton();
             mBuffering.setVisibility(playbackState == Player.STATE_BUFFERING ? View.VISIBLE : View.GONE);
             mVideoFrame.setKeepScreenOn(playWhenReady && playbackState != Player.STATE_ENDED && playbackState != Player.STATE_IDLE);
+            updatePipActions();
+            MobilePlaybackService.update(MobilePlayerActivity.this);
         }
     };
 
@@ -131,6 +154,7 @@ public class MobilePlayerActivity extends MotherActivity implements PlaybackView
                 @Override
                 public void setVideo(Video video) {
                     showVideoInfo(video);
+                    MobilePlaybackService.update(MobilePlayerActivity.this);
                 }
             };
 
@@ -184,6 +208,21 @@ public class MobilePlayerActivity extends MotherActivity implements PlaybackView
                 releaseForcedOrientation(degrees);
             }
         };
+        askNotificationPermission();
+    }
+
+    /** Android 13+: without it the controls with the screen off don't show (the sound still plays). */
+    private void askNotificationPermission() {
+        if (Build.VERSION.SDK_INT < 33 || FamilyBackground.get(this) == FamilyBackground.STOP) {
+            return;
+        }
+        android.content.SharedPreferences prefs = getSharedPreferences("family_ui", MODE_PRIVATE);
+        if (prefs.getBoolean("notifications_asked", false)
+                || checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+        prefs.edit().putBoolean("notifications_asked", true).apply();
+        requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, REQUEST_NOTIFICATIONS);
     }
 
     @Override
@@ -192,15 +231,163 @@ public class MobilePlayerActivity extends MotherActivity implements PlaybackView
         initializePlayer();
     }
 
+    /** Home button or another app while the video plays: keep it in a floating window. */
+    @Override
+    protected void onUserLeaveHint() {
+        super.onUserLeaveHint();
+        if (canUsePip() && getPlayWhenReady() && containsMedia()) {
+            enterPip();
+        }
+    }
+
+    private boolean canUsePip() {
+        return Build.VERSION.SDK_INT >= 26 && !mFinished
+                && FamilyBackground.get(this) == FamilyBackground.FLOATING
+                && getPackageManager().hasSystemFeature(android.content.pm.PackageManager.FEATURE_PICTURE_IN_PICTURE);
+    }
+
+    @android.annotation.TargetApi(26)
+    private android.app.PictureInPictureParams pipParams() {
+        android.app.PictureInPictureParams.Builder builder = new android.app.PictureInPictureParams.Builder();
+        int width = 16;
+        int height = 9;
+        if (mPlayer != null && mPlayer.getVideoFormat() != null
+                && mPlayer.getVideoFormat().width > 0 && mPlayer.getVideoFormat().height > 0) {
+            width = mPlayer.getVideoFormat().width;
+            height = mPlayer.getVideoFormat().height;
+        }
+        // Android only accepts shapes between 1:2.39 and 2.39:1
+        float ratio = (float) width / height;
+        if (ratio > 2.39f) {
+            width = 239;
+            height = 100;
+        } else if (ratio < 1 / 2.39f) {
+            width = 100;
+            height = 239;
+        }
+        builder.setAspectRatio(new android.util.Rational(width, height));
+        List<android.app.RemoteAction> actions = new ArrayList<>();
+        boolean playing = getPlayWhenReady();
+        android.content.Intent intent = new android.content.Intent(ACTION_PIP_PLAY_PAUSE).setPackage(getPackageName());
+        android.app.PendingIntent pending = android.app.PendingIntent.getBroadcast(this, 7, intent,
+                android.app.PendingIntent.FLAG_UPDATE_CURRENT | android.app.PendingIntent.FLAG_IMMUTABLE);
+        actions.add(new android.app.RemoteAction(
+                android.graphics.drawable.Icon.createWithResource(this, playing ? R.drawable.mobile_ic_pause : R.drawable.mobile_ic_play),
+                playing ? "Pausa" : "Reproducir", playing ? "Pausa" : "Reproducir", pending));
+        builder.setActions(actions);
+        return builder.build();
+    }
+
+    @android.annotation.TargetApi(26)
+    private void enterPip() {
+        try {
+            enterPictureInPictureMode(pipParams());
+        } catch (RuntimeException e) {
+            // Floating windows turned off for this app in Android settings: the sound keeps playing instead
+        }
+    }
+
+    private void updatePipActions() {
+        if (Build.VERSION.SDK_INT >= 26 && mInPip) {
+            try {
+                setPictureInPictureParams(pipParams());
+            } catch (RuntimeException e) {
+                // ignore
+            }
+        }
+    }
+
+    @Override
+    public void onPictureInPictureModeChanged(boolean isInPictureInPictureMode, Configuration newConfig) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig);
+        mInPip = isInPictureInPictureMode;
+        if (isInPictureInPictureMode) {
+            showControls(false);
+            ViewGroup.LayoutParams params = mVideoFrame.getLayoutParams();
+            params.height = ViewGroup.LayoutParams.MATCH_PARENT;
+            mVideoFrame.setLayoutParams(params);
+            mDetails.setVisibility(View.GONE);
+        } else {
+            applyOrientation(newConfig != null ? newConfig.orientation : getResources().getConfiguration().orientation);
+            // Closed with its X (not opened again): stop
+            mHandler.postDelayed(() -> {
+                if (!mResumed && !mInPip && !isFinishing()) {
+                    finish();
+                }
+            }, 600);
+        }
+    }
+
+    /** Sound with the screen off, the floating window or another app on top. */
+    private boolean shouldKeepPlaying() {
+        if (mPlayer == null || mFinished) {
+            return false;
+        }
+        return mInPip || (FamilyBackground.get(this) != FamilyBackground.STOP && getPlayWhenReady());
+    }
+
+    // ---------------------------------------------------------------- notification controls
+
+    @Override
+    public void onNotificationPlayPause() {
+        togglePlay();
+    }
+
+    @Override
+    public void onNotificationNext() {
+        mPresenter.onNextClicked();
+    }
+
+    @Override
+    public void onNotificationPrevious() {
+        mPresenter.onPreviousClicked();
+    }
+
+    @Override
+    public void onNotificationClose() {
+        finish();
+    }
+
+    @Override
+    public boolean isNotificationPlaying() {
+        return getPlayWhenReady();
+    }
+
+    @Override
+    public String getNotificationTitle() {
+        Video video = getVideo();
+        return video != null ? (video.getTitleFull() != null ? video.getTitleFull() : video.getTitle()) : null;
+    }
+
+    @Override
+    public String getNotificationText() {
+        Video video = getVideo();
+        return video != null ? video.getAuthor() : null;
+    }
+
+    @Override
+    public String getNotificationImage() {
+        Video video = getVideo();
+        return video != null ? video.getCardImageUrl() : null;
+    }
+
+    @Override
+    public android.support.v4.media.session.MediaSessionCompat.Token getSessionToken() {
+        return mMediaSession != null ? mMediaSession.getSessionToken() : null;
+    }
+
     @Override
     protected void onResume() {
         super.onResume();
         if (mPlayer == null) {
             initializePlayer();
         }
+        mResumed = true;
         mPresenter.setView(this);
         mPresenter.onViewResumed();
         mEngineBlocked = false;
+        // Back on screen: no need for the notification
+        MobilePlaybackService.stop(this, this);
         mHandler.post(mProgressTick);
         if (mOrientationListener.canDetectOrientation()) {
             mOrientationListener.enable();
@@ -210,7 +397,12 @@ public class MobilePlayerActivity extends MotherActivity implements PlaybackView
     @Override
     protected void onPause() {
         super.onPause();
+        mResumed = false;
         mPresenter.onViewPaused();
+        // Still allowed to start it now (not later, from the background)
+        if (!isFinishing() && FamilyBackground.get(this) != FamilyBackground.STOP && getPlayWhenReady()) {
+            MobilePlaybackService.start(this, this);
+        }
         mHandler.removeCallbacks(mProgressTick);
         mOrientationListener.disable();
     }
@@ -218,8 +410,9 @@ public class MobilePlayerActivity extends MotherActivity implements PlaybackView
     @Override
     protected void onStop() {
         super.onStop();
-        if (!mEngineBlocked) {
+        if (isFinishing() || (!shouldKeepPlaying() && !mEngineBlocked)) {
             releasePlayer();
+            MobilePlaybackService.stop(this, this);
         }
     }
 
@@ -235,7 +428,7 @@ public class MobilePlayerActivity extends MotherActivity implements PlaybackView
 
     @Override
     public void onBackPressed() {
-        if (isLandscape()) {
+        if (isLandscape() && !mInPip) {
             setFullscreen(false);
             return;
         }
@@ -247,6 +440,7 @@ public class MobilePlayerActivity extends MotherActivity implements PlaybackView
         if (!mFinished) {
             mFinished = true;
             releasePlayer();
+            MobilePlaybackService.stop(this, this);
             mPresenter.onFinish();
         }
         super.finish();
@@ -260,7 +454,9 @@ public class MobilePlayerActivity extends MotherActivity implements PlaybackView
     @Override
     public void onConfigurationChanged(Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
-        applyOrientation(newConfig.orientation);
+        if (!mInPip) {
+            applyOrientation(newConfig.orientation);
+        }
     }
 
     // ---------------------------------------------------------------- engine life
@@ -277,6 +473,17 @@ public class MobilePlayerActivity extends MotherActivity implements PlaybackView
         mController.setPlayerView(mEngineView);
         mPlayer.addListener(mStateListener);
         mPlayerView.setPlayer(mPlayer);
+        createMediaSession();
+        if (!mReceiversRegistered) {
+            android.content.IntentFilter filter = new android.content.IntentFilter(android.media.AudioManager.ACTION_AUDIO_BECOMING_NOISY);
+            filter.addAction(ACTION_PIP_PLAY_PAUSE);
+            if (Build.VERSION.SDK_INT >= 33) {
+                registerReceiver(mNoisyReceiver, filter, android.content.Context.RECEIVER_NOT_EXPORTED);
+            } else {
+                registerReceiver(mNoisyReceiver, filter);
+            }
+            mReceiversRegistered = true;
+        }
 
         mPresenter.setView(this);
         mPresenter.onEngineInitialized();
@@ -287,12 +494,85 @@ public class MobilePlayerActivity extends MotherActivity implements PlaybackView
             return;
         }
         mPresenter.onEngineReleased();
+        releaseMediaSession();
+        if (mReceiversRegistered) {
+            try {
+                unregisterReceiver(mNoisyReceiver);
+            } catch (IllegalArgumentException e) {
+                // already gone
+            }
+            mReceiversRegistered = false;
+        }
         mPlayer.removeListener(mStateListener);
         mPlayerView.setPlayer(null);
         mInitializer.release();
         mController.release();
         mPlayer = null;
         mVideoFrame.setKeepScreenOn(false);
+    }
+
+    /** Lock screen, headphones and bluetooth buttons, and the notification's picture and title. */
+    private void createMediaSession() {
+        if (Build.VERSION.SDK_INT <= 19 || mPlayer == null) {
+            return;
+        }
+        try {
+            mMediaSession = new android.support.v4.media.session.MediaSessionCompat(getApplicationContext(), getPackageName());
+            mMediaSession.setActive(true);
+            mSessionConnector = new com.google.android.exoplayer2.ext.mediasession.MediaSessionConnector(mMediaSession);
+            mSessionConnector.setPlayer(mPlayer);
+            mSessionConnector.setMediaMetadataProvider(player -> {
+                Video video = getVideo();
+                if (video == null) {
+                    return null;
+                }
+                android.support.v4.media.MediaMetadataCompat.Builder metadata = new android.support.v4.media.MediaMetadataCompat.Builder();
+                metadata.putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_MEDIA_ID, video.videoId);
+                metadata.putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_TITLE, getNotificationTitle());
+                metadata.putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, getNotificationTitle());
+                metadata.putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ARTIST, video.getAuthor());
+                metadata.putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, video.getCardImageUrl());
+                metadata.putLong(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DURATION, getDurationMs());
+                return metadata.build();
+            });
+            mSessionConnector.setQueueNavigator(new com.liskovsoft.smartyoutubetv2.tv.ui.playback.other.BackboneQueueNavigator() {
+                @Override
+                public long getSupportedQueueNavigatorActions(Player player) {
+                    return android.support.v4.media.session.PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS
+                            | android.support.v4.media.session.PlaybackStateCompat.ACTION_SKIP_TO_NEXT;
+                }
+
+                @Override
+                public void onSkipToPrevious(Player player, com.google.android.exoplayer2.ControlDispatcher controlDispatcher) {
+                    mPresenter.onPreviousClicked();
+                }
+
+                @Override
+                public void onSkipToNext(Player player, com.google.android.exoplayer2.ControlDispatcher controlDispatcher) {
+                    mPresenter.onNextClicked();
+                }
+            });
+        } catch (RuntimeException | NoSuchMethodError e) {
+            releaseMediaSession(); // some old phones: no lock screen controls
+        }
+    }
+
+    private void releaseMediaSession() {
+        if (mSessionConnector != null) {
+            try {
+                mSessionConnector.setPlayer(null);
+                mSessionConnector.setMediaMetadataProvider(null);
+                mSessionConnector.setQueueNavigator(null);
+            } catch (RuntimeException | NoSuchMethodError e) {
+                // ignore
+            }
+            mSessionConnector = null;
+        }
+        if (mMediaSession != null) {
+            mMediaSession.setActive(false);
+            mMediaSession.release();
+            mMediaSession = null;
+        }
     }
 
     // ---------------------------------------------------------------- controls
@@ -351,12 +631,17 @@ public class MobilePlayerActivity extends MotherActivity implements PlaybackView
 
             @Override
             public boolean onSingleTapConfirmed(MotionEvent e) {
-                showControls(!isControlsShown());
+                if (!mInPip) {
+                    showControls(!isControlsShown());
+                }
                 return true;
             }
 
             @Override
             public boolean onDoubleTap(MotionEvent e) {
+                if (mInPip) {
+                    return false;
+                }
                 boolean forward = e.getX() > mVideoFrame.getWidth() / 2f;
                 long target = getPositionMs() + (forward ? JUMP_MS : -JUMP_MS);
                 long duration = getDurationMs();
@@ -955,7 +1240,7 @@ public class MobilePlayerActivity extends MotherActivity implements PlaybackView
 
     @Override
     public boolean isInPIPMode() {
-        return false;
+        return mInPip;
     }
 
     @Override

@@ -49,6 +49,7 @@ public final class FamilyRules implements ContentGate.Rules {
     private final FamilyProfiles mProfiles;
     private final Handler mHandler = new Handler(Looper.getMainLooper());
     private Activity mPlayer;
+    private boolean mPlayerInBackground;
     private long mLastTickMs;
 
     private FamilyRules(Context context) {
@@ -176,6 +177,10 @@ public final class FamilyRules implements ContentGate.Rules {
             long now = System.currentTimeMillis();
             int seconds = (int) Math.min(60, Math.max(0, (now - mLastTickMs) / 1000));
             mLastTickMs = now;
+            // Phone player in the floating window or in the background: counts while it plays
+            if (mPlayerInBackground && !isPlaying(player)) {
+                seconds = 0;
+            }
             mProfiles.addUsedSeconds(kid, seconds);
 
             if (mProfiles.isTimeUp(kid)) {
@@ -190,6 +195,17 @@ public final class FamilyRules implements ContentGate.Rules {
         }
     };
 
+    private static boolean isPlaying(Activity activity) {
+        com.liskovsoft.smartyoutubetv2.common.app.views.PlaybackView view =
+                com.liskovsoft.smartyoutubetv2.common.app.presenters.PlaybackPresenter.instance(activity).getView();
+        return view != null && view.isPlaying();
+    }
+
+    /** The phone player keeps playing in a floating window or with the screen off. */
+    private static boolean playsInBackground(Activity activity) {
+        return activity.getClass().getSimpleName().equals("MobilePlayerActivity");
+    }
+
     private static boolean isPlayer(Activity activity) {
         String name = activity.getClass().getSimpleName();
         return name.equals("PlaybackActivity") || name.equals("MobilePlayerActivity"); // TV and phone players
@@ -200,6 +216,7 @@ public final class FamilyRules implements ContentGate.Rules {
         public void onActivityResumed(Activity activity) {
             if (isPlayer(activity)) {
                 mPlayer = activity;
+                mPlayerInBackground = false;
                 mLastTickMs = System.currentTimeMillis();
                 mHandler.removeCallbacks(mTick);
                 mHandler.postDelayed(mTick, TICK_MS);
@@ -208,6 +225,10 @@ public final class FamilyRules implements ContentGate.Rules {
 
         @Override
         public void onActivityPaused(Activity activity) {
+            if (activity == mPlayer && playsInBackground(activity)) {
+                mPlayerInBackground = true; // keep counting until it closes
+                return;
+            }
             if (activity == mPlayer) {
                 mHandler.removeCallbacks(mTick);
                 mTick.run(); // count the last seconds
@@ -234,6 +255,15 @@ public final class FamilyRules implements ContentGate.Rules {
 
         @Override
         public void onActivityDestroyed(Activity activity) {
+            if (activity == mPlayer) {
+                mHandler.removeCallbacks(mTick);
+                if (!mPlayerInBackground) {
+                    mTick.run();
+                }
+                mHandler.removeCallbacks(mTick);
+                mPlayer = null;
+                mPlayerInBackground = false;
+            }
         }
     };
 }

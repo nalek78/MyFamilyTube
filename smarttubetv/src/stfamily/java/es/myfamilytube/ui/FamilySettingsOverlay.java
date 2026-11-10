@@ -184,7 +184,21 @@ final class FamilySettingsOverlay {
                 FamilyPreview.setEnabled(mActivity, index == 0);
             }
         });
-        choice("Memoria para el vídeo", "«Baja» si la tele va justa o la app se cierra sola", new Choice() {
+        if (FamilyLayouts.mobile) // phone only
+        choice("Al salir de un vídeo", "Ventana flotante: sigue en pequeño sobre otras apps, y con la pantalla apagada sigue el sonido", new Choice() {
+            public String[] labels() {
+                return FamilyBackground.LABELS;
+            }
+
+            public int current() {
+                return FamilyBackground.get(mActivity);
+            }
+
+            public void set(int index) {
+                FamilyBackground.set(mActivity, index);
+            }
+        });
+        choice("Memoria para el vídeo","«Baja» si la tele va justa o la app se cierra sola", new Choice() {
             final int[] buffers = {PlayerConstants.BUFFER_LOW, PlayerConstants.BUFFER_MEDIUM, PlayerConstants.BUFFER_HIGH};
 
             public String[] labels() {
