@@ -61,7 +61,7 @@ final class FamilySettingsOverlay {
 
     void show() {
         if (mRoot == null) {
-            mRoot = LayoutInflater.from(mActivity).inflate(R.layout.family_settings, mHost, false);
+            mRoot = LayoutInflater.from(mActivity).inflate(FamilyLayouts.settings, mHost, false);
             mHost.addView(mRoot);
             mList = mRoot.findViewById(R.id.family_settings_list);
         }
@@ -170,6 +170,7 @@ final class FamilySettingsOverlay {
                 sponsor.setSponsorBlockEnabled(index == 0);
             }
         });
+        if (!FamilyLayouts.mobile) // TV only: previews start when the remote rests on a card
         choice("Vista previa en la miniatura", "Al quedarte en un vídeo, se reproduce su primer minuto con sonido", new Choice() {
             public String[] labels() {
                 return YES_NO;
@@ -199,6 +200,7 @@ final class FamilySettingsOverlay {
             }
         });
 
+        if (!FamilyLayouts.mobile) {
         header("Pantalla");
         choice("Tamaño de las miniaturas", "Normal, un 15 % más grande o un 30 % más grande", new Choice() {
             public String[] labels() {
@@ -214,6 +216,7 @@ final class FamilySettingsOverlay {
                 mCallbacks.onCardSizeChanged();
             }
         });
+        }
 
         header("Familia");
         link("Perfiles y control parental", "Crear o cambiar perfiles, edad, canales aprobados, tiempo", () -> {
@@ -276,7 +279,7 @@ final class FamilySettingsOverlay {
     }
 
     private View row(String title, String hint) {
-        View row = LayoutInflater.from(mActivity).inflate(R.layout.family_setting_row, mList, false);
+        View row = LayoutInflater.from(mActivity).inflate(FamilyLayouts.settingRow, mList, false);
         ((TextView) row.findViewById(R.id.family_setting_title)).setText(title);
         TextView hintView = row.findViewById(R.id.family_setting_hint);
         if (hint == null) {

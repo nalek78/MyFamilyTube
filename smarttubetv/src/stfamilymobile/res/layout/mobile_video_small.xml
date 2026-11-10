@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Compact video row (player suggestions): picture on the left, texts on the right -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="?android:attr/selectableItemBackground"
+    android:clickable="true"
+    android:focusable="true"
+    android:orientation="horizontal"
+    android:paddingLeft="@dimen/mobile_side"
+    android:paddingTop="6dp"
+    android:paddingRight="@dimen/mobile_side"
+    android:paddingBottom="6dp">
+
+    <FrameLayout
+        android:id="@+id/family_card_thumb_frame"
+        android:layout_width="160dp"
+        android:layout_height="90dp"
+        android:background="@drawable/family_thumb_bg">
+
+        <ImageView
+            android:id="@+id/mobile_card_thumb"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:importantForAccessibility="no"
+            android:scaleType="centerCrop" />
+
+        <TextView
+            android:id="@+id/mobile_card_badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|end"
+            android:layout_margin="5dp"
+            android:background="@drawable/family_badge_bg"
+            android:paddingLeft="5dp"
+            android:paddingRight="5dp"
+            android:textColor="#FFFFFF"
+            android:textSize="11sp"
+            android:visibility="gone" />
+    </FrameLayout>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="12dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/mobile_card_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:fontFamily="sans-serif-medium"
+            android:maxLines="3"
+            android:textColor="@color/family_text"
+            android:textSize="14sp" />
+
+        <TextView
+            android:id="@+id/mobile_card_subtitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:ellipsize="end"
+            android:maxLines="2"
+            android:textColor="@color/family_text3"
+            android:textSize="12sp" />
+    </LinearLayout>
+</LinearLayout>

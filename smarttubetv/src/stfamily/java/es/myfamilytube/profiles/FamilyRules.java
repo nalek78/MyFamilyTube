@@ -191,7 +191,8 @@ public final class FamilyRules implements ContentGate.Rules {
     };
 
     private static boolean isPlayer(Activity activity) {
-        return activity.getClass().getSimpleName().equals("PlaybackActivity");
+        String name = activity.getClass().getSimpleName();
+        return name.equals("PlaybackActivity") || name.equals("MobilePlayerActivity"); // TV and phone players
     }
 
     private final Application.ActivityLifecycleCallbacks mPlaybackWatcher = new Application.ActivityLifecycleCallbacks() {

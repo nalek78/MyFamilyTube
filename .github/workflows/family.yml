@@ -48,7 +48,8 @@ jobs:
       - name: Compilar
         run: |
           chmod +x gradlew
-          ./gradlew assembleStfamilyRelease 2>&1 | tee build.log
+          # TV and phone apps
+          ./gradlew assembleStfamilyRelease assembleStfamilymobileRelease 2>&1 | tee build.log
           exit ${PIPESTATUS[0]}
 
       - name: Guardar el error si falla (rama build-log)
@@ -65,16 +66,20 @@ jobs:
           git commit -m "Error de compilación en ${SHA}"
           git push -f origin build-log
 
-      - name: Preparar APK y fichero de actualización
+      - name: Preparar APKs y ficheros de actualización
         if: github.ref == 'refs/heads/master'
         run: |
           N=${FAMILY_BUILD_NUMBER}
           cp smarttubetv/build/outputs/apk/stfamily/release/*_universal.apk MyFamilyTube.apk
+          cp smarttubetv/build/outputs/apk/stfamilymobile/release/*_universal.apk MyFamilyTube-movil.apk
           CHANGE=$(git log -1 --pretty=%s | sed 's/"/\\"/g')
-          cat > myfamilytube.json <<EOF
+          for APP in MyFamilyTube:myfamilytube MyFamilyTube-movil:myfamilytube-movil; do
+            APK="${APP%%:*}"
+            JSON="${APP##*:}"
+            cat > "${JSON}.json" <<EOF
           {
             "package": {
-              "downloadUrl": "https://github.com/${{ github.repository }}/releases/download/v1.0.${N}/MyFamilyTube.apk"
+              "downloadUrl": "https://github.com/${{ github.repository }}/releases/download/v1.0.${N}/${APK}.apk"
             },
             "1.0.${N}": {
               "versionCode": ${N},
@@ -82,6 +87,7 @@ jobs:
             }
           }
           EOF
+          done
 
       - name: Publicar Release
         if: github.ref == 'refs/heads/master'
@@ -89,6 +95,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "v1.0.${FAMILY_BUILD_NUMBER}" MyFamilyTube.apk myfamilytube.json \
+            MyFamilyTube-movil.apk myfamilytube-movil.json \
             --title "MyFamilyTube 1.0.${FAMILY_BUILD_NUMBER}" \
             --notes "$(git log -1 --pretty=%B)" \
             --latest

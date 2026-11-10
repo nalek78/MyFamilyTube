@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Search, channel and channel videos: a bar on top and a list of videos -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/mobile_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/family_bg"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/mobile_bar"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingLeft="4dp"
+        android:paddingRight="4dp">
+
+        <ImageView
+            android:id="@+id/mobile_back"
+            style="@style/MobileIconButton"
+            android:contentDescription="Atrás"
+            android:src="@drawable/mobile_ic_back" />
+
+        <TextView
+            android:id="@+id/mobile_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="8dp"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:fontFamily="sans-serif-medium"
+            android:maxLines="1"
+            android:textColor="@color/family_text"
+            android:textSize="18sp" />
+
+        <EditText
+            android:id="@+id/mobile_search_field"
+            android:layout_width="0dp"
+            android:layout_height="44dp"
+            android:layout_marginLeft="4dp"
+            android:layout_weight="1"
+            android:background="@drawable/mobile_search_bg"
+            android:hint="Buscar en YouTube"
+            android:imeOptions="actionSearch"
+            android:importantForAutofill="no"
+            android:inputType="text"
+            android:paddingLeft="18dp"
+            android:paddingRight="18dp"
+            android:singleLine="true"
+            android:textColor="@color/family_text"
+            android:textColorHint="@color/family_text3"
+            android:textSize="16sp"
+            android:visibility="gone" />
+
+        <ImageView
+            android:id="@+id/mobile_mic"
+            style="@style/MobileIconButton"
+            android:contentDescription="Buscar por voz"
+            android:src="@drawable/mobile_ic_mic"
+            android:visibility="gone" />
+    </LinearLayout>
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/mobile_list"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:paddingTop="4dp"
+            android:paddingBottom="24dp" />
+
+        <TextView
+            android:id="@+id/mobile_message"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:gravity="center"
+            android:padding="32dp"
+            android:textColor="@color/family_text2"
+            android:textSize="16sp"
+            android:visibility="gone" />
+
+        <ProgressBar
+            android:id="@+id/mobile_progress"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_gravity="center"
+            android:indeterminateTint="@color/family_ring"
+            android:visibility="gone" />
+    </FrameLayout>
+</LinearLayout>

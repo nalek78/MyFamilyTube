@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="mobile_side">12dp</dimen>
+    <dimen name="mobile_bar">56dp</dimen>
+
+    <!-- Phones older than Android 5 (none in practice) get a plain dark theme -->
+    <style name="MobileTheme" parent="@android:style/Theme.Holo.NoActionBar">
+        <item name="android:windowBackground">@color/family_bg</item>
+        <item name="android:colorBackground">@color/family_bg</item>
+        <item name="android:textColorPrimary">@color/family_text</item>
+    </style>
+
+    <style name="MobilePlayerTheme" parent="MobileTheme" />
+
+    <!-- Choice chips (age, limits…) on the profile editor -->
+    <style name="MobileChip">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">38dp</item>
+        <item name="android:gravity">center</item>
+        <item name="android:paddingLeft">14dp</item>
+        <item name="android:paddingRight">14dp</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textColor">@color/family_tab_text</item>
+        <item name="android:background">@drawable/family_tab_bg</item>
+        <item name="android:focusable">true</item>
+        <item name="android:clickable">true</item>
+        <item name="android:singleLine">true</item>
+    </style>
+
+    <style name="MobileLabel">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">20dp</item>
+        <item name="android:layout_marginBottom">8dp</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textColor">@color/family_text2</item>
+    </style>
+
+    <style name="MobileIconButton">
+        <item name="android:layout_width">44dp</item>
+        <item name="android:layout_height">44dp</item>
+        <item name="android:scaleType">center</item>
+        <item name="android:background">?android:attr/selectableItemBackgroundBorderless</item>
+        <item name="android:clickable">true</item>
+        <item name="android:focusable">true</item>
+    </style>
+</resources>

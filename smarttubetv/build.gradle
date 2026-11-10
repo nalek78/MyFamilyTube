@@ -187,6 +187,26 @@ android {
             versionCode buildNumber ? buildNumber.toInteger() : 1
             versionName "1.0." + (buildNumber ?: "0")
         }
+        // MyFamilyTube for phones: same engine, profiles and parental control, touch screens
+        stfamilymobile {
+            applicationId "es.myfamilytube.movil"
+            targetSdkVersion project.properties.compileSdkVersion
+            matchingFallbacks = ['stbeta']
+            def buildNumber = System.getenv("FAMILY_BUILD_NUMBER")
+            versionCode buildNumber ? buildNumber.toInteger() : 1
+            versionName "1.0." + (buildNumber ?: "0")
+        }
+    }
+
+    // MyFamilyTube: src/stfamily holds what TV and phone share; each one adds its own bits
+    sourceSets {
+        stfamily {
+            res.srcDirs += ['src/stfamilytv/res']
+        }
+        stfamilymobile {
+            java.srcDirs += ['src/stfamily/java']
+            res.srcDirs += ['src/stfamily/res']
+        }
     }
 }
 

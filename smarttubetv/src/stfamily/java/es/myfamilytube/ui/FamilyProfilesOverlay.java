@@ -141,7 +141,7 @@ final class FamilyProfilesOverlay {
         if (mRoot != null) {
             return;
         }
-        mRoot = LayoutInflater.from(mActivity).inflate(R.layout.family_profiles, mHost, false);
+        mRoot = LayoutInflater.from(mActivity).inflate(FamilyLayouts.profiles, mHost, false);
         mHost.addView(mRoot);
         mPicker = mRoot.findViewById(R.id.family_picker);
         mItems = mRoot.findViewById(R.id.family_picker_items);
@@ -245,7 +245,7 @@ final class FamilyProfilesOverlay {
     }
 
     private View createItem(String avatar, int color, String initial, String name, String description) {
-        View item = LayoutInflater.from(mActivity).inflate(R.layout.family_profile_item, mItems, false);
+        View item = LayoutInflater.from(mActivity).inflate(FamilyLayouts.profileItem, mItems, false);
         TextView avatarView = item.findViewById(R.id.family_profile_avatar);
         ((TextView) item.findViewById(R.id.family_profile_name)).setText(name);
         ((TextView) item.findViewById(R.id.family_profile_desc)).setText(description);
@@ -259,7 +259,7 @@ final class FamilyProfilesOverlay {
     }
 
     private View createAddItem() {
-        View item = LayoutInflater.from(mActivity).inflate(R.layout.family_profile_item, mItems, false);
+        View item = LayoutInflater.from(mActivity).inflate(FamilyLayouts.profileItem, mItems, false);
         TextView avatar = item.findViewById(R.id.family_profile_avatar);
         ((TextView) item.findViewById(R.id.family_profile_name)).setText("Añadir perfil");
         ((TextView) item.findViewById(R.id.family_profile_desc)).setText("Adulto o infantil");
@@ -431,7 +431,7 @@ final class FamilyProfilesOverlay {
             return;
         }
         for (Map.Entry<String, String> entry : mEditChannels.entrySet()) {
-            TextView row = (TextView) LayoutInflater.from(mActivity).inflate(R.layout.family_tab, list, false);
+            TextView row = (TextView) LayoutInflater.from(mActivity).inflate(FamilyLayouts.channelRow, list, false);
             row.setText(entry.getValue() + "   ✕ quitar");
             LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, (int) dp(40));

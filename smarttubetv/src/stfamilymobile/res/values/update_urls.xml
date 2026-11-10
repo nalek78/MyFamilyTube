@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The phone app updates from its own file in our GitHub Releases -->
+    <string-array name="update_urls">
+        <item>https://github.com/nalek78/MyFamilyTube/releases/latest/download/myfamilytube-movil.json</item>
+    </string-array>
+</resources>

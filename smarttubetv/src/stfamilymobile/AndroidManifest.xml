@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- MyFamilyTube for phones: overlays the upstream manifest with the touch screens -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    package="com.liskovsoft.smartyoutubetv2.tv">
+
+    <!-- Not a TV-only app any more -->
+    <uses-feature
+        android:name="android.software.leanback"
+        android:required="false"
+        tools:replace="android:required" />
+
+    <application
+        android:name="es.myfamilytube.MobileApplication"
+        tools:replace="android:name">
+
+        <activity
+            android:name="es.myfamilytube.ui.MobileHomeActivity"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|layoutDirection|keyboardHidden"
+            android:launchMode="singleTask"
+            android:screenOrientation="unspecified"
+            android:theme="@style/MobileTheme"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
+            android:name="es.myfamilytube.ui.MobilePlayerActivity"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|layoutDirection|keyboardHidden"
+            android:launchMode="singleTask"
+            android:screenOrientation="unspecified"
+            android:supportsPictureInPicture="false"
+            android:theme="@style/MobilePlayerTheme" />
+
+        <activity
+            android:name="es.myfamilytube.ui.MobileSearchActivity"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|layoutDirection|keyboardHidden"
+            android:launchMode="singleTask"
+            android:screenOrientation="unspecified"
+            android:theme="@style/MobileTheme"
+            android:windowSoftInputMode="adjustResize|stateVisible" />
+
+        <activity
+            android:name="es.myfamilytube.ui.MobileChannelActivity"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|layoutDirection|keyboardHidden"
+            android:screenOrientation="unspecified"
+            android:theme="@style/MobileTheme" />
+
+        <activity
+            android:name="es.myfamilytube.ui.MobileChannelUploadsActivity"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|layoutDirection|keyboardHidden"
+            android:screenOrientation="unspecified"
+            android:theme="@style/MobileTheme" />
+
+    </application>
+</manifest>

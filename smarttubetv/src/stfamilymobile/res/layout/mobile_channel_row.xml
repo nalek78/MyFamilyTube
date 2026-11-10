@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- An approved channel in the profile editor (tap to remove) -->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    style="@style/MobileChip"
+    android:layout_width="match_parent"
+    android:gravity="center_vertical"
+    android:paddingLeft="16dp" />

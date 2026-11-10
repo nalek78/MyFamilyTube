@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="MobileTheme" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/family_bg</item>
+        <item name="android:colorBackground">@color/family_bg</item>
+        <item name="android:colorPrimary">@color/family_bg</item>
+        <item name="android:colorPrimaryDark">@color/family_bg</item>
+        <item name="android:colorAccent">@color/family_ring</item>
+        <item name="android:statusBarColor">@color/family_bg</item>
+        <item name="android:navigationBarColor">@color/family_bg</item>
+        <item name="android:textColorPrimary">@color/family_text</item>
+    </style>
+
+    <!-- Player: black behind the video -->
+    <style name="MobilePlayerTheme" parent="MobileTheme">
+        <item name="android:windowBackground">@android:color/black</item>
+        <item name="android:statusBarColor">@android:color/black</item>
+        <item name="android:navigationBarColor">@android:color/black</item>
+    </style>
+</resources>
