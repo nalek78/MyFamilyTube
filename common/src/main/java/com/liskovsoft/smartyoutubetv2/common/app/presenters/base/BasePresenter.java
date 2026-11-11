@@ -237,7 +237,14 @@ public abstract class BasePresenter<T> implements Presenter<T> {
     /**
      * Check that view's activity is alive
      */
+    /** A view without screen (MyFamilyTube: the Android Auto music player). Always valid. */
+    public interface Headless {
+    }
+
     private static <T> boolean checkView(T view) {
+        if (view instanceof Headless) {
+            return true;
+        }
         Activity activity = getViewActivity(view);
 
         return Utils.checkActivity(activity);
