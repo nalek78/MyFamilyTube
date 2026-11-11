@@ -99,7 +99,7 @@ final class MobileFeed {
             return result;
         }
         for (Video video : videos) {
-            if (video != null && !video.isShorts && ContentGate.allows(video)) {
+            if (video != null && ContentGate.allows(video)) { // Shorts only if the profile shows them
                 result.add(video);
             }
         }
@@ -108,7 +108,7 @@ final class MobileFeed {
 
     /** Applies one update from the engine, exactly as the TV screens do. */
     void apply(VideoGroup group) {
-        if (group == null || group.isShorts()) {
+        if (group == null || (group.isShorts() && !ContentGate.allowsShorts())) {
             return;
         }
         int action = group.getAction();
@@ -137,7 +137,7 @@ final class MobileFeed {
         }
 
         // A whole "Shorts" shelf goes, even if its videos aren't marked one by one
-        boolean shortsShelf = group.getTitle() != null && group.getTitle().trim().equalsIgnoreCase("shorts");
+        boolean shortsShelf = !ContentGate.allowsShorts() && group.getTitle() != null && group.getTitle().trim().equalsIgnoreCase("shorts");
         List<Video> videos = shortsShelf ? new ArrayList<>() : allowed(group.getVideos());
 
         if (block == null) {

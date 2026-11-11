@@ -160,6 +160,35 @@
             </LinearLayout>
 
             <LinearLayout
+                android:id="@+id/family_editor_adult_options"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <TextView
+                    style="@style/FamilyLabel"
+                    android:text="Shorts" />
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/family_tabs_bg"
+                    android:orientation="horizontal"
+                    android:padding="4dp">
+
+                    <TextView
+                        android:id="@+id/family_editor_shorts_show"
+                        style="@style/FamilyTab"
+                        android:text="Mostrar" />
+
+                    <TextView
+                        android:id="@+id/family_editor_shorts_hide"
+                        style="@style/FamilyTab"
+                        android:text="Ocultar" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <LinearLayout
                 android:id="@+id/family_editor_kid_options"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"

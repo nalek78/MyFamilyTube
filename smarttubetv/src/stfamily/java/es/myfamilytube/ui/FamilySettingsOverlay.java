@@ -235,7 +235,7 @@ final class FamilySettingsOverlay {
 
         if (FamilyLayouts.mobile) { // phone only
             header("Enlaces");
-            link("Abrir los enlaces de YouTube con esta app", "Los vídeos que te envíen se abrirán aquí, sin Shorts y con el control parental", () -> {
+            link("Abrir los enlaces de YouTube con esta app", "Los vídeos que te envíen se abrirán aquí, con el control parental de cada perfil", () -> {
                 hide();
                 FamilyLinks.showSetup(mActivity);
             });

@@ -13,7 +13,7 @@ import java.util.regex.Pattern;
 
 /**
  * Opens YouTube links (from the browser, WhatsApp, "Compartir"…) in MyFamilyTube.
- * Shorts links are refused. The link waits on the home screen until the profile is chosen
+ * Shorts links only open for profiles that show Shorts. The link waits on the home screen until the profile is chosen
  * (with its PIN if it's a grown-up one), so the parental control can't be skipped this way.
  */
 public class MobileLinkActivity extends Activity {
@@ -27,8 +27,6 @@ public class MobileLinkActivity extends Activity {
 
         if (uri == null) {
             Toast.makeText(this, "No es un enlace de YouTube", Toast.LENGTH_SHORT).show();
-        } else if (isShorts(uri)) {
-            Toast.makeText(this, "Los Shorts no están disponibles en MyFamilyTube", Toast.LENGTH_LONG).show();
         } else {
             // A clean copy with just the link: the engine reads the video, list, channel or search from it
             MobileHomeActivity.setPendingLink(new Intent(Intent.ACTION_VIEW, uri));
@@ -69,7 +67,7 @@ public class MobileLinkActivity extends Activity {
         return youtube ? uri : null;
     }
 
-    private static boolean isShorts(Uri uri) {
+    static boolean isShorts(Uri uri) {
         List<String> segments = uri.getPathSegments();
         return segments != null && !segments.isEmpty() && "shorts".equalsIgnoreCase(segments.get(0));
     }

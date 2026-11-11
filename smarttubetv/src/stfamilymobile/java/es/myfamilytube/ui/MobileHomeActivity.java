@@ -251,6 +251,11 @@ public class MobileHomeActivity extends MotherActivity implements BrowseView, Mo
             showTimeUp();
             return;
         }
+        if (link.getData() != null && MobileLinkActivity.isShorts(link.getData())
+                && !com.liskovsoft.smartyoutubetv2.common.misc.ContentGate.allowsShorts()) {
+            android.widget.Toast.makeText(this, "Los Shorts no están disponibles en este perfil", android.widget.Toast.LENGTH_LONG).show();
+            return;
+        }
         String videoId = com.liskovsoft.smartyoutubetv2.common.utils.IntentExtractor.extractVideoId(link);
         if (videoId != null) {
             long timeMs = com.liskovsoft.smartyoutubetv2.common.utils.IntentExtractor.extractVideoTimeMs(link);
@@ -580,7 +585,7 @@ public class MobileHomeActivity extends MotherActivity implements BrowseView, Mo
 
     @Override
     public void onVideoClicked(Video video) {
-        mPreview.stop();
+        mPreview.prepareOpen(video);
         mPresenter.onVideoItemClicked(video);
     }
 
@@ -806,7 +811,8 @@ public class MobileHomeActivity extends MotherActivity implements BrowseView, Mo
         mPendingUpdates++;
         mHandler.post(() -> {
             mPendingUpdates--;
-            if (isFinishing() || group == null || group.isShorts() || mCurrentSection == null) {
+            if (isFinishing() || group == null || mCurrentSection == null
+                    || (group.isShorts() && !com.liskovsoft.smartyoutubetv2.common.misc.ContentGate.allowsShorts())) {
                 return;
             }
             BrowseSection section = group.getSection();

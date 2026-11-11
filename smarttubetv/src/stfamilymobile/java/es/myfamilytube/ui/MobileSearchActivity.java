@@ -90,6 +90,7 @@ public class MobileSearchActivity extends MobileListActivity implements SearchVi
 
     @Override
     public void onVideoClicked(Video video) {
+        beforeOpen(video);
         mPresenter.onVideoItemClicked(video);
     }
 

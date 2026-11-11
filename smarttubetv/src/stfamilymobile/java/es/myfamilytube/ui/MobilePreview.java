@@ -37,7 +37,7 @@ final class MobilePreview {
             return false;
         }
         if (card == mCard && video == mVideo) {
-            stop(); // second tap: open it
+            prepareOpen(video); // second tap: open it, from where the preview is
             return false;
         }
         mPreview.startNow(card, video);
@@ -58,6 +58,13 @@ final class MobilePreview {
         if (card == mCard) {
             stop();
         }
+    }
+
+    /** Before opening a video: if it's the one being previewed, the player continues from there. */
+    void prepareOpen(Video video) {
+        mPreview.stopAndContinue(video);
+        mCard = null;
+        mVideo = null;
     }
 
     void stop() {

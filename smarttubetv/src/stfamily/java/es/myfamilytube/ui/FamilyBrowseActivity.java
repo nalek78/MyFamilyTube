@@ -332,7 +332,7 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
                         // Keep everything except Shorts: each profile's rules are applied when it is shown
                         List<Video> videos = new ArrayList<>();
                         for (Video video : VideoGroup.from(mediaGroup, section).getVideos()) {
-                            if (video != null && !video.isShorts) {
+                            if (video != null) {
                                 videos.add(video);
                             }
                         }
@@ -701,7 +701,7 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
     }
 
     private boolean isShownSection(BrowseSection section) {
-        if (isShortsSection(section)) {
+        if (isShortsSection(section) && !ContentGate.allowsShorts()) {
             return false;
         }
         return findTab(section.getId()) != null || section == mSettingsSection;
@@ -814,7 +814,7 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
             return result;
         }
         for (Video video : videos) {
-            if (video != null && !video.isShorts && ContentGate.allows(video)) {
+            if (video != null && ContentGate.allows(video)) {
                 result.add(video);
             }
         }
@@ -999,7 +999,8 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
 
         @Override
         public void onCardClicked(Object item) {
-            mPreview.stop();
+            // Opening the previewed video: it continues where the preview was
+            mPreview.stopAndContinue(item instanceof Video ? (Video) item : null);
             if (item instanceof Video) {
                 mPresenter.onVideoItemClicked((Video) item);
             } else if (item instanceof SettingsItem && ((SettingsItem) item).onClick != null) {
@@ -1203,7 +1204,7 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
     }
 
     private void updateSectionNow(VideoGroup group) {
-        if (isFinishing() || group == null || group.isShorts()) {
+        if (isFinishing() || group == null || (group.isShorts() && !ContentGate.allowsShorts())) {
             return;
         }
         BrowseSection section = group.getSection();

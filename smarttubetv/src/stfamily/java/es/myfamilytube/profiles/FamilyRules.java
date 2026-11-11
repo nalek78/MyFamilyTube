@@ -75,8 +75,8 @@ public final class FamilyRules implements ContentGate.Rules {
 
     @Override
     public boolean allows(Video video) {
-        // MyFamilyTube has no Shorts, for anyone and on every screen (channels, search, suggestions…)
-        if (video.isShorts || normalize(video.getTitle()).contains("#shorts")) {
+        // Shorts only for grown-ups who keep them on, on every screen (channels, search, suggestions…)
+        if (!allowsShorts() && (video.isShorts || normalize(video.getTitle()).contains("#shorts"))) {
             return false;
         }
         FamilyProfile kid = kid();
@@ -87,6 +87,12 @@ public final class FamilyRules implements ContentGate.Rules {
             return kid.isChannelApproved(video.channelId);
         }
         return !hasBlockedWords(kid, video);
+    }
+
+    @Override
+    public boolean allowsShorts() {
+        FamilyProfile current = mProfiles.getCurrent();
+        return !current.isKid && current.showShorts;
     }
 
     @Override

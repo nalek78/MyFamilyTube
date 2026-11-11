@@ -38,6 +38,8 @@ public final class FamilyProfile {
     public int dailyLimitMin;
     /** Kids: hide comments and live chat in the player. */
     public boolean hideComments = true;
+    /** Grown-ups: Shorts shown (on by default). Kids never see them. */
+    public boolean showShorts = true;
     /** Kids: approved channels, channelId -> channel name. */
     public final Map<String, String> approvedChannels = new LinkedHashMap<>();
 
@@ -93,6 +95,7 @@ public final class FamilyProfile {
         json.put("approvedOnly", approvedOnly);
         json.put("limit", dailyLimitMin);
         json.put("hideComments", hideComments);
+        json.put("showShorts", showShorts);
         JSONObject channels = new JSONObject();
         for (Map.Entry<String, String> entry : approvedChannels.entrySet()) {
             channels.put(entry.getKey(), entry.getValue());
@@ -113,6 +116,7 @@ public final class FamilyProfile {
         profile.approvedOnly = json.optBoolean("approvedOnly", false);
         profile.dailyLimitMin = json.optInt("limit", 0);
         profile.hideComments = json.optBoolean("hideComments", true);
+        profile.showShorts = json.optBoolean("showShorts", true);
         JSONObject channels = json.optJSONObject("channels");
         if (channels != null) {
             Iterator<String> keys = channels.keys();

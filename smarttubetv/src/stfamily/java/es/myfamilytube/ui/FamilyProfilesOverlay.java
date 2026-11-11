@@ -57,6 +57,7 @@ final class FamilyProfilesOverlay {
     private boolean mEditApprovedOnly;
     private int mEditLimitMin;
     private boolean mEditHideComments = true;
+    private boolean mEditShowShorts = true;
     private final Map<String, String> mEditChannels = new LinkedHashMap<>();
 
     FamilyProfilesOverlay(Activity activity, ViewGroup host, Callback callback) {
@@ -192,6 +193,8 @@ final class FamilyProfilesOverlay {
             limits.getChildAt(i).setOnClickListener(v -> { mEditLimitMin = minutes; refreshEditor(); });
         }
         mRoot.findViewById(R.id.family_editor_comments_hide).setOnClickListener(v -> { mEditHideComments = true; refreshEditor(); });
+        mRoot.findViewById(R.id.family_editor_shorts_show).setOnClickListener(v -> { mEditShowShorts = true; refreshEditor(); });
+        mRoot.findViewById(R.id.family_editor_shorts_hide).setOnClickListener(v -> { mEditShowShorts = false; refreshEditor(); });
         mRoot.findViewById(R.id.family_editor_comments_show).setOnClickListener(v -> { mEditHideComments = false; refreshEditor(); });
 
         buildAvatarChoices();
@@ -366,6 +369,7 @@ final class FamilyProfilesOverlay {
         mEditApprovedOnly = profile != null && profile.approvedOnly;
         mEditLimitMin = profile != null ? profile.dailyLimitMin : 0;
         mEditHideComments = profile == null || profile.hideComments;
+        mEditShowShorts = profile == null || profile.showShorts;
         mEditChannels.clear();
         if (profile != null) {
             mEditChannels.putAll(profile.approvedChannels);
@@ -390,6 +394,9 @@ final class FamilyProfilesOverlay {
         mRoot.findViewById(R.id.family_editor_adult).setActivated(!mEditKid);
         mRoot.findViewById(R.id.family_editor_kid).setActivated(mEditKid);
         mRoot.findViewById(R.id.family_editor_kid_options).setVisibility(mEditKid ? View.VISIBLE : View.GONE);
+        mRoot.findViewById(R.id.family_editor_adult_options).setVisibility(mEditKid ? View.GONE : View.VISIBLE);
+        mRoot.findViewById(R.id.family_editor_shorts_show).setActivated(mEditShowShorts);
+        mRoot.findViewById(R.id.family_editor_shorts_hide).setActivated(!mEditShowShorts);
         mRoot.findViewById(R.id.family_editor_pin_box).setVisibility(mEditKid && !mProfiles.hasPin() ? View.VISIBLE : View.GONE);
 
         LinearLayout ages = mRoot.findViewById(R.id.family_editor_ages);
@@ -532,6 +539,7 @@ final class FamilyProfilesOverlay {
         profile.approvedOnly = mEditApprovedOnly;
         profile.dailyLimitMin = mEditLimitMin;
         profile.hideComments = mEditHideComments;
+        profile.showShorts = mEditShowShorts;
         profile.approvedChannels.clear();
         profile.approvedChannels.putAll(mEditChannels);
         mProfiles.update(profile);

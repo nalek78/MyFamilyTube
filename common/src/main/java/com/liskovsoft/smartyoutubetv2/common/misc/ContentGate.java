@@ -19,6 +19,9 @@ public final class ContentGate {
 
         /** Whether the video may start playing. Shows its own message when it says no. */
         boolean allowsPlayback(Context context, Video video);
+
+        /** Whether Shorts are shown to the profile watching now. */
+        boolean allowsShorts();
     }
 
     private static Rules sRules;
@@ -40,6 +43,11 @@ public final class ContentGate {
         return rules == null || video == null || rules.allowsPlayback(context, video);
     }
 
+    public static boolean allowsShorts() {
+        Rules rules = sRules;
+        return rules == null || rules.allowsShorts();
+    }
+
     /** Removes from the group, in place, the videos the rules don't allow. */
     public static void filter(VideoGroup group) {
         Rules rules = sRules;
@@ -47,7 +55,8 @@ public final class ContentGate {
             return;
         }
         // A whole "Shorts" shelf (e.g. on a channel page) goes, even if its videos aren't marked one by one
-        boolean shortsShelf = group.getTitle() != null && group.getTitle().trim().equalsIgnoreCase("shorts");
+        boolean shortsShelf = !rules.allowsShorts()
+                && group.getTitle() != null && group.getTitle().trim().equalsIgnoreCase("shorts");
         List<Video> videos = new ArrayList<>(group.getVideos());
         for (Video video : videos) {
             if (video != null && (shortsShelf || !rules.allows(video))) {

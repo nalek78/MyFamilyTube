@@ -62,6 +62,7 @@ final class FamilyPreview {
     private ExoMediaSourceFactory mSourceFactory;
     private Disposable mFormatAction;
     private View mCard;
+    private Video mVideo;
     private ViewGroup mFrame;
     private TextureView mTexture;
     private Runnable mPendingStart;
@@ -96,6 +97,7 @@ final class FamilyPreview {
             return;
         }
         mCard = card;
+        mVideo = video;
         mRequireFocus = true;
         mPendingStart = () -> load(card, video);
         mHandler.postDelayed(mPendingStart, START_DELAY_MS);
@@ -108,6 +110,7 @@ final class FamilyPreview {
             return;
         }
         mCard = card;
+        mVideo = video;
         mRequireFocus = false;
         load(card, video);
     }
@@ -152,6 +155,21 @@ final class FamilyPreview {
         mTexture = null;
         mFrame = null;
         mCard = null;
+        mVideo = null;
+    }
+
+    /**
+     * The video is being opened: stop the preview and, if it was playing this video,
+     * make the player continue from the same moment (not when the preview had already ended).
+     */
+    void stopAndContinue(Video video) {
+        if (video != null && video == mVideo && mTexture != null && mPlayer != null) {
+            long position = mPlayer.getCurrentPosition();
+            if (position > 1000) {
+                video.pendingPosMs = position;
+            }
+        }
+        stop();
     }
 
     /** Screen closed or paused: give everything back. */

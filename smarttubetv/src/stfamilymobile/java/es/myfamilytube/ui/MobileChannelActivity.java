@@ -60,6 +60,7 @@ public class MobileChannelActivity extends MobileListActivity implements Channel
 
     @Override
     public void onVideoClicked(Video video) {
+        beforeOpen(video);
         mPresenter.onVideoItemClicked(video);
     }
 
