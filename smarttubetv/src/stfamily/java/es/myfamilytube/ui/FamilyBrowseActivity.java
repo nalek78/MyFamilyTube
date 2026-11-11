@@ -234,10 +234,24 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
         }
     };
 
+    /** Grown-ups who keep Shorts on get the Shorts tab: turn the engine's section on once per account. */
+    private final java.util.Set<String> mShortsSectionTried = new java.util.HashSet<>();
+    private final Runnable mShortsSectionCheck = () -> {
+        if (isFinishing() || mSections.isEmpty() || !ContentGate.allowsShorts()
+                || findSection(MediaGroup.TYPE_SHORTS) != null) {
+            return;
+        }
+        if (mShortsSectionTried.add(FamilyAccounts.currentKey())) {
+            mPresenter.enableSection(MediaGroup.TYPE_SHORTS, true);
+        }
+    };
+
     /** Checked once the engine has finished adding its sections (they arrive one by one). */
     private void ensureKidsSection() {
         mHandler.removeCallbacks(mKidsSectionCheck);
         mHandler.post(mKidsSectionCheck);
+        mHandler.removeCallbacks(mShortsSectionCheck);
+        mHandler.post(mShortsSectionCheck);
     }
 
     /** Kids see "Hola, Leo · quedan 35 min" instead of the app name. */
@@ -598,6 +612,10 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
         if (home != null) {
             addTab(home.getId(), "Inicio");
         }
+        // Grown-ups with Shorts on (profile option)
+        if (!isKid && ContentGate.allowsShorts() && findSection(MediaGroup.TYPE_SHORTS) != null) {
+            addTab(MediaGroup.TYPE_SHORTS, "Shorts");
+        }
         // Subscriptions and history are the grown-ups' ones (shared by the engine): not for kids
         if (!isKid && findSection(MediaGroup.TYPE_SUBSCRIPTIONS) != null) {
             addTab(MediaGroup.TYPE_SUBSCRIPTIONS, "Suscripciones");
@@ -800,7 +818,8 @@ public class FamilyBrowseActivity extends LeanbackActivity implements BrowseView
 
     private boolean isGridSection(BrowseSection section) {
         int type = section.getType();
-        return type == BrowseSection.TYPE_GRID || type == BrowseSection.TYPE_MULTI_GRID;
+        return type == BrowseSection.TYPE_GRID || type == BrowseSection.TYPE_MULTI_GRID
+                || type == BrowseSection.TYPE_SHORTS_GRID;
     }
 
     private boolean belongsToCurrent(BrowseSection section) {

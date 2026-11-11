@@ -424,6 +424,11 @@ public class MobileHomeActivity extends MotherActivity implements BrowseView, Mo
         if (home != null) {
             addTab(home.getId(), "Inicio", R.drawable.mobile_ic_home);
         }
+        // Grown-ups with Shorts on (profile option)
+        if (!isKid && com.liskovsoft.smartyoutubetv2.common.misc.ContentGate.allowsShorts()
+                && findSection(MediaGroup.TYPE_SHORTS) != null) {
+            addTab(MediaGroup.TYPE_SHORTS, "Shorts", R.drawable.mobile_ic_shorts);
+        }
         // Subscriptions and history belong to the account: not for kids
         if (!isKid && findSection(MediaGroup.TYPE_SUBSCRIPTIONS) != null) {
             addTab(MediaGroup.TYPE_SUBSCRIPTIONS, "Suscripciones", R.drawable.mobile_ic_subs);
@@ -436,7 +441,21 @@ public class MobileHomeActivity extends MotherActivity implements BrowseView, Mo
 
         mHandler.removeCallbacks(mKidsSectionCheck);
         mHandler.post(mKidsSectionCheck);
+        mHandler.removeCallbacks(mShortsSectionCheck);
+        mHandler.post(mShortsSectionCheck);
     }
+
+    /** Grown-ups who keep Shorts on get the Shorts tab: turn the engine's section on once per account. */
+    private final Set<String> mShortsSectionTried = new HashSet<>();
+    private final Runnable mShortsSectionCheck = () -> {
+        if (isFinishing() || mSections.isEmpty() || !com.liskovsoft.smartyoutubetv2.common.misc.ContentGate.allowsShorts()
+                || findSection(MediaGroup.TYPE_SHORTS) != null) {
+            return;
+        }
+        if (mShortsSectionTried.add(FamilyAccounts.currentKey())) {
+            mPresenter.enableSection(MediaGroup.TYPE_SHORTS, true);
+        }
+    };
 
     private void addTab(int sectionId, String label, int icon) {
         mTabs.add(new int[]{sectionId, icon});
