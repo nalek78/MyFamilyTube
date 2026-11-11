@@ -94,12 +94,23 @@ final class FamilySettingsOverlay {
         FamilyProfiles profiles = FamilyProfiles.instance(mActivity);
 
         header("Reproducción");
-        choice("Calidad de vídeo", "Más baja = carga antes y va más fluida en teles justas", new Choice() {
-            final FormatItem[] formats = {FormatItem.VIDEO_AUTO, FormatItem.VIDEO_SD_AVC_30, FormatItem.VIDEO_HD_AVC_30,
-                    FormatItem.VIDEO_FHD_AVC_30, FormatItem.VIDEO_FHD_AVC_60};
+        // 4K only where the device can decode it (VP9 at 2160p)
+        final boolean can4k = com.liskovsoft.sharedutils.helpers.DeviceHelpers.isVP9ResolutionSupported(2160);
+        choice("Calidad de vídeo", can4k
+                ? "4K si el vídeo la tiene. Más baja = carga antes y va más fluida"
+                : "Más baja = carga antes y va más fluida en teles justas", new Choice() {
+            final FormatItem[] formats = can4k
+                    ? new FormatItem[]{FormatItem.VIDEO_AUTO, FormatItem.VIDEO_SD_AVC_30, FormatItem.VIDEO_HD_AVC_30,
+                            FormatItem.VIDEO_FHD_AVC_30, FormatItem.VIDEO_FHD_AVC_60,
+                            com.liskovsoft.smartyoutubetv2.common.exoplayer.selector.ExoFormatItem.fromVideoSpec("3840,2160,30,vp9", false),
+                            FormatItem.VIDEO_4K_VP9_60}
+                    : new FormatItem[]{FormatItem.VIDEO_AUTO, FormatItem.VIDEO_SD_AVC_30, FormatItem.VIDEO_HD_AVC_30,
+                            FormatItem.VIDEO_FHD_AVC_30, FormatItem.VIDEO_FHD_AVC_60};
 
             public String[] labels() {
-                return new String[]{"Automática", "360p", "720p", "1080p", "1080p 60"};
+                return can4k
+                        ? new String[]{"Automática", "360p", "720p", "1080p", "1080p 60", "4K", "4K 60"}
+                        : new String[]{"Automática", "360p", "720p", "1080p", "1080p 60"};
             }
 
             public int current() {
@@ -113,7 +124,11 @@ final class FamilySettingsOverlay {
                 if (format.getHeight() <= 720) {
                     return 2;
                 }
-                return format.getFrameRate() >= 50 ? 4 : 3;
+                boolean fps60 = format.getFrameRate() >= 50;
+                if (format.getHeight() > 1080 && can4k) {
+                    return fps60 ? 6 : 5;
+                }
+                return fps60 ? 4 : 3;
             }
 
             public void set(int index) {
