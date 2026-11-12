@@ -662,6 +662,10 @@ public class MobilePlayerActivity extends MotherActivity implements PlaybackView
         DefaultTrackSelector trackSelector = new RestoreTrackSelector(new AdaptiveTrackSelection.Factory());
         mController.setTrackSelector(trackSelector);
         DefaultRenderersFactory renderersFactory = new CustomOverridesRenderersFactory(this);
+        // Phones download further ahead than the TV (Ajustes › Memoria para el vídeo)
+        mInitializer.setLoadControl(MobileBuffers.video(
+                com.liskovsoft.smartyoutubetv2.common.prefs.PlayerData.instance(this).getVideoBufferType(),
+                mInitializer.getMaxBufferBytes()));
         mPlayer = mInitializer.createPlayer(this, renderersFactory, trackSelector);
         mController.setPlayer(mPlayer);
         mController.setPlayerView(mEngineView);

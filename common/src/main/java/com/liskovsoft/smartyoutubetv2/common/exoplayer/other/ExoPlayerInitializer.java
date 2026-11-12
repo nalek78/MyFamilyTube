@@ -48,8 +48,19 @@ public class ExoPlayerInitializer {
         mMaxBufferBytes = deviceRam <= 0 ? 196_000_000 : (int)(deviceRam / 18);
     }
 
+    /** MyFamilyTube (phone and Android Auto): their own buffer instead of the TV presets. */
+    private DefaultLoadControl mCustomLoadControl;
+
+    public void setLoadControl(DefaultLoadControl loadControl) {
+        mCustomLoadControl = loadControl;
+    }
+
+    public int getMaxBufferBytes() {
+        return mMaxBufferBytes;
+    }
+
     public SimpleExoPlayer createPlayer(Context context, DefaultRenderersFactory renderersFactory, DefaultTrackSelector trackSelector) {
-        DefaultLoadControl loadControl = createLoadControl();
+        DefaultLoadControl loadControl = mCustomLoadControl != null ? mCustomLoadControl : createLoadControl();
 
         // HDR fix?
         //trackSelector.setParameters(trackSelector.buildUponParameters().setTunnelingAudioSessionId(C.generateAudioSessionIdV21(context)));

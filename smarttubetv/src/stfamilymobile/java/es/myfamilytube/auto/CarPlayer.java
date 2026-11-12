@@ -84,6 +84,8 @@ final class CarPlayer implements PlaybackView, BasePresenter.Headless {
         DefaultTrackSelector trackSelector = new RestoreTrackSelector(new AdaptiveTrackSelection.Factory());
         mController.setTrackSelector(trackSelector);
         DefaultRenderersFactory renderersFactory = new CustomOverridesRenderersFactory(mContext);
+        // The whole song is downloaded as fast as possible (sound only: about 1 MB a minute)
+        mInitializer.setLoadControl(es.myfamilytube.ui.MobileBuffers.song());
         mPlayer = mInitializer.createPlayer(mContext, renderersFactory, trackSelector);
         // Music in the car: ask for the audio focus so the radio or other apps step aside
         mPlayer.setAudioAttributes(new AudioAttributes.Builder()

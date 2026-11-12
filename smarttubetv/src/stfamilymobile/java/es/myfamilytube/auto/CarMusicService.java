@@ -544,6 +544,34 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         }
     }
 
+    /** The next song's details were already asked for (only once per song). */
+    private String mPreparedAfter;
+
+    /**
+     * When the playing song is fully downloaded, YouTube is asked for the next one's details in
+     * advance, so it starts almost at once when its turn comes.
+     */
+    private final Runnable mPrepareNext = new Runnable() {
+        @Override
+        public void run() {
+            Video current = mPlayer.isActive() ? mPlayer.getVideo() : null;
+            long duration = mPlayer.getDurationMs();
+            if (current != null && current.videoId != null && !current.videoId.equals(mPreparedAfter)
+                    && duration > 0 && mPlayer.getBufferedPositionMs() >= duration - 1500) {
+                mPreparedAfter = current.videoId;
+                Video next = Playlist.instance().getNext();
+                if (next != null && next.videoId != null && ContentGate.allowsPlayback(CarMusicService.this, next)) {
+                    mActions.add(YouTubeServiceManager.instance().getMediaItemService()
+                            .getFormatInfoObserve(next.videoId)
+                            .subscribe(info -> { }, error -> { }));
+                }
+            }
+            if (mPlayer.isActive() && mPlayer.getPlayWhenReady()) {
+                mHandler.postDelayed(this, 10_000);
+            }
+        }
+    };
+
     /** Kids' time also runs in the car. */
     private final Runnable mTick = new Runnable() {
         @Override
@@ -624,6 +652,8 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
                 mLastTickMs = System.currentTimeMillis();
             }
             mHandler.postDelayed(mTick, 30_000);
+            mHandler.removeCallbacks(mPrepareNext);
+            mHandler.postDelayed(mPrepareNext, 10_000);
         } else {
             mHandler.removeCallbacks(mTick);
             stopForegroundCompat(false);
