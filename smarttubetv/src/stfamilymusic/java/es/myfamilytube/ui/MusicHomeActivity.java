@@ -135,6 +135,12 @@ public class MusicHomeActivity extends MotherActivity {
         }));
         showProfile();
 
+        // Closed by an error last time? Say what it was (also saved in Diagnóstico)
+        String problem = es.myfamilytube.FamilyDiagnostics.instance(this).takePendingProblem();
+        if (problem != null && !FamilyProfiles.instance(this).getCurrent().isKid) {
+            FamilyDiagnosticsDialog.showProblem(this, problem);
+        }
+
         mBrowser = new MediaBrowserCompat(this, new ComponentName(this, CarMusicService.class), mConnection, null);
         mBrowser.connect();
         // Android 13+: without it the controls with the screen off don't show (the music still plays)

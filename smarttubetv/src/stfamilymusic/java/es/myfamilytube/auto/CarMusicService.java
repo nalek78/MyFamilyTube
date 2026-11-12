@@ -15,6 +15,7 @@ import android.os.Looper;
 import android.support.v4.media.MediaBrowserCompat.MediaItem;
 import android.support.v4.media.MediaDescriptionCompat;
 import android.support.v4.media.MediaMetadataCompat;
+import android.support.v4.media.session.MediaControllerCompat;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
 import android.text.TextUtils;
@@ -757,12 +758,10 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         }
         boolean playing = mPlayer.isActive() && mPlayer.uiPlayWhenReady();
         Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
-                .addAction(R.drawable.mobile_ic_prev, "Anterior", androidx.media.session.MediaButtonReceiver
-                        .buildMediaButtonPendingIntent(this, PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS))
+                .addAction(R.drawable.mobile_ic_prev, "Anterior", notificationAction(ACTION_PREVIOUS, 1))
                 .addAction(playing ? R.drawable.mobile_ic_pause : R.drawable.mobile_ic_play, playing ? "Pausa" : "Reproducir",
-                        androidx.media.session.MediaButtonReceiver.buildMediaButtonPendingIntent(this, PlaybackStateCompat.ACTION_PLAY_PAUSE))
-                .addAction(R.drawable.mobile_ic_next, "Siguiente", androidx.media.session.MediaButtonReceiver
-                        .buildMediaButtonPendingIntent(this, PlaybackStateCompat.ACTION_SKIP_TO_NEXT))
+                        notificationAction(ACTION_PLAY_PAUSE, 2))
+                .addAction(R.drawable.mobile_ic_next, "Siguiente", notificationAction(ACTION_NEXT, 3))
                 .setSmallIcon(R.drawable.mobile_ic_play)
                 .setContentTitle(video != null ? video.getTitle() : getString(R.string.app_name))
                 .setContentText(video != null ? video.getAuthor() : null)
@@ -806,11 +805,33 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         }
     }
 
+    private static final String ACTION_PREVIOUS = "es.myfamilymusic.PREVIOUS";
+    private static final String ACTION_PLAY_PAUSE = "es.myfamilymusic.PLAY_PAUSE";
+    private static final String ACTION_NEXT = "es.myfamilymusic.NEXT";
+
+    private PendingIntent notificationAction(String action, int code) {
+        Intent intent = new Intent(this, CarMusicService.class).setAction(action);
+        int flags = PendingIntent.FLAG_UPDATE_CURRENT | (Build.VERSION.SDK_INT >= 23 ? PendingIntent.FLAG_IMMUTABLE : 0);
+        return PendingIntent.getService(this, code, intent, flags);
+    }
+
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         super.onStartCommand(intent, flags, startId);
-        // Buttons of the notification, headphones and Bluetooth
-        androidx.media.session.MediaButtonReceiver.handleIntent(mSession, intent);
+        // Buttons of the notification (headphones and Bluetooth reach the session directly)
+        String action = intent != null ? intent.getAction() : null;
+        MediaControllerCompat.TransportControls controls = mSession.getController().getTransportControls();
+        if (ACTION_PREVIOUS.equals(action)) {
+            controls.skipToPrevious();
+        } else if (ACTION_NEXT.equals(action)) {
+            controls.skipToNext();
+        } else if (ACTION_PLAY_PAUSE.equals(action)) {
+            if (mPlayer.isActive() && mPlayer.uiPlayWhenReady()) {
+                controls.pause();
+            } else {
+                controls.play();
+            }
+        }
         return START_NOT_STICKY;
     }
 
