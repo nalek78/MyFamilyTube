@@ -601,6 +601,10 @@ public class MobileHomeActivity extends MotherActivity implements BrowseView, Mo
     @Override
     public void onVideoClicked(Video video) {
         mPreview.prepareOpen(video);
+        MobileFeed feed = currentFeed();
+        if (feed != null) {
+            feed.queueShortsFor(video);
+        }
         mPresenter.onVideoItemClicked(video);
     }
 

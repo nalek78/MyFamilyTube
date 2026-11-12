@@ -237,9 +237,26 @@ public class MobilePlayerActivity extends MotherActivity implements PlaybackView
     @Override
     protected void onUserLeaveHint() {
         super.onUserLeaveHint();
+        // Opening another screen of the app (channel, dialog…) is not leaving the app: no floating window
+        if (isOpeningOwnScreen()) {
+            return;
+        }
         if (canUsePip() && getPlayWhenReady() && containsMedia()) {
             enterPip();
         }
+    }
+
+    private long mOwnScreenStartMs;
+
+    @Override
+    public void startActivityForResult(android.content.Intent intent, int requestCode, Bundle options) {
+        mOwnScreenStartMs = System.currentTimeMillis();
+        super.startActivityForResult(intent, requestCode, options);
+    }
+
+    private boolean isOpeningOwnScreen() {
+        return com.liskovsoft.smartyoutubetv2.common.app.views.ViewManager.instance(this).isNewViewPending()
+                || System.currentTimeMillis() - mOwnScreenStartMs < 1000;
     }
 
     private boolean canUsePip() {
@@ -325,8 +342,14 @@ public class MobilePlayerActivity extends MotherActivity implements PlaybackView
         if (mPlayer == null || mFinished) {
             return false;
         }
-        return mInPip || (FamilyBackground.get(this) != FamilyBackground.STOP && getPlayWhenReady());
+        if (mInPip) {
+            return true;
+        }
+        // Gone to another screen of the app (e.g. the channel): the video stops, as before
+        return !mLeftForAppScreen && FamilyBackground.get(this) != FamilyBackground.STOP && getPlayWhenReady();
     }
+
+    private boolean mLeftForAppScreen;
 
     // ---------------------------------------------------------------- notification controls
 
@@ -385,6 +408,7 @@ public class MobilePlayerActivity extends MotherActivity implements PlaybackView
             initializePlayer();
         }
         mResumed = true;
+        mLeftForAppScreen = false;
         mPresenter.setView(this);
         mPresenter.onViewResumed();
         mEngineBlocked = false;
@@ -402,7 +426,8 @@ public class MobilePlayerActivity extends MotherActivity implements PlaybackView
         mResumed = false;
         mPresenter.onViewPaused();
         // Still allowed to start it now (not later, from the background)
-        if (!isFinishing() && FamilyBackground.get(this) != FamilyBackground.STOP && getPlayWhenReady()) {
+        mLeftForAppScreen = isOpeningOwnScreen();
+        if (!isFinishing() && !mLeftForAppScreen && FamilyBackground.get(this) != FamilyBackground.STOP && getPlayWhenReady()) {
             MobilePlaybackService.start(this, this);
         }
         mHandler.removeCallbacks(mProgressTick);
@@ -637,6 +662,24 @@ public class MobilePlayerActivity extends MotherActivity implements PlaybackView
             public boolean onSingleTapConfirmed(MotionEvent e) {
                 if (!mInPip) {
                     showControls(!isControlsShown());
+                }
+                return true;
+            }
+
+            /** Shorts: swipe up for the next one, down for the previous one (like YouTube). */
+            @Override
+            public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
+                if (!mVertical || isLandscape() || mInPip || Math.abs(velocityY) < 800
+                        || Math.abs(velocityY) < Math.abs(velocityX) * 1.5f) {
+                    return false;
+                }
+                MobileHaptics.tap(mVideoFrame);
+                if (velocityY < 0) {
+                    showSeekHint("Siguiente");
+                    mPresenter.onNextClicked();
+                } else {
+                    showSeekHint("Anterior");
+                    mPresenter.onPreviousClicked();
                 }
                 return true;
             }

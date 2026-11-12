@@ -86,6 +86,34 @@ final class MobileFeed {
         return true;
     }
 
+    /**
+     * Opening a Short: the Shorts of its shelf become the player's queue, so swiping up and
+     * down goes through them in order. Normal videos: nothing changes.
+     */
+    void queueShortsFor(Video video) {
+        if (video == null) {
+            return;
+        }
+        for (Block block : mBlocks) {
+            if (!block.videos.contains(video) || !(block.shorts || video.isShorts)) {
+                continue;
+            }
+            List<Video> shorts = new ArrayList<>();
+            for (Video item : block.videos) {
+                if (block.shorts || item.isShorts) {
+                    shorts.add(item);
+                }
+            }
+            com.liskovsoft.smartyoutubetv2.common.app.models.data.Playlist playlist =
+                    com.liskovsoft.smartyoutubetv2.common.app.models.data.Playlist.instance();
+            playlist.clear();
+            playlist.addAll(shorts);
+            playlist.setCurrent(video);
+            video.fromQueue = true; // keep its place in the queue
+            return;
+        }
+    }
+
     /** The last video, to ask the engine for more when the user gets near the end. */
     Video lastVideo() {
         for (int i = mBlocks.size() - 1; i >= 0; i--) {

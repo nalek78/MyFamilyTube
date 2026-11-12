@@ -79,6 +79,7 @@ abstract class MobileListActivity extends MotherActivity implements MobileFeedAd
     /** Subclasses call it before opening a video (continues from the preview). */
     protected void beforeOpen(Video video) {
         mPreview.prepareOpen(video);
+        mFeed.queueShortsFor(video);
     }
 
     @Override

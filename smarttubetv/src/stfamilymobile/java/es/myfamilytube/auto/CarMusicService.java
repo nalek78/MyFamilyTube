@@ -414,6 +414,7 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         playlist.clear();
         playlist.addAll(queue);
         playlist.setCurrent(start);
+        start.fromQueue = true; // keep its place in the queue (the engine would move it to the end)
         mSkipsInARow = 0;
         mSession.setActive(true);
         mPlayer.play(start);
