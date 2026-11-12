@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Two Shorts side by side, vertical like on YouTube -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:paddingLeft="@dimen/mobile_side"
+    android:paddingTop="6dp"
+    android:paddingRight="@dimen/mobile_side"
+    android:paddingBottom="6dp">
+
+    <include
+        android:id="@+id/mobile_short_left"
+        layout="@layout/mobile_short_card"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1" />
+
+    <Space
+        android:layout_width="@dimen/mobile_side"
+        android:layout_height="1dp" />
+
+    <include
+        android:id="@+id/mobile_short_right"
+        layout="@layout/mobile_short_card"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1" />
+</LinearLayout>

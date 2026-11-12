@@ -48,16 +48,8 @@ abstract class MobileListActivity extends MotherActivity implements MobileFeedAd
         mPreview = new MobilePreview(this);
         mAdapter.setPreview(mPreview);
         mList.setAdapter(mAdapter);
-        mList.addOnChildAttachStateChangeListener(new RecyclerView.OnChildAttachStateChangeListener() {
-            @Override
-            public void onChildViewAttachedToWindow(View view) {
-            }
-
-            @Override
-            public void onChildViewDetachedFromWindow(View view) {
-                mPreview.onDetached(view);
-            }
-        });
+        // The first video fully on screen previews itself (without sound)
+        mPreview.attach(mList);
         findViewById(R.id.mobile_back).setOnClickListener(v -> onBackPressed());
     }
 
@@ -68,6 +60,12 @@ abstract class MobileListActivity extends MotherActivity implements MobileFeedAd
     }
 
     @Override
+    protected void onResume() {
+        super.onResume();
+        mPreview.onResume();
+    }
+
+    @Override
     public boolean dispatchTouchEvent(android.view.MotionEvent event) {
         mHaptics.onTouch(this, event);
         return super.dispatchTouchEvent(event);
@@ -75,9 +73,7 @@ abstract class MobileListActivity extends MotherActivity implements MobileFeedAd
 
     @Override
     public void onThumbnailClicked(View card, Video video) {
-        if (!mPreview.onThumbnailTapped(card, video)) {
-            onVideoClicked(video);
-        }
+        onVideoClicked(video); // continues from the preview, if it was playing
     }
 
     /** Subclasses call it before opening a video (continues from the preview). */
@@ -103,7 +99,7 @@ abstract class MobileListActivity extends MotherActivity implements MobileFeedAd
     }
 
     protected void refresh() {
-        mAdapter.setItems(mFeed.flatten());
+        mAdapter.setItems(mFeed.flatten(true));
         mMessage.setVisibility(View.GONE);
     }
 

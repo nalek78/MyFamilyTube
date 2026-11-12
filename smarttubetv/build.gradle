@@ -271,6 +271,7 @@ dependencies {
     implementation project(':sharedutils')
     implementation project(':mediaserviceinterfaces')
     implementation project(':youtubeapi')
+    implementation project(':appupdatechecker2') // MyFamilyTube: update dialog on the phone
     implementation project(':chatkit')
     implementation project(':doubletapplayerview')
 

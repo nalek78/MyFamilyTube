@@ -71,11 +71,22 @@ final class FamilyPreview {
     private boolean mRequireFocus = true;
 
     private final Runnable mTimeUp = this::stop;
+    /** Phone: previews start without sound, the speaker on the thumbnail turns it on. */
+    private boolean mMuted;
+    private boolean mAudioReady;
     private final Runnable mUnmute = () -> {
+        mAudioReady = true;
         if (mPlayer != null && mTexture != null) {
-            mPlayer.setVolume(1f);
+            mPlayer.setVolume(mMuted ? 0f : 1f);
         }
     };
+
+    void setMuted(boolean muted) {
+        mMuted = muted;
+        if (mAudioReady && mPlayer != null && mTexture != null) {
+            mPlayer.setVolume(muted ? 0f : 1f);
+        }
+    }
 
     FamilyPreview(Activity activity, Listener listener) {
         mActivity = activity;
@@ -221,6 +232,7 @@ final class FamilyPreview {
         mPlayer.setVideoTextureView(texture);
         // Silent until the right audio track is picked (videos may carry several dubbed languages)
         mAudioChosen = false;
+        mAudioReady = false;
         mSelector.setParameters(mSelector.buildUponParameters().clearSelectionOverrides());
         mPlayer.setVolume(0f);
         mPlayer.prepare(source);

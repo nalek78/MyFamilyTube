@@ -19,11 +19,24 @@ final class MobileFeed {
     private static final class Block {
         final int id;
         String title;
+        /** A Shorts shelf or the Shorts tab: shown as vertical cards. */
+        boolean shorts;
         final List<Video> videos = new ArrayList<>();
 
         Block(int id, String title) {
             this.id = id;
             this.title = title;
+        }
+    }
+
+    /** Two Shorts side by side (vertical cards); the right one may be missing. */
+    static final class ShortsPair {
+        final Video left;
+        final Video right;
+
+        ShortsPair(Video left, Video right) {
+            this.left = left;
+            this.right = right;
         }
     }
 
@@ -157,11 +170,19 @@ final class MobileFeed {
         if (!TextUtils.isEmpty(group.getTitle())) {
             block.title = group.getTitle();
         }
+        if (group.isShorts() || (group.getTitle() != null && group.getTitle().trim().equalsIgnoreCase("shorts"))) {
+            block.shorts = true;
+        }
         block.videos.addAll(videos);
     }
 
     /** Titles and videos in screen order. */
     List<Object> flatten() {
+        return flatten(false);
+    }
+
+    /** @param pairShorts Shorts as vertical cards, two per row (phone lists) */
+    List<Object> flatten(boolean pairShorts) {
         List<Object> items = new ArrayList<>(mTop);
         for (Block block : mBlocks) {
             if (block.videos.isEmpty()) {
@@ -170,7 +191,30 @@ final class MobileFeed {
             if (mShowTitles && !TextUtils.isEmpty(block.title)) {
                 items.add(new Header(block.title));
             }
-            items.addAll(block.videos);
+            if (!pairShorts) {
+                items.addAll(block.videos);
+                continue;
+            }
+            Video pending = null;
+            for (Video video : block.videos) {
+                if (block.shorts || video.isShorts) {
+                    if (pending == null) {
+                        pending = video;
+                    } else {
+                        items.add(new ShortsPair(pending, video));
+                        pending = null;
+                    }
+                } else {
+                    if (pending != null) {
+                        items.add(new ShortsPair(pending, null));
+                        pending = null;
+                    }
+                    items.add(video);
+                }
+            }
+            if (pending != null) {
+                items.add(new ShortsPair(pending, null));
+            }
         }
         return items;
     }

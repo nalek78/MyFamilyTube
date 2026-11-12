@@ -52,6 +52,7 @@ final class MobileFeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHold
     private static final int TYPE_VIDEO = 1;
     private static final int TYPE_SETTING = 2;
     private static final int TYPE_CHANNELS = 3;
+    private static final int TYPE_SHORTS = 4;
     private static final int NEAR_END = 6;
 
     private final Listener mListener;
@@ -91,6 +92,9 @@ final class MobileFeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHold
         if (item instanceof ChannelStrip) {
             return TYPE_CHANNELS;
         }
+        if (item instanceof MobileFeed.ShortsPair) {
+            return TYPE_SHORTS;
+        }
         return TYPE_VIDEO;
     }
 
@@ -105,6 +109,8 @@ final class MobileFeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHold
                 return new SimpleHolder(inflater.inflate(R.layout.mobile_text_item, parent, false));
             case TYPE_CHANNELS:
                 return new SimpleHolder(inflater.inflate(R.layout.mobile_channels_strip, parent, false));
+            case TYPE_SHORTS:
+                return new ShortsHolder(inflater.inflate(R.layout.mobile_shorts_pair, parent, false), parent);
             default:
                 View view = inflater.inflate(mCompact ? R.layout.mobile_video_small : R.layout.mobile_video_card, parent, false);
                 return new VideoHolder(view, parent, mCompact);
@@ -117,6 +123,8 @@ final class MobileFeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHold
         if (holder instanceof VideoHolder) {
             Video video = (Video) item;
             ((VideoHolder) holder).bind(video);
+            // Big cards can preview themselves (the preview finds them through this tag)
+            holder.itemView.setTag(R.id.family_card_thumb_frame, mCompact ? null : video);
             if (mPreview != null) {
                 mPreview.onBound(holder.itemView, video);
             }
@@ -130,6 +138,9 @@ final class MobileFeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHold
                 mListener.onVideoLongClicked(video);
                 return true;
             });
+        } else if (holder instanceof ShortsHolder) {
+            MobileFeed.ShortsPair pair = (MobileFeed.ShortsPair) item;
+            ((ShortsHolder) holder).bind(pair, mListener);
         } else if (item instanceof MobileFeed.Header) {
             ((TextView) holder.itemView).setText(((MobileFeed.Header) item).title);
         } else if (item instanceof SettingsItem) {
@@ -161,6 +172,8 @@ final class MobileFeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHold
     public void onViewRecycled(@NonNull RecyclerView.ViewHolder holder) {
         if (holder instanceof VideoHolder) {
             Glide.with(((VideoHolder) holder).thumb).clear(((VideoHolder) holder).thumb);
+        } else if (holder instanceof ShortsHolder) {
+            ((ShortsHolder) holder).clear();
         }
         super.onViewRecycled(holder);
     }
@@ -173,6 +186,72 @@ final class MobileFeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHold
     private static final class SimpleHolder extends RecyclerView.ViewHolder {
         SimpleHolder(View view) {
             super(view);
+        }
+    }
+
+    /** Two vertical (9:16) Shorts cards side by side. */
+    static final class ShortsHolder extends RecyclerView.ViewHolder {
+        private final View[] mCards = new View[2];
+        private final ImageView[] mThumbs = new ImageView[2];
+        private final TextView[] mTitles = new TextView[2];
+        private final int mThumbW;
+        private final int mThumbH;
+
+        ShortsHolder(View view, ViewGroup parent) {
+            super(view);
+            int[] cards = {R.id.mobile_short_left, R.id.mobile_short_right};
+            int width = parent.getWidth() > 0 ? parent.getWidth() : view.getResources().getDisplayMetrics().widthPixels;
+            int side = view.getResources().getDimensionPixelSize(R.dimen.mobile_side);
+            mThumbW = Math.max(1, (width - 3 * side) / 2);
+            mThumbH = mThumbW * 16 / 9;
+            for (int i = 0; i < 2; i++) {
+                mCards[i] = view.findViewById(cards[i]);
+                mThumbs[i] = mCards[i].findViewById(R.id.mobile_card_thumb);
+                mTitles[i] = mCards[i].findViewById(R.id.mobile_card_title);
+                View frame = mCards[i]; // the include's id replaces the card's own id
+                frame.getLayoutParams().height = mThumbH;
+                if (android.os.Build.VERSION.SDK_INT >= 21) {
+                    frame.setClipToOutline(true);
+                }
+            }
+        }
+
+        void bind(MobileFeed.ShortsPair pair, Listener listener) {
+            Video[] videos = {pair.left, pair.right};
+            for (int i = 0; i < 2; i++) {
+                Video video = videos[i];
+                if (video == null) {
+                    mCards[i].setVisibility(View.INVISIBLE);
+                    mCards[i].setOnClickListener(null);
+                    continue;
+                }
+                mCards[i].setVisibility(View.VISIBLE);
+                mTitles[i].setText(video.getTitle());
+                mCards[i].setOnClickListener(v -> listener.onVideoClicked(video));
+                mCards[i].setOnLongClickListener(v -> {
+                    listener.onVideoLongClicked(video);
+                    return true;
+                });
+                String url = video.getCardImageUrl();
+                if (TextUtils.isEmpty(url)) {
+                    Glide.with(mThumbs[i]).clear(mThumbs[i]);
+                    mThumbs[i].setImageDrawable(null);
+                } else {
+                    Glide.with(mThumbs[i])
+                            .load(url)
+                            .override(Math.min(mThumbW, 540), Math.min(mThumbH, 960))
+                            .format(DecodeFormat.PREFER_RGB_565)
+                            .centerCrop()
+                            .dontAnimate()
+                            .into(mThumbs[i]);
+                }
+            }
+        }
+
+        void clear() {
+            for (ImageView thumb : mThumbs) {
+                Glide.with(thumb).clear(thumb);
+            }
         }
     }
 

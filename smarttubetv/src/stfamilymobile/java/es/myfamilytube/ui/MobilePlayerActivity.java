@@ -474,6 +474,7 @@ public class MobilePlayerActivity extends MotherActivity implements PlaybackView
         mController.setPlayer(mPlayer);
         mController.setPlayerView(mEngineView);
         mPlayer.addListener(mStateListener);
+        mPlayer.addVideoListener(mVideoSizeListener);
         mPlayerView.setPlayer(mPlayer);
         createMediaSession();
         if (!mReceiversRegistered) {
@@ -506,6 +507,7 @@ public class MobilePlayerActivity extends MotherActivity implements PlaybackView
             mReceiversRegistered = false;
         }
         mPlayer.removeListener(mStateListener);
+        mPlayer.removeVideoListener(mVideoSizeListener);
         mPlayerView.setPlayer(null);
         mInitializer.release();
         mController.release();
@@ -804,19 +806,48 @@ public class MobilePlayerActivity extends MotherActivity implements PlaybackView
         }
     }
 
+    /** Vertical video (Shorts): in portrait it takes the whole screen, like on YouTube. */
+    private boolean mVertical;
+
+    private final com.google.android.exoplayer2.video.VideoListener mVideoSizeListener =
+            new com.google.android.exoplayer2.video.VideoListener() {
+                @Override
+                public void onVideoSizeChanged(int width, int height, int unappliedRotationDegrees, float pixelWidthHeightRatio) {
+                    if (width <= 0 || height <= 0) {
+                        return;
+                    }
+                    boolean rotated = unappliedRotationDegrees == 90 || unappliedRotationDegrees == 270;
+                    float shownWidth = (rotated ? height : width) * (pixelWidthHeightRatio > 0 ? pixelWidthHeightRatio : 1f);
+                    float shownHeight = rotated ? width : height;
+                    setVertical(shownHeight > shownWidth * 1.05f);
+                }
+            };
+
+    private void setVertical(boolean vertical) {
+        if (vertical != mVertical) {
+            mVertical = vertical;
+            if (!mInPip) {
+                applyOrientation(getResources().getConfiguration().orientation);
+            }
+        }
+    }
+
     private void applyOrientation(int orientation) {
         boolean landscape = orientation == Configuration.ORIENTATION_LANDSCAPE;
+        boolean fullScreen = landscape || mVertical;
         ViewGroup.LayoutParams params = mVideoFrame.getLayoutParams();
-        if (landscape) {
+        if (fullScreen) {
             params.height = ViewGroup.LayoutParams.MATCH_PARENT;
         } else {
             int width = getResources().getDisplayMetrics().widthPixels;
             params.height = width * 9 / 16;
         }
         mVideoFrame.setLayoutParams(params);
-        mDetails.setVisibility(landscape ? View.GONE : View.VISIBLE);
-        mOverlayTitle.setVisibility(landscape ? View.VISIBLE : View.INVISIBLE);
+        mDetails.setVisibility(fullScreen ? View.GONE : View.VISIBLE);
+        mOverlayTitle.setVisibility(fullScreen ? View.VISIBLE : View.INVISIBLE);
         mFullscreenButton.setImageResource(landscape ? R.drawable.mobile_ic_fullscreen_exit : R.drawable.mobile_ic_fullscreen);
+        // A vertical video is already full screen when the phone is upright
+        mFullscreenButton.setVisibility(mVertical && !landscape ? View.GONE : View.VISIBLE);
         setSystemBarsHidden(landscape);
     }
 
@@ -839,6 +870,12 @@ public class MobilePlayerActivity extends MotherActivity implements PlaybackView
     private void showVideoInfo(Video video) {
         if (video == null) {
             return;
+        }
+        // Shorts are known before the first frame: lay out vertically at once (the real size confirms it)
+        if (video.isShorts) {
+            setVertical(true);
+        } else if (mPlayer == null || mPlayer.getVideoFormat() == null) {
+            setVertical(false);
         }
         String title = video.getTitleFull() != null ? video.getTitleFull() : video.getTitle();
         mTitle.setText(title);

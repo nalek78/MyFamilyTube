@@ -143,16 +143,11 @@ public class MobileHomeActivity extends MotherActivity implements BrowseView, Mo
         mPreview = new MobilePreview(this);
         mAdapter.setPreview(mPreview);
         mList.setAdapter(mAdapter);
-        mList.addOnChildAttachStateChangeListener(new RecyclerView.OnChildAttachStateChangeListener() {
-            @Override
-            public void onChildViewAttachedToWindow(View view) {
-            }
-
-            @Override
-            public void onChildViewDetachedFromWindow(View view) {
-                mPreview.onDetached(view);
-            }
-        });
+        // The first video fully on screen previews itself (without sound)
+        mPreview.attach(mList);
+        mPreview.setCanPlay(() -> mWelcome.getVisibility() != View.VISIBLE
+                && (mProfilesOverlay == null || !mProfilesOverlay.isShowing())
+                && (mSettingsOverlay == null || !mSettingsOverlay.isShowing()));
 
         ViewGroup root = findViewById(R.id.mobile_root);
         mProfilesOverlay = new FamilyProfilesOverlay(this, root, profile -> {
@@ -211,6 +206,7 @@ public class MobileHomeActivity extends MotherActivity implements BrowseView, Mo
         super.onResume();
         mPresenter.setView(this);
         mPresenter.onViewResumed();
+        mPreview.onResume();
         mProfilesOverlay.onResumed(); // back from adding a Google account?
         updateGreeting();
         // Something may have been watched meanwhile: history must be fresh
@@ -591,7 +587,7 @@ public class MobileHomeActivity extends MotherActivity implements BrowseView, Mo
             return;
         }
         MobileFeed feed = currentFeed();
-        mAdapter.setItems(feed != null ? feed.flatten() : new ArrayList<>());
+        mAdapter.setItems(feed != null ? feed.flatten(true) : new ArrayList<>());
     }
 
     // ---------------------------------------------------------------- list events
@@ -610,9 +606,7 @@ public class MobileHomeActivity extends MotherActivity implements BrowseView, Mo
 
     @Override
     public void onThumbnailClicked(View card, Video video) {
-        if (!mPreview.onThumbnailTapped(card, video)) {
-            onVideoClicked(video);
-        }
+        onVideoClicked(video); // continues from the preview, if it was playing
     }
 
     @Override
@@ -709,6 +703,8 @@ public class MobileHomeActivity extends MotherActivity implements BrowseView, Mo
             mWelcome.setVisibility(View.GONE);
             mWelcome.setAlpha(1f);
         }).start();
+        // New version? (once per opening, after the welcome)
+        mHandler.postDelayed(() -> MobileUpdates.checkOnce(this), 2500);
         if (FamilyProfiles.instance(this).shouldAskWhoIsWatching()) {
             mProfilesOverlay.showMandatory();
         } else if (FamilyProfiles.instance(this).isTimeUp(currentProfile())) {

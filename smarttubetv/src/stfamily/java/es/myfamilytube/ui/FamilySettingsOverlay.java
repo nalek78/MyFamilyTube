@@ -186,7 +186,7 @@ final class FamilySettingsOverlay {
             }
         });
         choice("Vista previa en la miniatura", FamilyLayouts.mobile
-                ? "Al tocar la miniatura, el vídeo se reproduce ahí con sonido; tócala otra vez para abrirlo"
+                ? "El primer vídeo que se ve entero se reproduce sin sonido en su miniatura; toca el altavoz para oírlo"
                 : "Al quedarte en un vídeo, se reproduce su primer minuto con sonido", new Choice() {
             public String[] labels() {
                 return YES_NO;
