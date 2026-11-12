@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string translatable="false" name="app_name"><![CDATA[My Family Music]]></string>
+    <string translatable="false" name="browse_title"><![CDATA[My Family Music]]></string>
+    <!-- Own search authority, so it never clashes with the other two apps -->
+    <string name="search_label">My Family Music</string>
+    <string name="settings_description">My Family Music</string>
+    <string translatable="false" name="search_authority">es.myfamilymusic</string>
+</resources>

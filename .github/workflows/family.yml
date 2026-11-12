@@ -47,7 +47,7 @@ jobs:
         run: |
           chmod +x gradlew
           # TV and phone apps
-          ./gradlew assembleStfamilyRelease assembleStfamilymobileRelease 2>&1 | tee build.log
+          ./gradlew assembleStfamilyRelease assembleStfamilymobileRelease assembleStfamilymusicRelease 2>&1 | tee build.log
           exit ${PIPESTATUS[0]}
 
       - name: Comprobar enlaces de YouTube del móvil
@@ -90,9 +90,10 @@ jobs:
           # keeps the APK and update file of the previous release, so it gets no update notice.
           TV=$(grep -E '^tv=' versiones.properties | cut -d= -f2 | tr -d '[:space:]')
           MOVIL=$(grep -E '^movil=' versiones.properties | cut -d= -f2 | tr -d '[:space:]')
-          TAG="tv-1.0.${TV}_movil-1.0.${MOVIL}"
+          MUSICA=$(grep -E '^musica=' versiones.properties | cut -d= -f2 | tr -d '[:space:]')
+          TAG="tv-1.0.${TV}_movil-1.0.${MOVIL}_musica-1.0.${MUSICA}"
           if gh release view "$TAG" > /dev/null 2>&1; then
-            echo "::error::Ya existe una versión con TV 1.0.${TV} y Móvil 1.0.${MOVIL}: sube el número de la app que ha cambiado en versiones.properties"
+            echo "::error::Ya existe una versión con TV 1.0.${TV}, Móvil 1.0.${MOVIL} y Música 1.0.${MUSICA}: sube el número de la app que ha cambiado en versiones.properties"
             exit 1
           fi
           PREV=$(gh release view --json tagName -q .tagName 2>/dev/null || true)
@@ -102,7 +103,7 @@ jobs:
           fi
           CHANGE=$(git log -1 --pretty=%s | sed 's/"/\\"/g')
           NOTES=""
-          for APP in "MyFamilyTube:myfamilytube:stfamily:${TV}:TV" "MyFamilyTube-movil:myfamilytube-movil:stfamilymobile:${MOVIL}:Móvil"; do
+          for APP in "MyFamilyTube:myfamilytube:stfamily:${TV}:TV" "MyFamilyTube-movil:myfamilytube-movil:stfamilymobile:${MOVIL}:Móvil" "MyFamilyMusic:myfamilymusic:stfamilymusic:${MUSICA}:Música"; do
             IFS=: read -r APK JSON FLAVOR VER LABEL <<< "$APP"
             OLD=$(grep -o '"versionCode": *[0-9]*' "prev/${JSON}.json" 2>/dev/null | grep -o '[0-9]*$' || true)
             if [ "$OLD" = "$VER" ] && [ -f "prev/${APK}.apk" ]; then
@@ -130,7 +131,7 @@ jobs:
           done
           {
             echo "TAG=${TAG}"
-            echo "TITLE=MyFamilyTube · TV 1.0.${TV} · Móvil 1.0.${MOVIL}"
+            echo "TITLE=MyFamilyTube · TV 1.0.${TV} · Móvil 1.0.${MOVIL} · Música 1.0.${MUSICA}"
           } >> "$GITHUB_ENV"
           printf '%s\n%s' "$NOTES" "$(git log -1 --pretty=%B)" > notes.txt
 
@@ -141,6 +142,7 @@ jobs:
         run: |
           gh release create "$TAG" MyFamilyTube.apk myfamilytube.json \
             MyFamilyTube-movil.apk myfamilytube-movil.json \
+            MyFamilyMusic.apk myfamilymusic.json \
             --title "$TITLE" \
             --notes-file notes.txt \
             --latest

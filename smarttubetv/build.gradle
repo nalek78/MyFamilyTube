@@ -207,16 +207,30 @@ android {
             versionCode mobileVersion
             versionName "1.0." + mobileVersion
         }
+        // My Family Music: the music for Android Auto (sound only), as its own app
+        stfamilymusic {
+            applicationId "es.myfamilymusic"
+            targetSdkVersion project.properties.compileSdkVersion
+            matchingFallbacks = ['stbeta']
+            def musicVersion = familyVersion('musica')
+            versionCode musicVersion
+            versionName "1.0." + musicVersion
+        }
     }
 
     // MyFamilyTube: src/stfamily holds what TV and phone share; each one adds its own bits
     sourceSets {
         stfamily {
-            res.srcDirs += ['src/stfamilytv/res']
+            res.srcDirs += ['src/stfamilytv/res', 'src/familytubeicon/res']
         }
         stfamilymobile {
             java.srcDirs += ['src/stfamily/java']
-            res.srcDirs += ['src/stfamily/res']
+            res.srcDirs += ['src/stfamily/res', 'src/familytubeicon/res', 'src/stfamilymobileapp/res']
+        }
+        // Shares the profiles, sign-in and phone screens' code; its own manifest, names and icon
+        stfamilymusic {
+            java.srcDirs += ['src/stfamily/java', 'src/stfamilymobile/java']
+            res.srcDirs += ['src/stfamily/res', 'src/stfamilymobile/res']
         }
     }
 }

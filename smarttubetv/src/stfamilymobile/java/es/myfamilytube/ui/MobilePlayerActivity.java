@@ -333,8 +333,6 @@ public class MobilePlayerActivity extends MotherActivity implements PlaybackView
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(null);
-        // Watching on the phone: the car music (same engine) stops
-        es.myfamilytube.auto.CarMusicService.onPhonePlayerOpened();
         setContentView(R.layout.mobile_player);
 
         mVideoFrame = findViewById(R.id.mobile_video_frame);

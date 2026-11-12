@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- My Family Music updates from its own file in the GitHub Releases -->
+    <string-array name="update_urls">
+        <item>https://github.com/nalek78/MyFamilyTube/releases/latest/download/myfamilymusic.json</item>
+    </string-array>
+</resources>

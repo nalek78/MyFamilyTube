@@ -37,30 +37,6 @@
             android:theme="@style/MobilePlayerTheme"
             tools:targetApi="n" />
 
-        <!-- Android Auto: music (sound only) -->
-        <meta-data
-            android:name="com.google.android.gms.car.application"
-            android:resource="@xml/automotive_app_desc" />
-        <meta-data
-            android:name="com.google.android.gms.car.notification.SmallIcon"
-            android:resource="@drawable/mobile_ic_play" />
-
-        <service
-            android:name="es.myfamilytube.auto.CarMusicService"
-            android:exported="true"
-            android:foregroundServiceType="mediaPlayback"
-            tools:targetApi="q">
-            <intent-filter>
-                <action android:name="android.media.browse.MediaBrowserService" />
-            </intent-filter>
-        </service>
-
-        <provider
-            android:name="es.myfamilytube.auto.CarArtProvider"
-            android:authorities="${applicationId}.art"
-            android:exported="true"
-            tools:ignore="ExportedContentProvider" />
-
         <service
             android:name="es.myfamilytube.ui.MobilePlaybackService"
             android:exported="false"

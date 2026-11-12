@@ -15,7 +15,7 @@ import java.util.List;
  * Phone: looks for a new version every time the app opens and offers it in a normal dialog
  * (the TV-style notice of the engine doesn't show on the phone screens).
  */
-final class MobileUpdates implements AppUpdateCheckerListener {
+public final class MobileUpdates implements AppUpdateCheckerListener {
     private static final String PREFS = "family_ui";
     private static final String KEY_LATER_VERSION = "update_later_version";
     private static final String KEY_LATER_TIME = "update_later_time";
@@ -31,7 +31,7 @@ final class MobileUpdates implements AppUpdateCheckerListener {
     }
 
     /** Once each time the app is opened. */
-    static void checkOnce(Activity activity) {
+    public static void checkOnce(Activity activity) {
         if (sCheckedThisRun) {
             return;
         }
@@ -59,7 +59,7 @@ final class MobileUpdates implements AppUpdateCheckerListener {
         if (postponed) {
             return;
         }
-        StringBuilder message = new StringBuilder("Hay una versión nueva de MyFamilyTube Móvil (" + versionName + ").");
+        StringBuilder message = new StringBuilder("Hay una versión nueva de " + mActivity.getString(R.string.app_name) + " (" + versionName + ").");
         if (changelog != null && !changelog.isEmpty()) {
             message.append("\n");
             for (String change : changelog) {
