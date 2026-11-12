@@ -66,13 +66,124 @@ final class CarPlayer implements PlaybackView, BasePresenter.Headless {
 
     /** Takes the engine (the phone player, if open, gives it up) and plays the video. */
     void play(Video video) {
+        stopLocal();
         ensureEngine();
         mPresenter.setView(this);
         mPresenter.onNewVideo(video);
     }
 
     boolean isActive() {
-        return mPlayer != null && mPresenter.getView() == this;
+        return mLocalVideo != null || (mPlayer != null && mPresenter.getView() == this);
+    }
+
+    // ---------------------------------------------------------------- songs already on the phone
+
+    /** Plays a song saved on the phone: needs no connection. */
+    private SimpleExoPlayer mLocal;
+    private Video mLocalVideo;
+
+    private final Player.EventListener mLocalListener = new Player.EventListener() {
+        @Override
+        public void onPlayerStateChanged(boolean playWhenReady, int playbackState) {
+            mListener.onStateChanged();
+            if (playbackState == Player.STATE_ENDED) {
+                mHandler.post(mListener::onFinishRequested);
+            }
+        }
+
+        @Override
+        public void onPlayerError(com.google.android.exoplayer2.ExoPlaybackException error) {
+            mHandler.post(mListener::onFinishRequested);
+        }
+    };
+
+    void playLocal(Video video, java.io.File file) {
+        // The engine stays quiet meanwhile
+        if (mController != null && mPresenter.getView() == this) {
+            mController.setPlayWhenReady(false);
+        }
+        if (mLocal == null) {
+            mLocal = com.google.android.exoplayer2.ExoPlayerFactory.newSimpleInstance(mContext);
+            mLocal.setAudioAttributes(new AudioAttributes.Builder()
+                    .setUsage(C.USAGE_MEDIA)
+                    .setContentType(C.CONTENT_TYPE_MUSIC)
+                    .build(), true);
+            mLocal.addListener(mLocalListener);
+        }
+        mLocalVideo = video;
+        com.google.android.exoplayer2.source.MediaSource source =
+                new com.google.android.exoplayer2.source.ExtractorMediaSource.Factory(
+                        new com.google.android.exoplayer2.upstream.FileDataSourceFactory())
+                        .createMediaSource(android.net.Uri.fromFile(file));
+        mLocal.prepare(source, true, true);
+        mLocal.setPlayWhenReady(true);
+        mListener.onStateChanged();
+    }
+
+    private void stopLocal() {
+        if (mLocal != null) {
+            mLocal.stop(true);
+        }
+        mLocalVideo = null;
+    }
+
+    boolean isLocal() {
+        return mLocalVideo != null;
+    }
+
+    // What the car shows and controls, whichever of the two is playing
+
+    Video current() {
+        return mLocalVideo != null ? mLocalVideo : getVideo();
+    }
+
+    long uiPosition() {
+        return mLocalVideo != null ? mLocal.getCurrentPosition() : getPositionMs();
+    }
+
+    long uiDuration() {
+        if (mLocalVideo != null) {
+            long duration = mLocal.getDuration();
+            return duration == C.TIME_UNSET ? 0 : duration;
+        }
+        return getDurationMs();
+    }
+
+    long uiBuffered() {
+        return mLocalVideo != null ? mLocal.getBufferedPosition() : getBufferedPositionMs();
+    }
+
+    int uiState() {
+        return mLocalVideo != null ? mLocal.getPlaybackState() : getPlaybackState();
+    }
+
+    boolean uiPlayWhenReady() {
+        return mLocalVideo != null ? mLocal.getPlayWhenReady() : getPlayWhenReady();
+    }
+
+    boolean uiIsPlaying() {
+        return mLocalVideo != null ? mLocal.getPlayWhenReady() && mLocal.getPlaybackState() == Player.STATE_READY : isPlaying();
+    }
+
+    boolean uiHasMedia() {
+        return mLocalVideo != null || containsMedia();
+    }
+
+    void uiSetPlayWhenReady(boolean play) {
+        if (mLocalVideo != null) {
+            mLocal.setPlayWhenReady(play);
+            mListener.onStateChanged();
+        } else {
+            setPlayWhenReady(play);
+        }
+    }
+
+    void uiSeek(long positionMs) {
+        if (mLocalVideo != null) {
+            mLocal.seekTo(positionMs);
+        } else {
+            setPositionMs(positionMs);
+        }
     }
 
     private void ensureEngine() {
@@ -112,6 +223,12 @@ final class CarPlayer implements PlaybackView, BasePresenter.Headless {
     }
 
     void release() {
+        stopLocal();
+        if (mLocal != null) {
+            mLocal.removeListener(mLocalListener);
+            mLocal.release();
+            mLocal = null;
+        }
         if (mPlayer == null) {
             return;
         }
@@ -138,17 +255,6 @@ final class CarPlayer implements PlaybackView, BasePresenter.Headless {
         return mPlayer != null ? mPlayer.getBufferedPosition() : 0;
     }
 
-    void next() {
-        if (isActive()) {
-            mPresenter.onNextClicked();
-        }
-    }
-
-    void previous() {
-        if (isActive()) {
-            mPresenter.onPreviousClicked();
-        }
-    }
 
     // ---------------------------------------------------------------- PlayerManager
 
@@ -192,7 +298,9 @@ final class CarPlayer implements PlaybackView, BasePresenter.Headless {
 
     @Override
     public boolean isEmbed() {
-        return false;
+        // Like a player inside a card: at the end it closes instead of choosing the next video,
+        // and the car's own list (with the songs saved on the phone) decides what comes next
+        return true;
     }
 
     // ---------------------------------------------------------------- PlayerEngine

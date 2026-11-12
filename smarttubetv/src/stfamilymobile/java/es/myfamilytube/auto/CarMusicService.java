@@ -35,6 +35,7 @@ import com.liskovsoft.smartyoutubetv2.common.misc.ContentGate;
 import com.liskovsoft.smartyoutubetv2.tv.R;
 import com.liskovsoft.youtubeapi.service.YouTubeServiceManager;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -109,6 +110,7 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         super.onCreate();
         sInstance = this;
         mPlayer = new CarPlayer(this, this);
+        mCache = new CarSongCache(this);
         mSession = new MediaSessionCompat(this, "MyFamilyTubeCar");
         mSession.setCallback(new SessionCallback());
         Intent open = getPackageManager().getLaunchIntentForPackage(getPackageName());
@@ -127,6 +129,7 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         mHandler.removeCallbacksAndMessages(null);
         disposeActions();
         stopPlayback(true);
+        mCache.shutdown();
         mSession.release();
         super.onDestroy();
     }
@@ -134,7 +137,7 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
     @Override
     public void onTaskRemoved(Intent rootIntent) {
         super.onTaskRemoved(rootIntent);
-        if (!mPlayer.getPlayWhenReady()) {
+        if (!mPlayer.uiPlayWhenReady()) {
             stopSelf();
         }
     }
@@ -462,23 +465,132 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         if (current != null && !(current instanceof CarPlayer)) {
             current.finishReally();
         }
-        Playlist playlist = Playlist.instance();
-        playlist.clear();
-        playlist.addAll(queue);
-        playlist.setCurrent(start);
-        start.fromQueue = true; // keep its place in the queue (the engine would move it to the end)
+        mQueue.clear();
+        mQueue.addAll(queue);
+        int index = mQueue.indexOf(start);
         mSkipsInARow = 0;
         mSession.setActive(true);
-        mPlayer.play(start);
-        mPlayer.setPlayWhenReady(true);
+        playAt(index >= 0 ? index : 0);
+    }
+
+    // ---------------------------------------------------------------- the car's own list
+
+    /** The list being played (the rest of the chosen list, then YouTube's "up next"). */
+    private final List<Video> mQueue = new ArrayList<>();
+    private int mIndex = -1;
+    private CarSongCache mCache;
+    private static final int SAVE_AHEAD = 3;
+    private static final int KEEP_BEHIND = 4;
+
+    private void playAt(int index) {
+        if (index < 0 || index >= mQueue.size()) {
+            stopPlayback(false);
+            return;
+        }
+        mIndex = index;
+        Video video = mQueue.get(index);
+        if (FamilyProfiles.instance(this).isTimeUp(profile())) {
+            showError("Se ha acabado el tiempo de hoy");
+            return;
+        }
+        if (!ContentGate.allowsPlayback(this, video)) {
+            onFinishRequested(); // not for this profile: the next one
+            return;
+        }
+        mError = null;
+        File saved = mCache.get(video.videoId);
+        if (saved != null) {
+            // Already on the phone: plays even without coverage
+            mPlayer.playLocal(video, saved);
+        } else {
+            // The engine plays only this one; at its end the car's list chooses the next
+            Playlist playlist = Playlist.instance();
+            playlist.clear();
+            playlist.add(video);
+            playlist.setCurrent(video);
+            video.fromQueue = true;
+            mPlayer.play(video);
+            mPlayer.setPlayWhenReady(true);
+        }
         updateState();
+        updateCache();
+    }
+
+    /** Saves the next songs while there is coverage and keeps only the last few played. */
+    private void updateCache() {
+        List<String> keep = new ArrayList<>();
+        for (int i = Math.max(0, mIndex - KEEP_BEHIND); i <= mIndex && i < mQueue.size(); i++) {
+            keep.add(mQueue.get(i).videoId);
+        }
+        List<String> ahead = new ArrayList<>();
+        for (int i = mIndex + 1; i < mQueue.size() && ahead.size() < SAVE_AHEAD; i++) {
+            Video next = mQueue.get(i);
+            if (next.videoId != null && !next.isLive && ContentGate.allowsPlayback(this, next)) {
+                ahead.add(next.videoId);
+            }
+        }
+        mCache.update(keep, ahead);
+        if (mQueue.size() - 1 - mIndex < SAVE_AHEAD) {
+            extendQueue(); // the list is ending: add what YouTube plays next
+        }
+    }
+
+    private boolean mExtending;
+
+    /** Like a radio: when the list ends, YouTube's "up next" keeps the music going. */
+    private void extendQueue() {
+        if (mExtending || mQueue.isEmpty()) {
+            return;
+        }
+        Video last = mQueue.get(mQueue.size() - 1);
+        if (last.videoId == null) {
+            return;
+        }
+        mExtending = true;
+        mActions.add(YouTubeServiceManager.instance().getMediaItemService().getMetadataObserve(last.videoId)
+                .subscribe(metadata -> mHandler.post(() -> {
+                    mExtending = false;
+                    if (metadata == null || metadata.getNextVideo() == null) {
+                        return;
+                    }
+                    Video next = Video.from(metadata.getNextVideo());
+                    if (next != null && next.videoId != null && !containsVideo(next.videoId) && ContentGate.allows(next)) {
+                        mQueue.add(next);
+                        updateCache();
+                    }
+                }), error -> mHandler.post(() -> mExtending = false)));
+    }
+
+    private boolean containsVideo(String videoId) {
+        for (Video video : mQueue) {
+            if (videoId.equals(video.videoId)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void next() {
+        if (mIndex + 1 < mQueue.size()) {
+            playAt(mIndex + 1);
+        } else {
+            stopPlayback(false);
+        }
+    }
+
+    private void previous() {
+        if (mIndex > 0) {
+            playAt(mIndex - 1);
+        } else if (mPlayer.isActive()) {
+            mPlayer.uiSeek(0);
+        }
     }
 
     private void playFromSearch(String query) {
         if (TextUtils.isEmpty(query)) {
             // "Play MyFamilyTube": continue, or start with the music home
-            if (mPlayer.containsMedia()) {
-                mPlayer.setPlayWhenReady(true);
+            if (mPlayer.uiHasMedia()) {
+                mPlayer.uiSetPlayWhenReady(true);
                 return;
             }
             load(TAB_HOME, items -> playFirst(items));
@@ -511,7 +623,7 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
 
     private void stopPlayback(boolean release) {
         if (mPlayer.isActive()) {
-            mPlayer.setPlayWhenReady(false);
+            mPlayer.uiSetPlayWhenReady(false);
         }
         if (release) {
             mPlayer.release();
@@ -524,7 +636,7 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
     private void showError(String message) {
         mError = message;
         if (mPlayer.isActive()) {
-            mPlayer.setPlayWhenReady(false);
+            mPlayer.uiSetPlayWhenReady(false);
         }
         updateState();
     }
@@ -537,40 +649,13 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
     @Override
     public void onFinishRequested() {
         // End of a video with nothing queued, or a video the profile can't see: go on with the next one
-        if (mPlayer.isActive() && mSkipsInARow++ < 5) {
-            mPlayer.next();
+        // (also when a song can't be loaded, e.g. no coverage: the next one may be saved on the phone)
+        if (mSkipsInARow++ < 5 && mIndex + 1 < mQueue.size()) {
+            next();
         } else {
             stopPlayback(false);
         }
     }
-
-    /** The next song's details were already asked for (only once per song). */
-    private String mPreparedAfter;
-
-    /**
-     * When the playing song is fully downloaded, YouTube is asked for the next one's details in
-     * advance, so it starts almost at once when its turn comes.
-     */
-    private final Runnable mPrepareNext = new Runnable() {
-        @Override
-        public void run() {
-            Video current = mPlayer.isActive() ? mPlayer.getVideo() : null;
-            long duration = mPlayer.getDurationMs();
-            if (current != null && current.videoId != null && !current.videoId.equals(mPreparedAfter)
-                    && duration > 0 && mPlayer.getBufferedPositionMs() >= duration - 1500) {
-                mPreparedAfter = current.videoId;
-                Video next = Playlist.instance().getNext();
-                if (next != null && next.videoId != null && ContentGate.allowsPlayback(CarMusicService.this, next)) {
-                    mActions.add(YouTubeServiceManager.instance().getMediaItemService()
-                            .getFormatInfoObserve(next.videoId)
-                            .subscribe(info -> { }, error -> { }));
-                }
-            }
-            if (mPlayer.isActive() && mPlayer.getPlayWhenReady()) {
-                mHandler.postDelayed(this, 10_000);
-            }
-        }
-    };
 
     /** Kids' time also runs in the car. */
     private final Runnable mTick = new Runnable() {
@@ -580,7 +665,7 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
             int seconds = (int) Math.min(60, Math.max(0, (now - mLastTickMs) / 1000));
             mLastTickMs = now;
             FamilyProfile current = profile();
-            if (current.isKid && mPlayer.isActive() && mPlayer.isPlaying()) {
+            if (current.isKid && mPlayer.isActive() && mPlayer.uiIsPlaying()) {
                 FamilyProfiles.instance(CarMusicService.this).addUsedSeconds(current, seconds);
                 if (FamilyProfiles.instance(CarMusicService.this).isTimeUp(current)) {
                     showError("Se ha acabado el tiempo de hoy");
@@ -593,8 +678,8 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
 
     private void updateState() {
         boolean active = mPlayer.isActive();
-        boolean playing = active && mPlayer.getPlayWhenReady();
-        int exoState = active ? mPlayer.getPlaybackState() : Player.STATE_IDLE;
+        boolean playing = active && mPlayer.uiPlayWhenReady();
+        int exoState = active ? mPlayer.uiState() : Player.STATE_IDLE;
         int state;
         if (mError != null) {
             state = PlaybackStateCompat.STATE_ERROR;
@@ -614,14 +699,14 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
                 | PlaybackStateCompat.ACTION_PLAY_FROM_SEARCH;
         PlaybackStateCompat.Builder builder = new PlaybackStateCompat.Builder()
                 .setActions(actions)
-                .setState(state, active ? mPlayer.getPositionMs() : 0, playing ? 1.0f : 0f)
-                .setBufferedPosition(active ? mPlayer.getBufferedPositionMs() : 0);
+                .setState(state, active ? mPlayer.uiPosition() : 0, playing ? 1.0f : 0f)
+                .setBufferedPosition(active ? mPlayer.uiBuffered() : 0);
         if (mError != null) {
             builder.setErrorMessage(PlaybackStateCompat.ERROR_CODE_APP_ERROR, mError);
         }
         mSession.setPlaybackState(builder.build());
 
-        Video video = active ? mPlayer.getVideo() : null;
+        Video video = active ? mPlayer.current() : null;
         if (video != null) {
             String title = video.getTitleFull() != null ? video.getTitleFull() : video.getTitle();
             Uri art = CarArtProvider.uriFor(this, video.getCardImageUrl());
@@ -631,7 +716,7 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
                     .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, title)
                     .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, video.getAuthor())
                     .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, video.getAuthor());
-            long duration = mPlayer.getDurationMs();
+            long duration = mPlayer.uiDuration();
             if (duration > 0) {
                 metadata.putLong(MediaMetadataCompat.METADATA_KEY_DURATION, duration);
             }
@@ -652,8 +737,6 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
                 mLastTickMs = System.currentTimeMillis();
             }
             mHandler.postDelayed(mTick, 30_000);
-            mHandler.removeCallbacks(mPrepareNext);
-            mHandler.postDelayed(mPrepareNext, 10_000);
         } else {
             mHandler.removeCallbacks(mTick);
             stopForegroundCompat(false);
@@ -724,9 +807,9 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
     private final class SessionCallback extends MediaSessionCompat.Callback {
         @Override
         public void onPlay() {
-            if (mPlayer.isActive() && mPlayer.containsMedia()) {
+            if (mPlayer.isActive() && mPlayer.uiHasMedia()) {
                 mError = null;
-                mPlayer.setPlayWhenReady(true);
+                mPlayer.uiSetPlayWhenReady(true);
             } else {
                 playFromSearch(null);
             }
@@ -735,7 +818,7 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         @Override
         public void onPause() {
             if (mPlayer.isActive()) {
-                mPlayer.setPlayWhenReady(false);
+                mPlayer.uiSetPlayWhenReady(false);
             }
         }
 
@@ -747,22 +830,22 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         @Override
         public void onSkipToNext() {
             mSkipsInARow = 0;
-            mPlayer.next();
+            next();
         }
 
         @Override
         public void onSkipToPrevious() {
-            if (mPlayer.isActive() && mPlayer.getPositionMs() > 5000) {
-                mPlayer.setPositionMs(0);
+            if (mPlayer.isActive() && mPlayer.uiPosition() > 5000) {
+                mPlayer.uiSeek(0);
             } else {
-                mPlayer.previous();
+                previous();
             }
         }
 
         @Override
         public void onSeekTo(long pos) {
             if (mPlayer.isActive()) {
-                mPlayer.setPositionMs(pos);
+                mPlayer.uiSeek(pos);
                 updateState();
             }
         }
