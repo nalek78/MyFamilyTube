@@ -132,7 +132,174 @@ public class MobilePlayerActivity extends MotherActivity implements PlaybackView
         }
     };
 
+    /** Sound off/on: kept while the app is open. */
+    private static boolean sMuted;
+    /** Shorts already switched to their original audio (once per video). */
+    private String mOriginalAudioDoneFor;
+
+    private void applyMute() {
+        if (mController != null && mPlayer != null) {
+            mController.setVolume(sMuted ? 0f : 1f);
+        }
+        ImageView mute = findViewById(R.id.mobile_player_mute);
+        if (mute != null) {
+            mute.setImageResource(sMuted ? R.drawable.mobile_ic_volume_off : R.drawable.mobile_ic_volume_on);
+        }
+    }
+
+    /** "Subtítulos": off or one of the video's languages (remembered like on the TV). */
+    private void showSubtitlesDialog() {
+        List<FormatItem> formats = getSubtitleFormats();
+        List<FormatItem> items = new ArrayList<>();
+        List<String> labels = new ArrayList<>();
+        items.add(FormatItem.SUBTITLE_NONE);
+        labels.add("Desactivados");
+        int checked = 0;
+        FormatItem current = getSubtitleFormat();
+        if (formats != null) {
+            for (FormatItem format : formats) {
+                if (format == null || format.getTitle() == null) {
+                    continue;
+                }
+                items.add(format);
+                labels.add(format.getTitle().toString());
+                if (current != null && format.equals(current)) {
+                    checked = items.size() - 1;
+                }
+            }
+        }
+        if (items.size() == 1) {
+            android.widget.Toast.makeText(this, "Este vídeo no tiene subtítulos", android.widget.Toast.LENGTH_SHORT).show();
+            return;
+        }
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("Subtítulos")
+                .setSingleChoiceItems(labels.toArray(new String[0]), checked, (dialog, which) -> {
+                    FormatItem chosen = items.get(which);
+                    setFormat(chosen);
+                    com.liskovsoft.smartyoutubetv2.common.prefs.PlayerData.instance(this).setFormat(chosen);
+                    showSubtitles(which != 0);
+                    dialog.dismiss();
+                })
+                .show();
+    }
+
+    /** "Idioma del audio": the video's languages, one entry each (original first). */
+    private void showAudioDialog() {
+        List<FormatItem> formats = getAudioFormats();
+        if (formats == null || formats.isEmpty()) {
+            return;
+        }
+        List<FormatItem> items = new ArrayList<>();
+        List<String> labels = new ArrayList<>();
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        FormatItem current = getAudioFormat();
+        int checked = -1;
+        for (FormatItem format : formats) {
+            if (format == null) {
+                continue;
+            }
+            String language = format.getLanguage() != null ? format.getLanguage() : "";
+            boolean isCurrent = current != null && format.equals(current);
+            if (!seen.add(language) && !isCurrent) {
+                continue; // same language in another quality
+            }
+            if (isCurrent) {
+                // Show the playing one instead of its twin in another quality
+                int same = indexOfLanguage(items, language);
+                if (same >= 0) {
+                    items.set(same, format);
+                    checked = same;
+                    continue;
+                }
+            }
+            boolean original = language.contains("original");
+            int position = original ? 0 : items.size();
+            items.add(position, format);
+            labels.add(position, audioLabel(language));
+            if (isCurrent) {
+                checked = position;
+            } else if (original && checked >= 0) {
+                checked++;
+            }
+        }
+        if (items.size() < 2) {
+            android.widget.Toast.makeText(this, "Este vídeo solo tiene un audio", android.widget.Toast.LENGTH_SHORT).show();
+            return;
+        }
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("Idioma del audio")
+                .setSingleChoiceItems(labels.toArray(new String[0]), checked, (dialog, which) -> {
+                    FormatItem chosen = items.get(which);
+                    setFormat(chosen);
+                    com.liskovsoft.smartyoutubetv2.common.prefs.PlayerData.instance(this).setFormat(chosen);
+                    dialog.dismiss();
+                })
+                .show();
+    }
+
+    private static int indexOfLanguage(List<FormatItem> items, String language) {
+        for (int i = 0; i < items.size(); i++) {
+            String other = items.get(i).getLanguage() != null ? items.get(i).getLanguage() : "";
+            if (other.equals(language)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    /** "en.original" → "Inglés (original)", "pt-BR.dubbed-auto" → "Portugués (doblado)". */
+    private static String audioLabel(String language) {
+        if (TextUtils.isEmpty(language)) {
+            return "Audio";
+        }
+        String code = language.split("[.]")[0];
+        java.util.Locale locale = java.util.Locale.forLanguageTag(code.replace('_', '-'));
+        String name = locale.getDisplayLanguage(new java.util.Locale("es"));
+        if (TextUtils.isEmpty(name)) {
+            name = code;
+        }
+        name = name.substring(0, 1).toUpperCase(java.util.Locale.ROOT) + name.substring(1);
+        if (language.contains("original")) {
+            return name + " (original)";
+        }
+        if (language.contains("dub")) {
+            return name + " (doblado)";
+        }
+        return name;
+    }
+
+    /** Shorts: always their original audio (YouTube may pick an automatic dub). Not saved as a preference. */
+    private void maybeUseOriginalAudio() {
+        Video video = getVideo();
+        if (video == null || video.videoId == null || !(video.isShorts || mVertical)
+                || video.videoId.equals(mOriginalAudioDoneFor)) {
+            return;
+        }
+        List<FormatItem> formats = getAudioFormats();
+        if (formats == null || formats.isEmpty()) {
+            return;
+        }
+        mOriginalAudioDoneFor = video.videoId;
+        FormatItem current = getAudioFormat();
+        if (current != null && current.getLanguage() != null && current.getLanguage().contains("original")) {
+            return;
+        }
+        for (FormatItem format : formats) {
+            if (format != null && format.getLanguage() != null && format.getLanguage().contains("original")) {
+                setFormat(format);
+                return;
+            }
+        }
+    }
+
     private final Player.EventListener mStateListener = new Player.EventListener() {
+        @Override
+        public void onTracksChanged(com.google.android.exoplayer2.source.TrackGroupArray trackGroups,
+                                    com.google.android.exoplayer2.trackselection.TrackSelectionArray trackSelections) {
+            mHandler.post(MobilePlayerActivity.this::maybeUseOriginalAudio);
+        }
+
         @Override
         public void onPlayerStateChanged(boolean playWhenReady, int playbackState) {
             updatePlayButton();
@@ -500,6 +667,7 @@ public class MobilePlayerActivity extends MotherActivity implements PlaybackView
         mController.setPlayerView(mEngineView);
         mPlayer.addListener(mStateListener);
         mPlayer.addVideoListener(mVideoSizeListener);
+        applyMute();
         mPlayerView.setPlayer(mPlayer);
         createMediaSession();
         if (!mReceiversRegistered) {
@@ -621,6 +789,13 @@ public class MobilePlayerActivity extends MotherActivity implements PlaybackView
             scheduleHide();
         });
         findViewById(R.id.mobile_player_quality).setOnClickListener(v -> clickButton(R.id.lb_control_high_quality));
+        findViewById(R.id.mobile_player_mute).setOnClickListener(v -> {
+            sMuted = !sMuted;
+            applyMute();
+            scheduleHide();
+        });
+        findViewById(R.id.mobile_player_cc).setOnClickListener(v -> showSubtitlesDialog());
+        findViewById(R.id.mobile_player_audio).setOnClickListener(v -> showAudioDialog());
         mFullscreenButton.setOnClickListener(v -> setFullscreen(!isLandscape()));
         mChannel.setOnClickListener(v -> clickButton(R.id.action_channel));
 
@@ -1367,7 +1542,7 @@ public class MobilePlayerActivity extends MotherActivity implements PlaybackView
 
     @Override
     public void setVolume(float volume) {
-        mController.setVolume(volume);
+        mController.setVolume(sMuted ? 0f : volume); // the mute button wins
     }
 
     @Override

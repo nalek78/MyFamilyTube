@@ -75,6 +75,24 @@
                     android:textSize="16sp" />
 
                 <ImageView
+                    android:id="@+id/mobile_player_mute"
+                    style="@style/MobileIconButton"
+                    android:contentDescription="Sonido"
+                    android:src="@drawable/mobile_ic_volume_on" />
+
+                <ImageView
+                    android:id="@+id/mobile_player_cc"
+                    style="@style/MobileIconButton"
+                    android:contentDescription="Subtítulos"
+                    android:src="@drawable/mobile_ic_cc" />
+
+                <ImageView
+                    android:id="@+id/mobile_player_audio"
+                    style="@style/MobileIconButton"
+                    android:contentDescription="Idioma del audio"
+                    android:src="@drawable/mobile_ic_audio" />
+
+                <ImageView
                     android:id="@+id/mobile_player_quality"
                     style="@style/MobileIconButton"
                     android:contentDescription="Calidad"

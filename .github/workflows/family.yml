@@ -107,23 +107,26 @@ jobs:
             OLD=$(grep -o '"versionCode": *[0-9]*' "prev/${JSON}.json" 2>/dev/null | grep -o '[0-9]*$' || true)
             if [ "$OLD" = "$VER" ] && [ -f "prev/${APK}.apk" ]; then
               cp "prev/${APK}.apk" "${APK}.apk"
-              cp "prev/${JSON}.json" "${JSON}.json"
+              LOG="Sin cambios"
               NOTES="${NOTES}${LABEL} 1.0.${VER}: sin cambios"$'\n'
             else
               cp smarttubetv/build/outputs/apk/${FLAVOR}/release/*_universal.apk "${APK}.apk"
-              cat > "${JSON}.json" <<EOF
+              LOG="${CHANGE}"
+              NOTES="${NOTES}${LABEL} 1.0.${VER}: nueva"$'\n'
+            fi
+            # The app's update checker needs versionName and versionCode; both APKs are in every release
+            cat > "${JSON}.json" <<EOF
           {
             "package": {
               "downloadUrl": "https://github.com/${{ github.repository }}/releases/download/${TAG}/${APK}.apk"
             },
             "1.0.${VER}": {
+              "versionName": "1.0.${VER}",
               "versionCode": ${VER},
-              "changelog": ["${CHANGE}"]
+              "changelog": ["${LOG}"]
             }
           }
           EOF
-              NOTES="${NOTES}${LABEL} 1.0.${VER}: nueva"$'\n'
-            fi
           done
           {
             echo "TAG=${TAG}"
