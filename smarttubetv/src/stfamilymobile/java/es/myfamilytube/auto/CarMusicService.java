@@ -247,8 +247,8 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
             grid = content.getSubscribedChannelsObserve();
         } else if (parentId.startsWith(PLAYLIST)) {
             Video folder = mFolders.get(parentId);
-            if (folder != null && folder.mediaItem != null) {
-                grid = content.getGroupObserve(folder.mediaItem);
+            if (folder != null) {
+                grid = playlistObserve(folder);
             }
         } else if (parentId.startsWith(CHANNEL)) {
             rows = content.getChannelObserve(parentId.substring(CHANNEL.length()));
@@ -256,21 +256,63 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
             rows = content.getSearchObserve(parentId.substring(SEARCH.length()));
         }
 
+        // Android Auto waits until it gets an answer, and only one: answer exactly once,
+        // also when YouTube sends nothing, fails, or takes too long
+        Done once = once(done);
         if (rows != null) {
             mActions.add(rows.subscribe(
-                    groups -> mHandler.post(() -> done.onItems(fromRows(parentId, groups))),
-                    error -> mHandler.post(() -> done.onItems(new ArrayList<>()))));
+                    groups -> mHandler.post(() -> once.onItems(fromRows(parentId, groups))),
+                    error -> mHandler.post(() -> once.onItems(new ArrayList<>())),
+                    () -> mHandler.post(() -> once.onItems(new ArrayList<>()))));
         } else if (grid != null) {
             mActions.add(grid.subscribe(
                     group -> mHandler.post(() -> {
                         List<MediaGroup> groups = new ArrayList<>();
                         groups.add(group);
-                        done.onItems(fromRows(parentId, groups));
+                        once.onItems(fromRows(parentId, groups));
                     }),
-                    error -> mHandler.post(() -> done.onItems(new ArrayList<>()))));
+                    error -> mHandler.post(() -> once.onItems(new ArrayList<>())),
+                    () -> mHandler.post(() -> once.onItems(new ArrayList<>()))));
         } else {
-            done.onItems(new ArrayList<>());
+            once.onItems(new ArrayList<>());
+            return;
         }
+        mHandler.postDelayed(() -> once.onItems(new ArrayList<>()), 20_000);
+    }
+
+    private static Done once(Done done) {
+        final boolean[] sent = {false};
+        return items -> {
+            if (!sent[0]) {
+                sent[0] = true;
+                done.onItems(items);
+            }
+        };
+    }
+
+    /** A playlist's videos, loaded the same way the phone and TV screens do it. */
+    private Observable<MediaGroup> playlistObserve(Video item) {
+        if (item.mediaItem == null) {
+            item.mediaItem = com.liskovsoft.smartyoutubetv2.common.app.models.data.SimpleMediaItem.from(item);
+        }
+        if (item.hasNestedItems() || item.isChannel()) {
+            return content().getGroupObserve(item.mediaItem);
+        }
+        if (item.hasReloadPageKey()) {
+            return content().getGroupObserve(item.getReloadPageKey());
+        }
+        return YouTubeServiceManager.instance().getMediaItemService()
+                .getMetadataObserve(item.videoId, item.playlistId, 0, item.playlistParams)
+                .flatMap(metadata -> {
+                    if (metadata != null && metadata.getSuggestions() != null) {
+                        for (MediaGroup group : metadata.getSuggestions()) {
+                            if (group != null && group.getMediaItems() != null && !group.getMediaItems().isEmpty()) {
+                                return Observable.just(group);
+                            }
+                        }
+                    }
+                    return Observable.empty();
+                });
     }
 
     private List<MediaItem> kidChannels() {
