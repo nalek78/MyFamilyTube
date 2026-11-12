@@ -755,7 +755,14 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
                 manager.createNotificationChannel(channel);
             }
         }
+        boolean playing = mPlayer.isActive() && mPlayer.uiPlayWhenReady();
         Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
+                .addAction(R.drawable.mobile_ic_prev, "Anterior", androidx.media.session.MediaButtonReceiver
+                        .buildMediaButtonPendingIntent(this, PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS))
+                .addAction(playing ? R.drawable.mobile_ic_pause : R.drawable.mobile_ic_play, playing ? "Pausa" : "Reproducir",
+                        androidx.media.session.MediaButtonReceiver.buildMediaButtonPendingIntent(this, PlaybackStateCompat.ACTION_PLAY_PAUSE))
+                .addAction(R.drawable.mobile_ic_next, "Siguiente", androidx.media.session.MediaButtonReceiver
+                        .buildMediaButtonPendingIntent(this, PlaybackStateCompat.ACTION_SKIP_TO_NEXT))
                 .setSmallIcon(R.drawable.mobile_ic_play)
                 .setContentTitle(video != null ? video.getTitle() : getString(R.string.app_name))
                 .setContentText(video != null ? video.getAuthor() : null)
@@ -763,7 +770,9 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                 .setOnlyAlertOnce(true)
                 .setShowWhen(false)
-                .setStyle(new androidx.media.app.NotificationCompat.MediaStyle().setMediaSession(mSession.getSessionToken()))
+                .setStyle(new androidx.media.app.NotificationCompat.MediaStyle()
+                        .setMediaSession(mSession.getSessionToken())
+                        .setShowActionsInCompactView(0, 1, 2))
                 .build();
         try {
             if (!mForeground) {
@@ -800,6 +809,8 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         super.onStartCommand(intent, flags, startId);
+        // Buttons of the notification, headphones and Bluetooth
+        androidx.media.session.MediaButtonReceiver.handleIntent(mSession, intent);
         return START_NOT_STICKY;
     }
 

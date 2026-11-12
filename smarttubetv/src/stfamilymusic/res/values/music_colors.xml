@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- My Family Music: the green-blue of its icon -->
+    <color name="music_accent">#19D9A0</color>
+    <color name="music_bar">#16181D</color>
+</resources>

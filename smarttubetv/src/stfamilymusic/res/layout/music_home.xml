@@ -1,130 +1,371 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- My Family Music on the phone: who is listening, and how to use it in the car -->
+<!-- My Family Music on the phone: tabs, lists, search and the player (same music as in the car) -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/music_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/family_bg">
 
-    <ScrollView
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:fillViewport="true">
+        android:orientation="vertical">
 
+        <!-- Top bar -->
         <LinearLayout
+            android:id="@+id/music_top"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center_horizontal"
-            android:orientation="vertical"
-            android:padding="24dp">
+            android:layout_height="60dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingLeft="8dp"
+            android:paddingRight="4dp">
 
             <ImageView
-                android:layout_width="120dp"
-                android:layout_height="120dp"
-                android:layout_marginTop="24dp"
+                android:id="@+id/music_back"
+                style="@style/MobileIconButton"
+                android:contentDescription="Atrás"
+                android:src="@drawable/mobile_ic_back"
+                android:visibility="gone" />
+
+            <ImageView
+                android:id="@+id/music_logo"
+                android:layout_width="34dp"
+                android:layout_height="34dp"
+                android:layout_marginLeft="6dp"
                 android:importantForAccessibility="no"
                 android:src="@mipmap/app_icon" />
 
             <TextView
-                android:layout_width="wrap_content"
+                android:id="@+id/music_title"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
+                android:layout_marginLeft="10dp"
+                android:layout_weight="1"
+                android:ellipsize="end"
                 android:fontFamily="sans-serif-medium"
+                android:singleLine="true"
                 android:text="@string/app_name"
                 android:textColor="@color/family_text"
-                android:textSize="26sp" />
+                android:textSize="20sp" />
+
+            <ImageView
+                android:id="@+id/music_search"
+                style="@style/MobileIconButton"
+                android:contentDescription="Buscar"
+                android:src="@drawable/mobile_ic_search" />
 
             <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:gravity="center"
-                android:text="La música de YouTube en el coche, con el control parental de cada perfil"
-                android:textColor="@color/family_text2"
-                android:textSize="15sp" />
-
-            <!-- Who is listening -->
-            <LinearLayout
-                android:id="@+id/music_profile"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="32dp"
-                android:background="@drawable/mobile_chip_bg"
+                android:id="@+id/family_profile_button"
+                android:layout_width="38dp"
+                android:layout_height="38dp"
+                android:layout_marginLeft="4dp"
+                android:layout_marginRight="4dp"
                 android:clickable="true"
+                android:contentDescription="Cambiar de perfil"
                 android:focusable="true"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:padding="14dp">
-
-                <TextView
-                    android:id="@+id/family_profile_button"
-                    android:layout_width="52dp"
-                    android:layout_height="52dp"
-                    android:gravity="center"
-                    android:textColor="#FFFFFF"
-                    android:textSize="18sp"
-                    android:textStyle="bold" />
-
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_marginLeft="14dp"
-                    android:orientation="vertical">
-
-                    <TextView
-                        android:id="@+id/music_profile_name"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:fontFamily="sans-serif-medium"
-                        android:textColor="@color/family_text"
-                        android:textSize="18sp" />
-
-                    <TextView
-                        android:id="@+id/music_profile_info"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp"
-                        android:textColor="@color/family_text2"
-                        android:textSize="14sp" />
-                </LinearLayout>
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Cambiar"
-                    android:textColor="@color/family_ring"
-                    android:textSize="15sp" />
-            </LinearLayout>
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="28dp"
-                android:lineSpacingExtra="6dp"
-                android:text="1. Elige quién escucha. En los perfiles de adulto puedes poner su cuenta de Google (Cambiar › editar perfil) para tener sus listas y canales.\n2. Conecta el móvil al coche y abre My Family Music en Android Auto.\n3. Las canciones siguientes se guardan solas en el móvil para que no se corte la música sin cobertura."
-                android:textColor="@color/family_text2"
-                android:textSize="15sp" />
-
-            <TextView
-                android:id="@+id/music_diagnostics"
-                android:layout_width="wrap_content"
-                android:layout_height="48dp"
-                android:layout_marginTop="28dp"
-                android:background="?android:attr/selectableItemBackground"
                 android:gravity="center"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <ImageView
+                android:id="@+id/music_more"
+                style="@style/MobileIconButton"
+                android:contentDescription="Más"
+                android:src="@drawable/mobile_ic_more" />
+        </LinearLayout>
+
+        <!-- Search -->
+        <LinearLayout
+            android:id="@+id/music_search_bar"
+            android:layout_width="match_parent"
+            android:layout_height="60dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingLeft="8dp"
+            android:paddingRight="4dp"
+            android:visibility="gone">
+
+            <ImageView
+                android:id="@+id/music_search_close"
+                style="@style/MobileIconButton"
+                android:contentDescription="Cerrar búsqueda"
+                android:src="@drawable/mobile_ic_back" />
+
+            <EditText
+                android:id="@+id/music_search_field"
+                android:layout_width="0dp"
+                android:layout_height="44dp"
+                android:layout_weight="1"
+                android:background="@drawable/mobile_search_bg"
+                android:hint="Canciones, artistas, listas…"
+                android:imeOptions="actionSearch"
+                android:inputType="text"
                 android:paddingLeft="16dp"
                 android:paddingRight="16dp"
-                android:text="Diagnóstico"
-                android:textColor="@color/family_text3"
-                android:textSize="15sp" />
+                android:singleLine="true"
+                android:textColor="@color/family_text"
+                android:textColorHint="@color/family_text3"
+                android:textSize="16sp" />
 
-            <TextView
-                android:id="@+id/music_version"
+            <ImageView
+                android:id="@+id/music_mic"
+                style="@style/MobileIconButton"
+                android:contentDescription="Buscar por voz"
+                android:src="@drawable/mobile_ic_mic" />
+        </LinearLayout>
+
+        <HorizontalScrollView
+            android:id="@+id/music_tabs_scroll"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:scrollbars="none">
+
+            <LinearLayout
+                android:id="@+id/music_tabs"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:paddingLeft="12dp"
+                android:paddingTop="4dp"
+                android:paddingRight="12dp"
+                android:paddingBottom="8dp" />
+        </HorizontalScrollView>
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1">
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/music_list"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clipToPadding="false"
+                android:paddingBottom="12dp" />
+
+            <ProgressBar
+                android:id="@+id/music_progress"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:layout_gravity="center"
+                android:indeterminateTint="@color/music_accent"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/music_empty"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:gravity="center"
+                android:padding="32dp"
+                android:textColor="@color/family_text2"
+                android:textSize="16sp"
+                android:visibility="gone" />
+        </FrameLayout>
+
+        <!-- Mini player -->
+        <LinearLayout
+            android:id="@+id/music_mini"
+            android:layout_width="match_parent"
+            android:layout_height="68dp"
+            android:background="@color/music_bar"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingLeft="10dp"
+            android:paddingRight="4dp"
+            android:visibility="gone">
+
+            <ImageView
+                android:id="@+id/music_mini_art"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="@drawable/family_thumb_bg"
+                android:importantForAccessibility="no"
+                android:scaleType="centerCrop" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="12dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/music_mini_title"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:fontFamily="sans-serif-medium"
+                    android:singleLine="true"
+                    android:textColor="@color/family_text"
+                    android:textSize="15sp" />
+
+                <TextView
+                    android:id="@+id/music_mini_artist"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:singleLine="true"
+                    android:textColor="@color/family_text2"
+                    android:textSize="13sp" />
+            </LinearLayout>
+
+            <ImageView
+                android:id="@+id/music_mini_play"
+                style="@style/MobileIconButton"
+                android:contentDescription="Reproducir o pausar"
+                android:src="@drawable/mobile_ic_play" />
+
+            <ImageView
+                android:id="@+id/music_mini_next"
+                style="@style/MobileIconButton"
+                android:contentDescription="Siguiente"
+                android:src="@drawable/mobile_ic_next" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Full player -->
+    <LinearLayout
+        android:id="@+id/music_player"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/family_bg"
+        android:clickable="true"
+        android:focusable="true"
+        android:gravity="center_horizontal"
+        android:orientation="vertical"
+        android:padding="20dp"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:id="@+id/music_player_close"
+                style="@style/MobileIconButton"
+                android:contentDescription="Cerrar"
+                android:rotation="-90"
+                android:src="@drawable/mobile_ic_back" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="Reproduciendo"
+                android:textColor="@color/family_text2"
+                android:textSize="14sp" />
+
+            <Space
+                android:layout_width="52dp"
+                android:layout_height="1dp" />
+        </LinearLayout>
+
+        <ImageView
+            android:id="@+id/music_player_art"
+            android:layout_width="match_parent"
+            android:layout_height="300dp"
+            android:layout_marginTop="24dp"
+            android:background="@drawable/family_thumb_bg"
+            android:importantForAccessibility="no"
+            android:scaleType="centerCrop" />
+
+        <TextView
+            android:id="@+id/music_player_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="28dp"
+            android:ellipsize="end"
+            android:fontFamily="sans-serif-medium"
+            android:maxLines="2"
+            android:textColor="@color/family_text"
+            android:textSize="22sp" />
+
+        <TextView
+            android:id="@+id/music_player_artist"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:ellipsize="end"
+            android:singleLine="true"
+            android:textColor="@color/family_text2"
+            android:textSize="16sp" />
+
+        <SeekBar
+            android:id="@+id/music_player_seek"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:progressTint="@color/music_accent"
+            android:thumbTint="@color/music_accent" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingLeft="16dp"
+            android:paddingRight="16dp">
+
+            <TextView
+                android:id="@+id/music_player_time"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="0:00"
+                android:textColor="@color/family_text3"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/music_player_duration"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0:00"
                 android:textColor="@color/family_text3"
                 android:textSize="12sp" />
         </LinearLayout>
-    </ScrollView>
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:id="@+id/music_player_prev"
+                style="@style/MobileIconButton"
+                android:layout_width="64dp"
+                android:layout_height="64dp"
+                android:contentDescription="Anterior"
+                android:src="@drawable/mobile_ic_prev" />
+
+            <ImageView
+                android:id="@+id/music_player_play"
+                android:layout_width="80dp"
+                android:layout_height="80dp"
+                android:layout_marginLeft="28dp"
+                android:layout_marginRight="28dp"
+                android:background="@drawable/music_play_bg"
+                android:clickable="true"
+                android:contentDescription="Reproducir o pausar"
+                android:focusable="true"
+                android:scaleType="center"
+                android:src="@drawable/mobile_ic_play" />
+
+            <ImageView
+                android:id="@+id/music_player_next"
+                style="@style/MobileIconButton"
+                android:layout_width="64dp"
+                android:layout_height="64dp"
+                android:contentDescription="Siguiente"
+                android:src="@drawable/mobile_ic_next" />
+        </LinearLayout>
+    </LinearLayout>
 </FrameLayout>
