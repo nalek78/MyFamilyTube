@@ -261,7 +261,7 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         Done once = once(done);
         if (rows != null) {
             mActions.add(rows.subscribe(
-                    groups -> mHandler.post(() -> once.onItems(fromRows(parentId, groups))),
+                    groups -> mHandler.post(() -> once.onItems(safeRows(parentId, groups))),
                     error -> mHandler.post(() -> once.onItems(new ArrayList<>())),
                     () -> mHandler.post(() -> once.onItems(new ArrayList<>()))));
         } else if (grid != null) {
@@ -269,7 +269,7 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
                     group -> mHandler.post(() -> {
                         List<MediaGroup> groups = new ArrayList<>();
                         groups.add(group);
-                        once.onItems(fromRows(parentId, groups));
+                        once.onItems(safeRows(parentId, groups));
                     }),
                     error -> mHandler.post(() -> once.onItems(new ArrayList<>())),
                     () -> mHandler.post(() -> once.onItems(new ArrayList<>()))));
@@ -278,6 +278,16 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
             return;
         }
         mHandler.postDelayed(() -> once.onItems(new ArrayList<>()), 20_000);
+    }
+
+    /** A strange item from YouTube must never close the app: that list just comes out shorter or empty. */
+    private List<MediaItem> safeRows(String parentId, List<MediaGroup> groups) {
+        try {
+            return fromRows(parentId, groups);
+        } catch (RuntimeException e) {
+            es.myfamilytube.FamilyDiagnostics.instance(this).log("Android Auto: error al preparar «" + parentId + "»: " + e);
+            return new ArrayList<>();
+        }
     }
 
     private static Done once(Done done) {
