@@ -162,7 +162,7 @@ final class CarSongCache {
         }
     }
 
-    /** The original language (not a dub), AAC up to normal quality (plays everywhere), else the best Opus. */
+    /** The original language (not a dub) in the best quality YouTube gives (usually Opus ~160 kbps). */
     private static MediaFormat pickAudio(List<MediaFormat> formats) {
         if (formats == null) {
             return null;
@@ -192,9 +192,9 @@ final class CarSongCache {
 
     private static long score(MediaFormat format) {
         long bitrate = parseLong(format.getBitrate());
-        boolean aac = format.getMimeType().contains("mp4");
-        // AAC preferred (always plays); among equals, the higher bitrate up to ~160 kbps
-        return (aac ? 1_000_000_000L : 0) + Math.min(bitrate, 170_000);
+        boolean opus = format.getMimeType().contains("opus") || format.getMimeType().contains("webm");
+        // Highest bitrate first; at the same bitrate Opus sounds better than AAC
+        return bitrate * 10 + (opus ? 5 : 0);
     }
 
     private static long parseLong(String value) {

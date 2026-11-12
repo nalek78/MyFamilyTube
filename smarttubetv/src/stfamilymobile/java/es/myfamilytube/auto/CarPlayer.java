@@ -56,7 +56,58 @@ final class CarPlayer implements PlaybackView, BasePresenter.Headless {
         public void onPlayerStateChanged(boolean playWhenReady, int playbackState) {
             mListener.onStateChanged();
         }
+
+        @Override
+        public void onTracksChanged(com.google.android.exoplayer2.source.TrackGroupArray trackGroups,
+                                    com.google.android.exoplayer2.trackselection.TrackSelectionArray trackSelections) {
+            mHandler.post(CarPlayer.this::selectBestAudio);
+        }
     };
+
+    /**
+     * Music: always the best sound YouTube offers for the song (usually Opus ~160 kbps) in its
+     * original language, not what the connection estimate or the TV's saved choice would pick.
+     */
+    private void selectBestAudio() {
+        if (mController == null || mLocalVideo != null) {
+            return;
+        }
+        List<FormatItem> formats = mController.getAudioFormats();
+        if (formats == null || formats.isEmpty()) {
+            return;
+        }
+        boolean hasOriginal = false;
+        for (FormatItem format : formats) {
+            if (format != null && format.getLanguage() != null && format.getLanguage().contains("original")) {
+                hasOriginal = true;
+                break;
+            }
+        }
+        FormatItem best = null;
+        long bestScore = -1;
+        for (FormatItem format : formats) {
+            if (format == null || format.getTrack() == null || format.getTrack().format == null) {
+                continue;
+            }
+            if (hasOriginal && (format.getLanguage() == null || !format.getLanguage().contains("original"))) {
+                continue;
+            }
+            com.google.android.exoplayer2.Format exo = format.getTrack().format;
+            if (exo.id != null && exo.id.contains("drc")) {
+                continue; // "stable volume" copies sound flatter
+            }
+            String mime = exo.sampleMimeType != null ? exo.sampleMimeType : "";
+            long score = Math.max(0, exo.bitrate) * 10L + (mime.contains("opus") ? 5 : 0);
+            if (score > bestScore) {
+                best = format;
+                bestScore = score;
+            }
+        }
+        FormatItem current = mController.getAudioFormat();
+        if (best != null && !best.equals(current)) {
+            mController.selectFormat(best);
+        }
+    }
 
     CarPlayer(Context context, Listener listener) {
         mContext = context.getApplicationContext();
@@ -422,7 +473,13 @@ final class CarPlayer implements PlaybackView, BasePresenter.Headless {
             return;
         }
         // The engine restores the saved video quality: in the car the picture stays off
-        mController.selectFormat(option.getType() == FormatItem.TYPE_VIDEO ? FormatItem.NO_VIDEO : option);
+        if (option.getType() == FormatItem.TYPE_VIDEO) {
+            mController.selectFormat(FormatItem.NO_VIDEO);
+        } else if (option.getType() == FormatItem.TYPE_AUDIO) {
+            mHandler.post(this::selectBestAudio); // the best sound, not the TV's saved choice
+        } else {
+            mController.selectFormat(option);
+        }
     }
 
     @Override
