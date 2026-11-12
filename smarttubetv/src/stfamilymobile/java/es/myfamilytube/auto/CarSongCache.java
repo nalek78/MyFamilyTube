@@ -54,7 +54,7 @@ final class CarSongCache {
         }
         for (File file : files) {
             String name = file.getName();
-            if (name.startsWith(videoId + ".") && !name.endsWith(".part") && file.length() > 0) {
+            if (name.startsWith(videoId + ".") && !name.endsWith(".part") && !name.endsWith(".lvl") && file.length() > 0) {
                 return file;
             }
         }
@@ -91,6 +91,10 @@ final class CarSongCache {
         }
     }
 
+    File dir() {
+        return mDir;
+    }
+
     void shutdown() {
         mExecutor.shutdownNow();
     }
@@ -113,6 +117,7 @@ final class CarSongCache {
 
     private void download(String videoId) throws Exception {
         MediaItemFormatInfo info = YouTubeServiceManager.instance().getMediaItemService().getFormatInfo(videoId);
+        CarLoudness.record(videoId, info, mDir); // to play it at the same level as the others
         if (info == null || info.isUnplayable() || info.isLive()) {
             return;
         }

@@ -111,6 +111,7 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         sInstance = this;
         mPlayer = new CarPlayer(this, this);
         mCache = new CarSongCache(this);
+        mPlayer.setSongDir(mCache.dir());
         mSession = new MediaSessionCompat(this, "MyFamilyTubeCar");
         mSession.setCallback(new SessionCallback());
         Intent open = getPackageManager().getLaunchIntentForPackage(getPackageName());

@@ -54,6 +54,9 @@ final class CarPlayer implements PlaybackView, BasePresenter.Headless {
     private final Player.EventListener mStateListener = new Player.EventListener() {
         @Override
         public void onPlayerStateChanged(boolean playWhenReady, int playbackState) {
+            if (playbackState == Player.STATE_READY) {
+                setVolume(1.0f); // in case the engine didn't: the song's own level
+            }
             mListener.onStateChanged();
         }
 
@@ -167,6 +170,7 @@ final class CarPlayer implements PlaybackView, BasePresenter.Headless {
                         new com.google.android.exoplayer2.upstream.FileDataSourceFactory())
                         .createMediaSource(android.net.Uri.fromFile(file));
         mLocal.prepare(source, true, true);
+        mLocal.setVolume(CarLoudness.gain(video.videoId, video.volume, mSongDir));
         mLocal.setPlayWhenReady(true);
         mListener.onStateChanged();
     }
@@ -565,10 +569,19 @@ final class CarPlayer implements PlaybackView, BasePresenter.Headless {
         return mController != null ? mController.getPitch() : 1.0f;
     }
 
+    /** Where the saved songs (and their loudness) are. */
+    private java.io.File mSongDir;
+
+    void setSongDir(java.io.File dir) {
+        mSongDir = dir;
+    }
+
     @Override
     public void setVolume(float volume) {
+        // The engine's own estimate is replaced by the same level for every song
         if (mController != null) {
-            mController.setVolume(volume);
+            Video video = getVideo();
+            mController.setVolume(video != null ? CarLoudness.gain(video.videoId, video.volume, mSongDir) : volume);
         }
     }
 
