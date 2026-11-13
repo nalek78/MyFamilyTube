@@ -878,10 +878,10 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         });
     }
 
-    /** A song listened to for half a minute counts for the tabs («Para ti», artists, styles…). */
+    /** A song listened to for about half a minute counts for the tabs («Para ti», artists, styles…). */
     private void recordListening() {
         Video video = mPlayer.isActive() ? mPlayer.current() : null;
-        if (video == null || video.videoId == null || video.videoId.equals(mRecordedId) || mPlayer.uiPosition() < 30_000) {
+        if (video == null || video.videoId == null || video.videoId.equals(mRecordedId) || mPlayer.uiPosition() < 25_000) {
             return;
         }
         mRecordedId = video.videoId;
