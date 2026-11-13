@@ -22,7 +22,7 @@
             android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|layoutDirection|keyboardHidden"
             android:exported="true"
             android:launchMode="singleTask"
-            android:screenOrientation="unspecified"
+            android:screenOrientation="portrait"
             android:theme="@style/MobileTheme">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -34,7 +34,7 @@
         <activity
             android:name="es.myfamilytube.ui.MobileSignInActivity"
             android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|layoutDirection|keyboardHidden"
-            android:screenOrientation="unspecified"
+            android:screenOrientation="portrait"
             android:theme="@style/MobileTheme" />
 
         <!-- The TV start screen is not used: My Family Music opens its own screen -->
