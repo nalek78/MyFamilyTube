@@ -359,7 +359,13 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         } else if (parentId.startsWith(CHANNEL)) {
             rows = content.getChannelObserve(parentId.substring(CHANNEL.length()));
         } else if (parentId.startsWith(SEARCH)) {
-            rows = content.getSearchObserve(parentId.substring(SEARCH.length()));
+            Done searchOnce = once(done);
+            mActions.add(content.getSearchObserve(parentId.substring(SEARCH.length())).subscribe(
+                    groups -> mHandler.post(() -> searchOnce.onItems(safeSearch(parentId, groups))),
+                    error -> mHandler.post(() -> searchOnce.onItems(new ArrayList<>())),
+                    () -> mHandler.post(() -> searchOnce.onItems(new ArrayList<>()))));
+            mHandler.postDelayed(() -> searchOnce.onItems(new ArrayList<>()), 20_000);
+            return;
         }
 
         // Android Auto waits until it gets an answer, and only one: answer exactly once,
@@ -1066,16 +1072,99 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
 
     /** A song: with the names and the cover from MusicBrainz when they are known. */
     private MediaDescriptionCompat songDescription(String mediaId, Video video, Bundle extras) {
+        return songDescription(mediaId, video, extras, false);
+    }
+
+    /** withDuration: «Artista · 3:45» (search results). */
+    private MediaDescriptionCompat songDescription(String mediaId, Video video, Bundle extras, boolean withDuration) {
         MusicArt.Info info = MusicArt.cached(this, video.videoId);
         String title = info != null && info.track != null ? info.track : video.getTitle();
         String artist = info != null && info.artist != null ? info.artist : MusicArt.cleanAuthor(video.getAuthor());
+        String subtitle = artist;
+        long duration = video.getDurationMs();
+        if (withDuration && duration > 0) {
+            subtitle = (TextUtils.isEmpty(artist) ? "" : artist + " · ") + formatDuration(duration);
+        }
         return new MediaDescriptionCompat.Builder()
                 .setMediaId(mediaId)
                 .setTitle(title)
-                .setSubtitle(artist)
+                .setSubtitle(subtitle)
                 .setIconUri(CarArtProvider.uriForSong(this, video))
                 .setExtras(extras)
                 .build();
+    }
+
+    private static String formatDuration(long ms) {
+        long total = ms / 1000;
+        long hours = total / 3600;
+        long minutes = (total % 3600) / 60;
+        long seconds = total % 60;
+        return hours > 0 ? String.format(java.util.Locale.ROOT, "%d:%02d:%02d", hours, minutes, seconds)
+                : String.format(java.util.Locale.ROOT, "%d:%02d", minutes, seconds);
+    }
+
+    private static final long SHORT_MS = 60_000;
+
+    private List<MediaItem> safeSearch(String parentId, List<MediaGroup> groups) {
+        try {
+            return searchResults(parentId, groups);
+        } catch (RuntimeException e) {
+            es.myfamilytube.FamilyDiagnostics.instance(this).log("Música: error al preparar la búsqueda: " + e);
+            return new ArrayList<>();
+        }
+    }
+
+    /**
+     * Search results, a bit filtered: the songs first (with their length), then lists and
+     * channels, and at the end «Otros resultados»: what lasts less than a minute.
+     */
+    private List<MediaItem> searchResults(String parentId, List<MediaGroup> groups) {
+        List<Video> songs = new ArrayList<>();
+        List<Video> others = new ArrayList<>();
+        List<MediaItem> folders = new ArrayList<>();
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        FamilyProfile profile = profile();
+        for (Video video : videosOf(groups)) {
+            if (songs.size() + others.size() + folders.size() >= MAX_ITEMS) {
+                break;
+            }
+            if (video.hasVideo()) {
+                if (video.isLive || !ContentGate.allows(video) || !seen.add(video.videoId)
+                        || (video.isShorts && !ContentGate.allowsShorts())) {
+                    continue;
+                }
+                long duration = video.getDurationMs();
+                if (video.isShorts || (duration > 0 && duration < SHORT_MS)) {
+                    others.add(video);
+                } else {
+                    songs.add(video);
+                }
+            } else if (video.hasPlaylist()) {
+                if (seen.add("pl:" + video.playlistId)) {
+                    folders.add(folder(PLAYLIST + video.playlistId, video, "Listas y canales"));
+                }
+            } else if (video.channelId != null && (!profile.isKid || profile.isChannelApproved(video.channelId))) {
+                if (seen.add("ch:" + video.channelId)) {
+                    folders.add(folder(CHANNEL + video.channelId, video, "Listas y canales"));
+                }
+            }
+        }
+        List<MediaItem> items = new ArrayList<>();
+        items.addAll(searchSongs(parentId + "#songs", songs, "Canciones"));
+        items.addAll(folders);
+        items.addAll(searchSongs(parentId + "#others", others, "Otros resultados"));
+        return items;
+    }
+
+    private List<MediaItem> searchSongs(String listKey, List<Video> videos, String groupTitle) {
+        List<MediaItem> items = new ArrayList<>();
+        mLists.put(listKey, videos);
+        for (Video video : videos) {
+            Bundle extras = new Bundle();
+            extras.putString(STYLE_GROUP, groupTitle);
+            items.add(new MediaItem(songDescription(VIDEO + video.videoId + "@" + listKey, video, extras, true), MediaItem.FLAG_PLAYABLE));
+        }
+        return items;
     }
 
     private MediaItem playable(String listKey, Video video, String groupTitle) {

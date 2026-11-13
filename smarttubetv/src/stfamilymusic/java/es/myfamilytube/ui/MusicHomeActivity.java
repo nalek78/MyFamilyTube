@@ -152,6 +152,7 @@ public class MusicHomeActivity extends MotherActivity {
         findViews();
 
         ViewGroup root = findViewById(R.id.music_root);
+        keepClearOfCameraAndBars(root);
         mProfiles = new FamilyProfilesOverlay(this, root, profile -> showProfile());
         mAvatar.setOnClickListener(v -> mProfiles.show());
         findViewById(R.id.music_more).setOnClickListener(v -> showMoreMenu());
@@ -211,6 +212,8 @@ public class MusicHomeActivity extends MotherActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        View root = findViewById(R.id.music_root);
+        root.post(root::requestApplyInsets); // full screen is applied again when coming back
         mProfiles.onResumed(); // back from adding a Google account?
         showProfile();
         updateHeader();
@@ -298,6 +301,32 @@ public class MusicHomeActivity extends MotherActivity {
         mQueue = findViewById(R.id.music_queue);
         clipToRoundedBackground(mMiniArt);
         clipToRoundedBackground(mPlayerArt);
+    }
+
+    /**
+     * The app runs full screen (like on the TV): without this, the top of the screen (search,
+     * title) goes under the front camera and the bottom under the system buttons.
+     */
+    private void keepClearOfCameraAndBars(View root) {
+        root.setOnApplyWindowInsetsListener((view, insets) -> {
+            int top = insets.getSystemWindowInsetTop();
+            int bottom = insets.getSystemWindowInsetBottom();
+            if (android.os.Build.VERSION.SDK_INT >= 28 && insets.getDisplayCutout() != null) {
+                top = Math.max(top, insets.getDisplayCutout().getSafeInsetTop());
+                bottom = Math.max(bottom, insets.getDisplayCutout().getSafeInsetBottom());
+            }
+            if (top == 0) {
+                top = statusBarHeight(); // no cutout info: at least the status bar's height
+            }
+            view.setPadding(0, top, 0, bottom);
+            return insets;
+        });
+        root.requestApplyInsets();
+    }
+
+    private int statusBarHeight() {
+        int id = getResources().getIdentifier("status_bar_height", "dimen", "android");
+        return id > 0 ? getResources().getDimensionPixelSize(id) : 0;
     }
 
     private static void clipToRoundedBackground(View view) {
@@ -1019,7 +1048,7 @@ public class MusicHomeActivity extends MotherActivity {
                 new int[]{darken(color, 0.25f), darken(color, 0.6f), BG});
         mPlayer.setBackground(player);
         GradientDrawable mini = new GradientDrawable();
-        mini.setCornerRadius(10 * getResources().getDisplayMetrics().density);
+        mini.setCornerRadius(14 * getResources().getDisplayMetrics().density);
         mini.setColor(darken(color, 0.45f));
         mMini.setBackground(mini);
         mMini.setClipToOutline(true);
