@@ -44,6 +44,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import es.myfamilytube.profiles.FamilyAccounts;
 import es.myfamilytube.profiles.FamilyProfile;
 import es.myfamilytube.profiles.FamilyProfiles;
 import io.reactivex.Observable;
@@ -75,6 +76,14 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
     public static final String ACTION_HIDE_LIST = "es.myfamilymusic.HIDE_LIST";
     public static final String ACTION_SHOW_LIST = "es.myfamilymusic.SHOW_LIST";
     public static final String EXTRA_PLAYLIST = "playlist";
+    /** From the phone: lists were created or changed on YouTube (load them again). */
+    public static final String ACTION_LISTS_CHANGED = "es.myfamilymusic.LISTS_CHANGED";
+    /** From the phone: a list was created here (it is music); extra: its name. */
+    public static final String ACTION_LIST_CREATED = "es.myfamilymusic.LIST_CREATED";
+    public static final String EXTRA_NAME = "name";
+    /** Car button: the song playing goes to «Mis favoritas» (the list is created the first time). */
+    private static final String ACTION_SAVE_SONG = "es.myfamilymusic.SAVE_SONG";
+    static final String FAVOURITES = "Mis favoritas";
 
     private static final String STYLE_SUPPORTED = "android.media.browse.CONTENT_STYLE_SUPPORTED";
     private static final String STYLE_BROWSABLE = "android.media.browse.CONTENT_STYLE_BROWSABLE_HINT";
@@ -174,6 +183,7 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         mChildrenTime.clear();
         mLists.clear();
         mTabs = null;
+        mSavedIds.clear();
         notifyChildrenChanged(ROOT);
     }
 
@@ -603,6 +613,64 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
             }
         }
         return picked;
+    }
+
+    private final java.util.Set<String> mSavedIds = new java.util.HashSet<>();
+
+    /** The song playing goes to «Mis favoritas» on YouTube (created the first time). From the car. */
+    private void saveToFavourites() {
+        Video video = mPlayer.isActive() ? mPlayer.current() : null;
+        if (video == null || video.videoId == null || mSavedIds.contains(video.videoId)) {
+            return;
+        }
+        String videoId = video.videoId;
+        String profileId = profile().id;
+        com.liskovsoft.mediaserviceinterfaces.MediaItemService items = YouTubeServiceManager.instance().getMediaItemService();
+        Runnable saved = () -> {
+            mSavedIds.add(videoId);
+            updateState();
+            listsChanged();
+        };
+        mActions.add(items.getPlaylistsInfoObserve(videoId).subscribe(infos -> mHandler.post(() -> {
+            if (infos != null) {
+                for (com.liskovsoft.mediaserviceinterfaces.data.PlaylistInfo info : infos) {
+                    if (info != null && FAVOURITES.equalsIgnoreCase(info.getTitle())) {
+                        if (info.isSelected()) {
+                            saved.run();
+                        } else {
+                            mActions.add(items.addToPlaylistObserve(info.getPlaylistId(), videoId).subscribe(
+                                    ignored -> { }, error -> mHandler.post(() -> savingFailed(error)), () -> mHandler.post(saved)));
+                        }
+                        return;
+                    }
+                }
+            }
+            MusicLists.rememberCreated(this, profileId, FAVOURITES);
+            mActions.add(items.createPlaylistObserve(FAVOURITES, videoId).subscribe(
+                    ignored -> { }, error -> mHandler.post(() -> savingFailed(error)), () -> mHandler.post(saved)));
+        }), error -> mHandler.post(() -> savingFailed(error))));
+    }
+
+    private void savingFailed(Throwable error) {
+        es.myfamilytube.FamilyDiagnostics.instance(this).log("Música: no se pudo guardar en " + FAVOURITES + ": " + error);
+    }
+
+    /** Lists were created, renamed, deleted or changed: they are loaded again. */
+    private void listsChanged() {
+        List<String> stale = new ArrayList<>();
+        for (String id : mChildren.keySet()) {
+            if (id.startsWith(PLAYLIST)) {
+                stale.add(id);
+            }
+        }
+        stale.add(TAB_LISTS);
+        stale.add(TAB_FOR_YOU);
+        stale.add(HIDDEN_LISTS);
+        for (String id : stale) {
+            mChildren.remove(id);
+            mChildrenTime.remove(id);
+            notifyChildrenChanged(id);
+        }
     }
 
     /** From the phone: a list is hidden from the music, or shown again. */
@@ -1475,6 +1543,13 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         if (mError != null) {
             builder.setErrorMessage(PlaybackStateCompat.ERROR_CODE_APP_ERROR, mError);
         }
+        Video playingNow = active ? mPlayer.current() : null;
+        if (playingNow != null && playingNow.videoId != null && !profile().isKid && !TextUtils.isEmpty(FamilyAccounts.currentKey())) {
+            boolean saved = mSavedIds.contains(playingNow.videoId);
+            builder.addCustomAction(new PlaybackStateCompat.CustomAction.Builder(ACTION_SAVE_SONG,
+                    saved ? "Guardada en " + FAVOURITES : "Guardar en " + FAVOURITES,
+                    saved ? R.drawable.music_ic_saved : R.drawable.music_ic_add).build());
+        }
         mSession.setPlaybackState(builder.build());
 
         Video video = active ? mPlayer.current() : null;
@@ -1695,6 +1770,13 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
                 setListIsMusic(playlistId, false);
             } else if (ACTION_SHOW_LIST.equals(action)) {
                 setListIsMusic(playlistId, true);
+            } else if (ACTION_LIST_CREATED.equals(action)) {
+                MusicLists.rememberCreated(CarMusicService.this, profile().id, extras != null ? extras.getString(EXTRA_NAME) : null);
+                listsChanged();
+            } else if (ACTION_LISTS_CHANGED.equals(action)) {
+                listsChanged();
+            } else if (ACTION_SAVE_SONG.equals(action)) {
+                saveToFavourites();
             }
         }
 

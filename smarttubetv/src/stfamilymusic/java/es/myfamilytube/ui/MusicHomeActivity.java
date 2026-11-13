@@ -485,6 +485,9 @@ public class MusicHomeActivity extends MotherActivity {
         if (!mSearching && current != null && (!isTab(current) || isPreferenceTab(current)) && !children.isEmpty()) {
             rows.add(hero(children));
         }
+        if (!mSearching && "tab:lists".equals(current) && !FamilyProfiles.instance(this).getCurrent().isKid) {
+            rows.add(NEW_LIST);
+        }
         for (int i = 0; i < shelves.size(); i++) {
             List<MediaItem> shelf = shelves.get(i);
             String title = titles.get(i);
@@ -605,30 +608,78 @@ public class MusicHomeActivity extends MotherActivity {
         }
     }
 
-    /** Long press on a YouTube list: hide it from the music (it isn't music) or show it again. */
+    private MusicListsMenu listsMenu() {
+        return new MusicListsMenu(this, mController);
+    }
+
+    /**
+     * Long press. A song: add it to lists (or take it out of the list open now). A YouTube list:
+     * hide it from the music (or show it again), rename it, delete it.
+     */
     private boolean onItemLongClicked(MediaItem item) {
         String id = item.getMediaId();
-        if (id == null || !id.startsWith("pl:") || mController == null) {
+        if (id == null || mController == null || FamilyProfiles.instance(this).getCurrent().isKid) {
+            return false;
+        }
+        CharSequence name = item.getDescription().getTitle() != null ? item.getDescription().getTitle() : "";
+        if (id.startsWith("v:")) {
+            int at = id.indexOf('@');
+            String videoId = id.substring(2, at > 0 ? at : id.length());
+            String openList = mSubscribed != null && mSubscribed.startsWith("pl:") ? mSubscribed.substring(3) : null;
+            String[] options = openList != null
+                    ? new String[]{"Añadir a una lista…", "Quitar de esta lista"}
+                    : new String[]{"Añadir a una lista…"};
+            new AlertDialog.Builder(this)
+                    .setTitle(name)
+                    .setItems(options, (dialog, which) -> {
+                        if (which == 0) {
+                            listsMenu().addSong(videoId, name);
+                        } else {
+                            listsMenu().removeSong(openList, videoId, name, mStack.get(mStack.size() - 1).title);
+                        }
+                    })
+                    .show();
+            return true;
+        }
+        if (!id.startsWith("pl:")) {
             return false;
         }
         String playlistId = id.substring("pl:".length());
         boolean inHidden = HIDDEN_LISTS.equals(mSubscribed);
-        String name = item.getDescription().getTitle() != null ? item.getDescription().getTitle().toString() : "esta lista";
+        String[] options = {inHidden ? "Mostrar en la música" : "Ocultar (no es música)", "Cambiar nombre", "Borrar lista"};
         new AlertDialog.Builder(this)
                 .setTitle(name)
-                .setMessage(inHidden
-                        ? "Esta lista está oculta porque no parece de música."
-                        : "¿No es una lista de música? Ocúltala y no saldrá en «Tus listas». La podrás recuperar en «Listas ocultas».")
-                .setPositiveButton(inHidden ? "Mostrar en la música" : "Ocultar", (dialog, which) -> {
-                    Bundle extras = new Bundle();
-                    extras.putString(CarMusicService.EXTRA_PLAYLIST, playlistId);
-                    mController.getTransportControls().sendCustomAction(
-                            inHidden ? CarMusicService.ACTION_SHOW_LIST : CarMusicService.ACTION_HIDE_LIST, extras);
-                    Toast.makeText(this, inHidden ? "Vuelve a salir en «Tus listas»" : "Lista ocultada", Toast.LENGTH_SHORT).show();
+                .setItems(options, (dialog, which) -> {
+                    if (which == 0) {
+                        Bundle extras = new Bundle();
+                        extras.putString(CarMusicService.EXTRA_PLAYLIST, playlistId);
+                        mController.getTransportControls().sendCustomAction(
+                                inHidden ? CarMusicService.ACTION_SHOW_LIST : CarMusicService.ACTION_HIDE_LIST, extras);
+                        Toast.makeText(this, inHidden ? "Vuelve a salir en «Tus listas»"
+                                : "Lista ocultada. La tienes en «Listas ocultas»", Toast.LENGTH_SHORT).show();
+                    } else if (which == 1) {
+                        listsMenu().rename(playlistId, name.toString());
+                    } else {
+                        listsMenu().delete(playlistId, name.toString(), () -> {
+                        });
+                    }
                 })
-                .setNegativeButton("Cancelar", null)
                 .show();
         return true;
+    }
+
+    /** «+» in the player: the song playing goes to lists. */
+    private void addPlayingToList() {
+        MediaMetadataCompat metadata = mController != null ? mController.getMetadata() : null;
+        String videoId = metadata != null ? metadata.getString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID) : null;
+        if (videoId == null) {
+            return;
+        }
+        if (FamilyProfiles.instance(this).getCurrent().isKid) {
+            Toast.makeText(this, "Los perfiles infantiles no tienen listas", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        listsMenu().addSong(videoId, metadata.getString(MediaMetadataCompat.METADATA_KEY_TITLE));
     }
 
     private String currentPlaceTitle() {
@@ -730,6 +781,7 @@ public class MusicHomeActivity extends MotherActivity {
         mMiniPlay.setOnClickListener(v -> togglePlay());
         findViewById(R.id.music_mini_next).setOnClickListener(v -> skipToNext());
         findViewById(R.id.music_player_close).setOnClickListener(v -> hidePlayer());
+        findViewById(R.id.music_player_add).setOnClickListener(v -> addPlayingToList());
         findViewById(R.id.music_player_queue).setOnClickListener(v -> {
             showQueue();
             mQueue.setVisibility(View.VISIBLE);
@@ -1092,6 +1144,9 @@ public class MusicHomeActivity extends MotherActivity {
         bindArt(view.findViewById(R.id.music_row_art), description);
     }
 
+    /** «Nueva lista» at the top of «Tus listas». */
+    private static final Object NEW_LIST = new Object();
+
     /** A shelf of covers that scrolls sideways. */
     private static final class Shelf {
         final List<MediaItem> items;
@@ -1194,7 +1249,25 @@ public class MusicHomeActivity extends MotherActivity {
                 ((TextView) view.findViewById(R.id.music_hero_subtitle)).setText(hero.subtitle);
                 view.findViewById(R.id.music_hero_play).setOnClickListener(v -> playFirst());
             } else {
+                if (item == NEW_LIST) {
+                    TextView title = view.findViewById(R.id.music_row_title);
+                    title.setText("Nueva lista");
+                    title.setTextColor(getResources().getColor(R.color.family_text));
+                    TextView subtitle = view.findViewById(R.id.music_row_subtitle);
+                    subtitle.setText("Crea una lista de canciones en tu cuenta");
+                    subtitle.setVisibility(View.VISIBLE);
+                    view.findViewById(R.id.music_row_more).setVisibility(View.GONE);
+                    ImageView art = view.findViewById(R.id.music_row_art);
+                    Glide.with(art).clear(art);
+                    art.setBackgroundResource(R.drawable.music_art_bg);
+                    art.setScaleType(ImageView.ScaleType.CENTER);
+                    art.setImageResource(R.drawable.music_ic_add);
+                    view.setOnClickListener(v -> listsMenu().newList(null));
+                    view.setOnLongClickListener(null);
+                    return;
+                }
                 MediaItem media = (MediaItem) item;
+                ((ImageView) view.findViewById(R.id.music_row_art)).setScaleType(ImageView.ScaleType.CENTER_CROP);
                 bindRow(view, media.getDescription(), media.isBrowsable(), isPlaying(media.getDescription()));
                 view.setOnClickListener(v -> onItemClicked(media));
                 view.setOnLongClickListener(v -> onItemLongClicked(media));

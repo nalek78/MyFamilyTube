@@ -69,6 +69,17 @@ final class MusicLists {
         prefs(context).edit().putString("a:" + playlistId, (music ? "1" : "0") + "|" + System.currentTimeMillis()).apply();
     }
 
+    /** A list created from this app: it is music, whatever its name. */
+    static void rememberCreated(Context context, String profileId, String name) {
+        if (!TextUtils.isEmpty(name)) {
+            prefs(context).edit().putBoolean("c:" + profileId + ":" + MusicArt.normalize(name), true).apply();
+        }
+    }
+
+    static boolean wasCreated(Context context, String profileId, String name) {
+        return !TextUtils.isEmpty(name) && prefs(context).getBoolean("c:" + profileId + ":" + MusicArt.normalize(name), false);
+    }
+
     /** Its name already says it is music («Música para el coche», «Éxitos 2025»…). */
     static boolean titleSaysMusic(String title) {
         return title != null && MUSIC_TITLE.matcher(title).find();
@@ -79,6 +90,9 @@ final class MusicLists {
         Boolean byHand = manual(context, profileId, list.playlistId);
         if (byHand != null) {
             return byHand;
+        }
+        if (wasCreated(context, profileId, list.getTitle())) {
+            return Boolean.TRUE;
         }
         Boolean auto = automatic(context, list.playlistId);
         if (auto != null) {
