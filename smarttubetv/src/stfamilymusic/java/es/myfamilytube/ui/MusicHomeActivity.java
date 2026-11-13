@@ -115,7 +115,7 @@ public class MusicHomeActivity extends MotherActivity {
     private boolean mSearching;
     private String mArtUri;
     private Object mArtSource;
-    /** New iTunes covers found: draw the lists and the player again (once, not for each cover). */
+    /** New covers found: draw the lists and the player again (once, not for each cover). */
     private final Runnable mRedrawCovers = () -> {
         mAdapter.notifyDataSetChanged();
         mQueueAdapter.notifyDataSetChanged();
@@ -325,7 +325,8 @@ public class MusicHomeActivity extends MotherActivity {
                 .setMessage("Escucha: " + profile.name + (profile.isKid ? " (infantil)" : ", " + account)
                         + "\n\nLas pestañas se eligen según lo que escuchas: tus artistas, estilos y álbumes favoritos."
                         + "\n\nEn el coche: conecta el móvil y abre " + getString(R.string.app_name)
-                        + " en Android Auto. Las canciones siguientes se guardan solas en el móvil para que no se corte sin cobertura.")
+                        + " en Android Auto. Las canciones siguientes se guardan solas en el móvil para que no se corte sin cobertura."
+                        + "\n\nDatos y carátulas de los discos: MusicBrainz y Cover Art Archive (uso personal; las portadas son de sus propietarios).")
                 .setPositiveButton("Cambiar perfil", (dialog, which) -> mProfiles.show())
                 .setNeutralButton("Diagnóstico", (dialog, which) -> FamilyDiagnosticsDialog.show(this))
                 .setNegativeButton("Cerrar", null)
@@ -941,7 +942,7 @@ public class MusicHomeActivity extends MotherActivity {
         String art = metadata.getString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI);
         if (art != null) {
             Uri uri = Uri.parse(art);
-            Object source = MusicArtLoader.source(this, uri); // YouTube now, the iTunes cover when found
+            Object source = MusicArtLoader.source(this, uri); // YouTube now, the MusicBrainz cover when found
             if (!art.equals(mArtUri) || !source.equals(mArtSource)) {
                 mArtUri = art;
                 mArtSource = source;

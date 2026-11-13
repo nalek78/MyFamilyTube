@@ -19,7 +19,7 @@ import java.io.FileNotFoundException;
 /**
  * Android Auto can't download pictures from the internet itself: it asks this provider,
  * which downloads the picture (kept on the phone) and hands it over. For songs it is the
- * album cover from iTunes when iTunes knows the song, otherwise the YouTube thumbnail.
+ * album cover from MusicBrainz (Cover Art Archive) when it knows the song, otherwise the YouTube thumbnail.
  */
 public class CarArtProvider extends ContentProvider {
     private static final String PATH = "art";
@@ -36,7 +36,7 @@ public class CarArtProvider extends ContentProvider {
                 .build();
     }
 
-    /** A song: the album cover from iTunes if it knows the song, otherwise the YouTube picture. */
+    /** A song: the album cover from MusicBrainz if it knows the song, otherwise the YouTube picture. */
     static Uri uriForSong(Context context, Video video) {
         if (video == null || TextUtils.isEmpty(video.videoId)) {
             return uriFor(context, video != null ? video.getCardImageUrl() : null);
@@ -69,10 +69,10 @@ public class CarArtProvider extends ContentProvider {
         if (TextUtils.isEmpty(url) || context == null || !(url.startsWith("https://") || url.startsWith("http://"))) {
             throw new FileNotFoundException(String.valueOf(uri));
         }
-        // A song: first the album cover from iTunes
+        // A song: first the album cover from MusicBrainz (short wait: Android Auto is waiting for it)
         String videoId = uri.getQueryParameter("id");
         if (!TextUtils.isEmpty(videoId)) {
-            MusicArt.Info info = MusicArt.lookup(context, videoId, uri.getQueryParameter("t"), uri.getQueryParameter("a"));
+            MusicArt.Info info = MusicArt.lookup(context, videoId, uri.getQueryParameter("t"), uri.getQueryParameter("a"), 2500);
             if (info != null && info.artUrl != null) {
                 try {
                     return ParcelFileDescriptor.open(download(context, info.artUrl), ParcelFileDescriptor.MODE_READ_ONLY);

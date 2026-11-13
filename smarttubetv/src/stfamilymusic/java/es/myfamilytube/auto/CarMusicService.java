@@ -1064,7 +1064,7 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         return items;
     }
 
-    /** A song: with the names and the cover from iTunes when they are known. */
+    /** A song: with the names and the cover from MusicBrainz when they are known. */
     private MediaDescriptionCompat songDescription(String mediaId, Video video, Bundle extras) {
         MusicArt.Info info = MusicArt.cached(this, video.videoId);
         String title = info != null && info.track != null ? info.track : video.getTitle();
@@ -1209,9 +1209,12 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         updateSessionQueue();
         updateCache();
         lookUpSong(video);
+        for (int i = mIndex + 1; i < Math.min(mQueue.size(), mIndex + 4); i++) {
+            lookUpSong(mQueue.get(i)); // the next covers ready before they play (1 search per second)
+        }
     }
 
-    /** Album, cover and clean names from iTunes for the song now playing (shown when they arrive). */
+    /** Album, cover and clean names from MusicBrainz for the song now playing (and the next ones) (shown when they arrive). */
     private void lookUpSong(Video video) {
         if (video == null || video.videoId == null || MusicArt.cached(this, video.videoId) != null) {
             return;

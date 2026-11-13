@@ -12,7 +12,7 @@ import java.util.regex.Pattern;
 
 /**
  * Which of the profile's YouTube lists are music. It looks at the first videos of each list
- * (songs: «Artista - Canción», «Official Video», «- Topic» or VEVO channels, songs iTunes knows…).
+ * (songs: «Artista - Canción», «Official Video», «- Topic» or VEVO channels, songs MusicBrainz knows…).
  * The answer is kept for a week. On the phone a list can also be hidden or shown by hand
  * (long press), and that always wins.
  */
@@ -129,7 +129,7 @@ final class MusicLists {
             }
         }
         if (MusicArt.cached(context, video.videoId) != null) {
-            return true; // iTunes knows it
+            return true; // MusicBrainz knows it
         }
         String title = video.getTitle();
         if (TextUtils.isEmpty(title)) {

@@ -133,7 +133,7 @@ final class MusicTaste {
         prefs().edit().putString(mProfileId, array.toString()).apply();
     }
 
-    /** A song has been listened to (info: what iTunes knows about it, may be null). */
+    /** A song has been listened to (info: what MusicBrainz knows about it, may be null). */
     synchronized void record(String videoId, String title, String author, String channelId, String image, MusicArt.Info info) {
         if (TextUtils.isEmpty(videoId)) {
             return;

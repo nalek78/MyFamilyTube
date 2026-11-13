@@ -18,8 +18,8 @@ import java.util.concurrent.Executors;
 import es.myfamilytube.auto.MusicArt;
 
 /**
- * Covers on the phone, fast: the picture already known is shown at once (the iTunes cover if it
- * was found before, otherwise the YouTube thumbnail), and iTunes is asked in the background, a
+ * Covers on the phone, fast: the picture already known is shown at once (the MusicBrainz cover if it
+ * was found before, otherwise the YouTube thumbnail), and MusicBrainz is asked in the background, a
  * few songs at a time. When a cover is found, the screen is told to draw again.
  */
 final class MusicArtLoader {
@@ -31,7 +31,7 @@ final class MusicArtLoader {
     private MusicArtLoader() {
     }
 
-    /** Called (on the screen thread) each time a new iTunes cover is found. */
+    /** Called (on the screen thread) each time a new MusicBrainz cover is found. */
     static void setOnFound(Runnable onFound) {
         sOnFound = onFound;
     }
@@ -41,7 +41,7 @@ final class MusicArtLoader {
                 && uri.getAuthority().endsWith(".art");
     }
 
-    /** What to load now: the iTunes cover if known, the YouTube picture, or the uri itself. */
+    /** What to load now: the MusicBrainz cover if known, the YouTube picture, or the uri itself. */
     static Object source(Context context, Uri uri) {
         if (!isOurs(uri)) {
             return uri;
@@ -69,7 +69,7 @@ final class MusicArtLoader {
         lookUp(context.getApplicationContext(), uri);
     }
 
-    /** Asks iTunes in the background, once per song. */
+    /** Asks MusicBrainz in the background, once per song. */
     static void lookUp(Context context, Uri uri) {
         if (!isOurs(uri)) {
             return;
