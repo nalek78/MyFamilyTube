@@ -84,6 +84,23 @@ public final class MusicArt {
         }
     }
 
+    /** Already looked up: found, or not found lately (no need to ask iTunes now). */
+    public static boolean known(Context context, String videoId) {
+        if (context == null || TextUtils.isEmpty(videoId)) {
+            return true;
+        }
+        String saved = prefs(context).getString(videoId, null);
+        if (saved == null) {
+            return false;
+        }
+        try {
+            JSONObject json = new JSONObject(saved);
+            return json.has("art") || System.currentTimeMillis() - json.optLong("time") < RETRY_NOT_FOUND_MS;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     /**
      * Looks the song up in iTunes (slow: never on the main thread). Returns null when iTunes
      * doesn't know it; then {@link #guess} gives the names from YouTube.

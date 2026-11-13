@@ -114,6 +114,13 @@ public class MusicHomeActivity extends MotherActivity {
     private String mSubscribed;
     private boolean mSearching;
     private String mArtUri;
+    private Object mArtSource;
+    /** New iTunes covers found: draw the lists and the player again (once, not for each cover). */
+    private final Runnable mRedrawCovers = () -> {
+        mAdapter.notifyDataSetChanged();
+        mQueueAdapter.notifyDataSetChanged();
+        showPlayback();
+    };
     private String mLastError;
     /** The video playing now, to mark it in the lists. */
     private String mPlayingId;
@@ -160,6 +167,10 @@ public class MusicHomeActivity extends MotherActivity {
             return false;
         });
 
+        MusicArtLoader.setOnFound(() -> {
+            mHandler.removeCallbacks(mRedrawCovers);
+            mHandler.postDelayed(mRedrawCovers, 600);
+        });
         mList.setLayoutManager(new LinearLayoutManager(this));
         mList.setAdapter(mAdapter);
         mList.setItemViewCacheSize(8);
@@ -218,6 +229,7 @@ public class MusicHomeActivity extends MotherActivity {
 
     @Override
     protected void onDestroy() {
+        MusicArtLoader.setOnFound(null);
         mHandler.removeCallbacksAndMessages(null);
         if (mController != null) {
             mController.unregisterCallback(mControllerCallback);
@@ -927,12 +939,17 @@ public class MusicHomeActivity extends MotherActivity {
             mPlayerSource.setText(mSource);
         }
         String art = metadata.getString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI);
-        if (art != null && !art.equals(mArtUri)) {
-            mArtUri = art;
+        if (art != null) {
             Uri uri = Uri.parse(art);
-            Glide.with(mMiniArt).load(uri).centerCrop().into(mMiniArt);
-            Glide.with(mPlayerArt).load(uri).centerCrop().into(mPlayerArt);
-            loadColor(uri);
+            Object source = MusicArtLoader.source(this, uri); // YouTube now, the iTunes cover when found
+            if (!art.equals(mArtUri) || !source.equals(mArtSource)) {
+                mArtUri = art;
+                mArtSource = source;
+                Glide.with(mMiniArt).load(source).centerCrop().into(mMiniArt);
+                Glide.with(mPlayerArt).load(source).centerCrop().into(mPlayerArt);
+                loadColor(source);
+                MusicArtLoader.lookUp(this, uri);
+            }
         }
         boolean isPlaying = state != null && (state.getState() == PlaybackStateCompat.STATE_PLAYING
                 || state.getState() == PlaybackStateCompat.STATE_BUFFERING);
@@ -945,7 +962,7 @@ public class MusicHomeActivity extends MotherActivity {
     // ---------------------------------------------------------------- colours after the cover
 
     /** The main colour of the cover tints the player, the mini player and the top of the screen. */
-    private void loadColor(Uri art) {
+    private void loadColor(Object art) {
         Glide.with(this).asBitmap().load(art).into(new CustomTarget<Bitmap>(48, 48) {
             @Override
             public void onResourceReady(@NonNull Bitmap resource, @Nullable Transition<? super Bitmap> transition) {
@@ -1125,7 +1142,7 @@ public class MusicHomeActivity extends MotherActivity {
         view.setClipToOutline(true);
         Uri icon = description.getIconUri();
         if (icon != null) {
-            Glide.with(view).load(icon).centerCrop().into(view);
+            MusicArtLoader.into(view, icon);
         } else {
             Glide.with(view).clear(view);
             view.setImageDrawable(null);
@@ -1240,7 +1257,7 @@ public class MusicHomeActivity extends MotherActivity {
                 art.setBackgroundResource(hero.round ? R.drawable.music_round_bg : R.drawable.music_art_big_bg);
                 art.setClipToOutline(true);
                 if (hero.art != null) {
-                    Glide.with(art).load(hero.art).centerCrop().into(art);
+                    MusicArtLoader.into(art, hero.art);
                 } else {
                     Glide.with(art).clear(art);
                     art.setImageResource(R.mipmap.app_icon);
