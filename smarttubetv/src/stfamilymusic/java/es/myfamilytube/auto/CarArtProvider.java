@@ -12,6 +12,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.bumptech.glide.Glide;
+import com.liskovsoft.smartyoutubetv2.common.app.models.data.Video;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -19,7 +20,8 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * Android Auto can't download pictures from the internet itself: it asks this provider,
- * which downloads the video's thumbnail (cached by Glide) and hands it over.
+ * which downloads the picture (cached by Glide) and hands it over. For songs it is the
+ * album cover from iTunes when iTunes knows the song, otherwise the YouTube thumbnail.
  */
 public class CarArtProvider extends ContentProvider {
     private static final String PATH = "art";
@@ -36,6 +38,26 @@ public class CarArtProvider extends ContentProvider {
                 .build();
     }
 
+    /** A song: the album cover from iTunes if it knows the song, otherwise the YouTube picture. */
+    static Uri uriForSong(Context context, Video video) {
+        if (video == null || TextUtils.isEmpty(video.videoId)) {
+            return uriFor(context, video != null ? video.getCardImageUrl() : null);
+        }
+        String youTube = !TextUtils.isEmpty(video.getCardImageUrl()) ? video.getCardImageUrl()
+                : "https://i.ytimg.com/vi/" + video.videoId + "/hqdefault.jpg";
+        Uri.Builder builder = new Uri.Builder()
+                .scheme("content")
+                .authority(context.getPackageName() + ".art")
+                .appendPath(PATH)
+                .appendQueryParameter("u", youTube)
+                .appendQueryParameter("id", video.videoId)
+                .appendQueryParameter("t", video.getTitle() != null ? video.getTitle() : "");
+        if (video.getAuthor() != null) {
+            builder.appendQueryParameter("a", video.getAuthor());
+        }
+        return builder.build();
+    }
+
     @Override
     public boolean onCreate() {
         return true;
@@ -48,6 +70,19 @@ public class CarArtProvider extends ContentProvider {
         Context context = getContext();
         if (TextUtils.isEmpty(url) || context == null || !(url.startsWith("https://") || url.startsWith("http://"))) {
             throw new FileNotFoundException(String.valueOf(uri));
+        }
+        // A song: first the album cover from iTunes
+        String videoId = uri.getQueryParameter("id");
+        if (!TextUtils.isEmpty(videoId)) {
+            MusicArt.Info info = MusicArt.lookup(context, videoId, uri.getQueryParameter("t"), uri.getQueryParameter("a"));
+            if (info != null && info.artUrl != null) {
+                try {
+                    File file = Glide.with(context).asFile().load(info.artUrl).submit().get(15, TimeUnit.SECONDS);
+                    return ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY);
+                } catch (Exception e) {
+                    // the YouTube picture then
+                }
+            }
         }
         try {
             File file = Glide.with(context).asFile().load(url).submit().get(20, TimeUnit.SECONDS);

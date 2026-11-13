@@ -1,21 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- A song, a list or a channel -->
+<!-- A song, a list or a channel in a list -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="72dp"
+    android:layout_height="64dp"
     android:background="?android:attr/selectableItemBackground"
     android:clickable="true"
     android:focusable="true"
     android:gravity="center_vertical"
     android:orientation="horizontal"
     android:paddingLeft="16dp"
-    android:paddingRight="12dp">
+    android:paddingRight="8dp">
 
     <ImageView
         android:id="@+id/music_row_art"
-        android:layout_width="56dp"
-        android:layout_height="56dp"
-        android:background="@drawable/family_thumb_bg"
+        android:layout_width="50dp"
+        android:layout_height="50dp"
+        android:background="@drawable/music_art_bg"
         android:importantForAccessibility="no"
         android:scaleType="centerCrop" />
 
@@ -31,7 +31,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:ellipsize="end"
-            android:maxLines="2"
+            android:singleLine="true"
             android:textColor="@color/family_text"
             android:textSize="16sp" />
 
@@ -42,16 +42,17 @@
             android:layout_marginTop="2dp"
             android:ellipsize="end"
             android:singleLine="true"
-            android:textColor="@color/family_text2"
+            android:textColor="@color/family_text3"
             android:textSize="13sp" />
     </LinearLayout>
 
     <ImageView
         android:id="@+id/music_row_more"
-        android:layout_width="24dp"
-        android:layout_height="24dp"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
         android:alpha="0.6"
         android:importantForAccessibility="no"
         android:rotation="180"
+        android:scaleType="center"
         android:src="@drawable/mobile_ic_back" />
 </LinearLayout>

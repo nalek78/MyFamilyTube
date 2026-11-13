@@ -1,5 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- A tab (Inicio, Tus listas…) -->
+<!-- A tab (Para ti, an artist, a kind of music…) -->
 <TextView xmlns:android="http://schemas.android.com/apk/res/android"
-    style="@style/MobileChip"
-    android:layout_marginRight="8dp" />
+    android:layout_width="wrap_content"
+    android:layout_height="34dp"
+    android:layout_marginRight="8dp"
+    android:background="@drawable/music_chip_bg"
+    android:clickable="true"
+    android:focusable="true"
+    android:fontFamily="sans-serif-medium"
+    android:gravity="center"
+    android:maxWidth="180dp"
+    android:ellipsize="end"
+    android:paddingLeft="16dp"
+    android:paddingRight="16dp"
+    android:singleLine="true"
+    android:textColor="@color/music_chip_text"
+    android:textSize="14sp" />

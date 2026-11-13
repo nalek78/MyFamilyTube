@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Top of an artist, a kind of music, an album, a mix or a list -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/music_hero"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center_horizontal"
+    android:orientation="vertical"
+    android:paddingLeft="20dp"
+    android:paddingTop="8dp"
+    android:paddingRight="20dp"
+    android:paddingBottom="6dp">
+
+    <ImageView
+        android:id="@+id/music_hero_art"
+        android:layout_width="200dp"
+        android:layout_height="200dp"
+        android:background="@drawable/music_art_big_bg"
+        android:elevation="10dp"
+        android:importantForAccessibility="no"
+        android:scaleType="centerCrop" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="18dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/music_hero_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="2"
+                android:textColor="@color/family_text"
+                android:textSize="24sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/music_hero_subtitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:ellipsize="end"
+                android:singleLine="true"
+                android:textColor="@color/family_text3"
+                android:textSize="14sp" />
+        </LinearLayout>
+
+        <ImageView
+            android:id="@+id/music_hero_play"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:layout_marginLeft="12dp"
+            android:background="@drawable/music_play_bg"
+            android:clickable="true"
+            android:contentDescription="Reproducir"
+            android:elevation="4dp"
+            android:focusable="true"
+            android:scaleType="center"
+            android:src="@drawable/mobile_ic_play"
+            android:tint="#0B0C0E" />
+    </LinearLayout>
+</LinearLayout>

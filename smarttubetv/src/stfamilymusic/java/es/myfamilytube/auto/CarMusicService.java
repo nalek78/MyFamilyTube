@@ -28,6 +28,7 @@ import androidx.media.MediaBrowserServiceCompat;
 import com.google.android.exoplayer2.Player;
 import com.liskovsoft.mediaserviceinterfaces.ContentService;
 import com.liskovsoft.mediaserviceinterfaces.data.MediaGroup;
+import com.liskovsoft.mediaserviceinterfaces.data.SearchOptions;
 import com.liskovsoft.smartyoutubetv2.common.app.models.data.Playlist;
 import com.liskovsoft.smartyoutubetv2.common.app.models.data.Video;
 import com.liskovsoft.smartyoutubetv2.common.app.presenters.PlaybackPresenter;
@@ -49,12 +50,14 @@ import io.reactivex.Observable;
 import io.reactivex.disposables.Disposable;
 
 /**
- * MyFamilyTube in Android Auto, like a music app: tabs (Inicio, Tus listas, Recientes, Canales),
- * voice search and the steering wheel buttons. Only the sound is played, with the parental
+ * My Family Music in Android Auto and on the phone, like a music app: «Para ti» and tabs chosen
+ * from what the profile listens to (an artist, a kind of music, an album), voice search, the
+ * steering wheel buttons and, when a list ends, similar songs. Only the sound is played, with the parental
  * control of the profile chosen on the phone.
  */
 public class CarMusicService extends MediaBrowserServiceCompat implements CarPlayer.Listener {
     private static final String ROOT = "root";
+    private static final String TAB_FOR_YOU = "tab:foryou";
     private static final String TAB_HOME = "tab:home";
     private static final String TAB_LISTS = "tab:lists";
     private static final String TAB_RECENT = "tab:recent";
@@ -63,6 +66,10 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
     private static final String CHANNEL = "ch:";
     private static final String VIDEO = "v:";
     private static final String SEARCH = "search:";
+    private static final String ARTIST = "art:";
+    private static final String GENRE = "gen:";
+    private static final String ALBUM = "alb:";
+    private static final String MIX = "mix:";
 
     private static final String STYLE_SUPPORTED = "android.media.browse.CONTENT_STYLE_SUPPORTED";
     private static final String STYLE_BROWSABLE = "android.media.browse.CONTENT_STYLE_BROWSABLE_HINT";
@@ -74,6 +81,10 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
 
     private static final int MAX_ITEMS = 80;
     private static final int MAX_PER_SHELF = 12;
+    private static final int MAX_SCREEN = 160;
+    private static final int MAX_TABS = 4;
+    private static final long TABS_MS = 3 * 60 * 60 * 1000;
+    private static final long MAX_SONG_MS = 15 * 60 * 1000;
     private static final long CACHE_MS = 10 * 60 * 1000;
     private static final String CHANNEL_ID = "car_playback";
     private static final int NOTIFICATION_ID = 4810;
@@ -97,6 +108,9 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
     private int mSkipsInARow;
     private long mLastTickMs;
     private String mError;
+    /** The tabs chosen from what the profile listens to (they don't change while driving). */
+    private List<MediaItem> mTabs;
+    private long mTabsTime;
 
     /** The phone player opened a video: the car stops (both share the engine). */
     public static void onPhonePlayerOpened() {
@@ -132,6 +146,7 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         disposeActions();
         stopPlayback(true);
         mCache.shutdown();
+        mWorker.shutdownNow();
         mSession.release();
         super.onDestroy();
     }
@@ -153,6 +168,7 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         mChildren.clear();
         mChildrenTime.clear();
         mLists.clear();
+        mTabs = null;
         notifyChildrenChanged(ROOT);
     }
 
@@ -195,6 +211,14 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         load(SEARCH + query, result::sendResult);
     }
 
+    private MusicTaste taste() {
+        return MusicTaste.of(this, profile().id);
+    }
+
+    /**
+     * The tabs (Android Auto shows up to 4): «Para ti» and then what this profile listens to the
+     * most: an artist, a kind of music, an album… They change as the profile listens to music.
+     */
     private List<MediaItem> tabs() {
         List<MediaItem> tabs = new ArrayList<>();
         if (profile().isKid) {
@@ -204,11 +228,51 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
             }
             return tabs;
         }
-        tabs.add(tab(TAB_HOME, "Inicio", R.drawable.mobile_ic_home, STYLE_GRID, STYLE_GRID));
-        tabs.add(tab(TAB_LISTS, "Tus listas", R.drawable.mobile_ic_library, STYLE_GRID, STYLE_LIST));
-        tabs.add(tab(TAB_RECENT, "Recientes", R.drawable.mobile_ic_replay, STYLE_LIST, STYLE_LIST));
-        tabs.add(tab(TAB_CHANNELS, "Canales", R.drawable.mobile_ic_subs, STYLE_GRID, STYLE_LIST));
+        if (mTabs != null && System.currentTimeMillis() - mTabsTime < TABS_MS) {
+            return mTabs;
+        }
+        tabs.add(tab(TAB_FOR_YOU, "Para ti", R.drawable.mobile_ic_home, STYLE_GRID, STYLE_LIST));
+        MusicTaste taste = taste();
+        List<MusicTaste.Entry> artists = taste.topArtists(3);
+        List<MusicTaste.Entry> genres = taste.topGenres(2);
+        List<MusicTaste.Entry> albums = taste.topAlbums(1);
+        List<MediaItem> wanted = new ArrayList<>();
+        if (artists.size() > 0) wanted.add(artistTab(artists.get(0)));
+        if (genres.size() > 0) wanted.add(genreTab(genres.get(0)));
+        if (albums.size() > 0) wanted.add(albumTab(albums.get(0)));
+        if (artists.size() > 1) wanted.add(artistTab(artists.get(1)));
+        if (genres.size() > 1) wanted.add(genreTab(genres.get(1)));
+        if (artists.size() > 2) wanted.add(artistTab(artists.get(2)));
+        for (MediaItem item : wanted) {
+            if (tabs.size() < MAX_TABS) {
+                tabs.add(item);
+            }
+        }
+        if (tabs.size() < MAX_TABS) {
+            tabs.add(tab(TAB_LISTS, "Tus listas", R.drawable.mobile_ic_library, STYLE_GRID, STYLE_LIST));
+        }
+        if (tabs.size() < MAX_TABS) {
+            tabs.add(tab(TAB_CHANNELS, "Canales", R.drawable.mobile_ic_subs, STYLE_GRID, STYLE_LIST));
+        }
+        mTabs = tabs;
+        mTabsTime = System.currentTimeMillis();
         return tabs;
+    }
+
+    private MediaItem artistTab(MusicTaste.Entry artist) {
+        return tab(ARTIST + Uri.encode(artist.name), artist.name, R.drawable.mobile_ic_mic, STYLE_GRID, STYLE_LIST);
+    }
+
+    private MediaItem genreTab(MusicTaste.Entry genre) {
+        return tab(GENRE + Uri.encode(genre.name), genre.name, R.drawable.mobile_ic_audio, STYLE_GRID, STYLE_LIST);
+    }
+
+    private MediaItem albumTab(MusicTaste.Entry album) {
+        return tab(albumId(album.artist, album.name), album.name, R.drawable.mobile_ic_library, STYLE_GRID, STYLE_LIST);
+    }
+
+    private static String albumId(String artist, String album) {
+        return ALBUM + Uri.encode(artist != null ? artist : "") + "|" + Uri.encode(album);
     }
 
     private MediaItem tab(String id, String title, int icon, int browsableStyle, int playableStyle) {
@@ -238,7 +302,25 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         Observable<MediaGroup> grid = null;
         boolean kid = profile().isKid;
 
-        if (TAB_HOME.equals(parentId)) {
+        if (TAB_FOR_YOU.equals(parentId) && !kid) {
+            loadParts(parentId, forYou(), done);
+            return;
+        } else if (parentId.startsWith(ARTIST) && !kid) {
+            loadParts(parentId, artistParts(Uri.decode(parentId.substring(ARTIST.length()))), done);
+            return;
+        } else if (parentId.startsWith(GENRE) && !kid) {
+            loadParts(parentId, genreParts(Uri.decode(parentId.substring(GENRE.length()))), done);
+            return;
+        } else if (parentId.startsWith(ALBUM) && !kid) {
+            String rest = parentId.substring(ALBUM.length());
+            int bar = rest.indexOf('|');
+            if (bar >= 0) {
+                loadParts(parentId, albumParts(Uri.decode(rest.substring(0, bar)), Uri.decode(rest.substring(bar + 1))), done);
+                return;
+            }
+        } else if (parentId.startsWith(MIX)) {
+            grid = mixObserve(parentId.substring(MIX.length()));
+        } else if (TAB_HOME.equals(parentId)) {
             rows = kid ? content.getKidsHomeObserve() : content.getMusicObserve();
         } else if (TAB_LISTS.equals(parentId) && !kid) {
             grid = content.getPlaylistsObserve();
@@ -285,10 +367,227 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         mHandler.postDelayed(() -> once.onItems(new ArrayList<>()), 20_000);
     }
 
+    // ---------------------------------------------------------------- screens made of several shelves
+
+    /** A shelf: songs already known on the phone, or something asked to YouTube. */
+    private static final class Part {
+        final String title;
+        final List<MediaItem> local;
+        final Observable<List<MediaGroup>> rows;
+        final int max;
+
+        private Part(String title, List<MediaItem> local, Observable<List<MediaGroup>> rows, int max) {
+            this.title = title;
+            this.local = local;
+            this.rows = rows;
+            this.max = max;
+        }
+
+        static Part local(List<MediaItem> items) {
+            return new Part(null, items, null, 0);
+        }
+
+        static Part rows(String title, Observable<List<MediaGroup>> rows, int max) {
+            return new Part(title, null, rows, max);
+        }
+    }
+
+    private static Observable<List<MediaGroup>> asRows(Observable<MediaGroup> group) {
+        return group.map(one -> {
+            List<MediaGroup> list = new ArrayList<>();
+            list.add(one);
+            return list;
+        });
+    }
+
+    /** All the shelves at once (in order); after 15 s, whatever has arrived. Exactly one answer. */
+    private void loadParts(String parentId, List<Part> parts, Done done) {
+        Done once = once(done);
+        List<List<MediaItem>> results = new ArrayList<>();
+        int[] waiting = {0};
+        for (int i = 0; i < parts.size(); i++) {
+            results.add(parts.get(i).rows == null ? parts.get(i).local : null);
+        }
+        Runnable finish = () -> {
+            List<MediaItem> all = new ArrayList<>();
+            for (List<MediaItem> part : results) {
+                if (part != null) {
+                    for (MediaItem item : part) {
+                        if (all.size() < MAX_SCREEN) {
+                            all.add(item);
+                        }
+                    }
+                }
+            }
+            once.onItems(all);
+        };
+        for (int i = 0; i < parts.size(); i++) {
+            Part part = parts.get(i);
+            if (part.rows == null) {
+                continue;
+            }
+            waiting[0]++;
+            int index = i;
+            Runnable failed = () -> {
+                if (results.get(index) == null) {
+                    results.set(index, new ArrayList<>());
+                    if (--waiting[0] == 0) {
+                        finish.run();
+                    }
+                }
+            };
+            mActions.add(part.rows.subscribe(
+                    groups -> mHandler.post(() -> {
+                        if (results.get(index) == null) {
+                            List<MediaItem> items;
+                            try {
+                                items = fromRows(parentId + "#" + index, groups, part.title, part.max);
+                            } catch (RuntimeException e) {
+                                items = new ArrayList<>();
+                            }
+                            results.set(index, items);
+                            if (--waiting[0] == 0) {
+                                finish.run();
+                            }
+                        }
+                    }),
+                    error -> mHandler.post(failed),
+                    () -> mHandler.post(failed)));
+        }
+        if (waiting[0] == 0) {
+            finish.run();
+        } else {
+            mHandler.postDelayed(finish, 15_000);
+        }
+    }
+
+    /** «Para ti»: what was listened to lately, mixes of the favourite artists, the lists and YouTube Music. */
+    private List<Part> forYou() {
+        MusicTaste taste = taste();
+        List<Part> parts = new ArrayList<>();
+        parts.add(Part.local(localSongs(TAB_FOR_YOU + "#recent", taste.recent(15), "Escuchado recientemente")));
+
+        List<MediaItem> mixes = new ArrayList<>();
+        for (MusicTaste.Entry artist : taste.topArtists(6)) {
+            MusicTaste.Song top = artist.songs.get(0);
+            mixes.add(browsable(MIX + top.videoId, "Mezcla de " + artist.name, "Canciones parecidas",
+                    CarArtProvider.uriForSong(this, toVideo(top)), "Tus mezclas", STYLE_LIST));
+        }
+        parts.add(Part.local(mixes));
+
+        List<MediaItem> styles = new ArrayList<>();
+        for (MusicTaste.Entry genre : taste.topGenres(6)) {
+            styles.add(browsable(GENRE + Uri.encode(genre.name), genre.name, songsText(genre.songs.size()),
+                    CarArtProvider.uriForSong(this, toVideo(genre.songs.get(0))), "Tus estilos", STYLE_LIST));
+        }
+        parts.add(Part.local(styles));
+
+        List<MediaItem> artists = new ArrayList<>();
+        for (MusicTaste.Entry artist : taste.topArtists(10)) {
+            artists.add(browsable(ARTIST + Uri.encode(artist.name), artist.name, "Artista",
+                    CarArtProvider.uriForSong(this, toVideo(artist.songs.get(0))), "Tus artistas", STYLE_LIST));
+        }
+        parts.add(Part.local(artists));
+
+        parts.add(Part.rows("Tus listas", asRows(content().getPlaylistsObserve()), MAX_PER_SHELF));
+        parts.add(Part.rows(null, content().getMusicObserve(), MAX_ITEMS));
+        return parts;
+    }
+
+    /** An artist: your favourite songs, their albums you listen to, and more from YouTube. */
+    private List<Part> artistParts(String name) {
+        MusicTaste taste = taste();
+        List<Part> parts = new ArrayList<>();
+        List<MusicTaste.Song> songs = taste.songsOf(MusicTaste.KIND_ARTIST, name);
+        parts.add(Part.local(localSongs(ARTIST + name + "#fav", songs.subList(0, Math.min(15, songs.size())), "Tus favoritas")));
+
+        List<MediaItem> more = new ArrayList<>();
+        if (!songs.isEmpty()) {
+            more.add(browsable(MIX + songs.get(0).videoId, "Mezcla de " + name, "Canciones parecidas",
+                    CarArtProvider.uriForSong(this, toVideo(songs.get(0))), "Para seguir escuchando", STYLE_LIST));
+        }
+        List<String> albums = new ArrayList<>();
+        for (MusicTaste.Song song : songs) {
+            if (!TextUtils.isEmpty(song.album) && !albums.contains(song.album)) {
+                albums.add(song.album);
+                more.add(browsable(albumId(name, song.album), song.album, "Álbum",
+                        CarArtProvider.uriForSong(this, toVideo(song)), "Para seguir escuchando", STYLE_LIST));
+            }
+        }
+        parts.add(Part.local(more));
+        parts.add(Part.rows("Más de " + name, content().getSearchObserve(name, SearchOptions.TYPE_VIDEO), 25));
+        parts.add(Part.rows("Listas con " + name, content().getSearchObserve(name, SearchOptions.TYPE_PLAYLIST), 8));
+        return parts;
+    }
+
+    /** A kind of music: your songs, your artists, and new music of that kind. */
+    private List<Part> genreParts(String genre) {
+        MusicTaste taste = taste();
+        List<Part> parts = new ArrayList<>();
+        List<MusicTaste.Song> songs = taste.songsOf(MusicTaste.KIND_GENRE, genre);
+        parts.add(Part.local(localSongs(GENRE + genre + "#fav", songs.subList(0, Math.min(15, songs.size())), "Tus favoritas")));
+        List<MediaItem> artists = new ArrayList<>();
+        for (MusicTaste.Entry artist : taste.artistsOfGenre(genre, 10)) {
+            artists.add(browsable(ARTIST + Uri.encode(artist.name), artist.name, "Artista",
+                    CarArtProvider.uriForSong(this, toVideo(artist.songs.get(0))), "Tus artistas", STYLE_LIST));
+        }
+        parts.add(Part.local(artists));
+        parts.add(Part.rows("Descubre " + genre, content().getSearchObserve(genre + " música", SearchOptions.TYPE_VIDEO), 25));
+        parts.add(Part.rows("Listas de " + genre, content().getSearchObserve(genre + " playlist", SearchOptions.TYPE_PLAYLIST), 8));
+        return parts;
+    }
+
+    /** An album: the songs you know and the whole album from YouTube. */
+    private List<Part> albumParts(String artist, String album) {
+        MusicTaste taste = taste();
+        List<Part> parts = new ArrayList<>();
+        List<MusicTaste.Song> known = new ArrayList<>();
+        for (MusicTaste.Song song : taste.songsOf(MusicTaste.KIND_ALBUM, album)) {
+            if (TextUtils.isEmpty(artist) || MusicArt.similar(song.artist, artist)) {
+                known.add(song);
+            }
+        }
+        parts.add(Part.local(localSongs(ALBUM + album + "#fav", known, "Has escuchado")));
+        String query = (TextUtils.isEmpty(artist) ? "" : artist + " ") + album;
+        parts.add(Part.rows("Álbum completo", content().getSearchObserve(query + " album", SearchOptions.TYPE_PLAYLIST), 6));
+        parts.add(Part.rows("Canciones", content().getSearchObserve(query, SearchOptions.TYPE_VIDEO), 20));
+        return parts;
+    }
+
+    private static String songsText(int count) {
+        return count == 1 ? "1 canción escuchada" : count + " canciones escuchadas";
+    }
+
+    private static Video toVideo(MusicTaste.Song song) {
+        Video video = new Video();
+        video.videoId = song.videoId;
+        video.title = song.title;
+        video.author = song.author;
+        video.channelId = song.channelId;
+        video.cardImageUrl = song.image;
+        return video;
+    }
+
+    /** Songs saved on the phone (history, favourites): a shelf whose songs are its queue. */
+    private List<MediaItem> localSongs(String listKey, List<MusicTaste.Song> songs, String groupTitle) {
+        List<MediaItem> items = new ArrayList<>();
+        List<Video> queue = new ArrayList<>();
+        for (MusicTaste.Song song : songs) {
+            Video video = toVideo(song);
+            if (!ContentGate.allows(video)) {
+                continue;
+            }
+            queue.add(video);
+            items.add(playable(listKey, video, groupTitle));
+        }
+        mLists.put(listKey, queue);
+        return items;
+    }
+
     /** A strange item from YouTube must never close the app: that list just comes out shorter or empty. */
     private List<MediaItem> safeRows(String parentId, List<MediaGroup> groups) {
         try {
-            return fromRows(parentId, groups);
+            return fromRows(parentId, groups, null, MAX_ITEMS);
         } catch (RuntimeException e) {
             es.myfamilytube.FamilyDiagnostics.instance(this).log("Android Auto: error al preparar «" + parentId + "»: " + e);
             return new ArrayList<>();
@@ -305,6 +604,25 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         };
     }
 
+    /** The first list with songs that YouTube sends with a video (a playlist or a mix). */
+    private static Observable<MediaGroup> firstList(com.liskovsoft.mediaserviceinterfaces.data.MediaItemMetadata metadata) {
+        if (metadata != null && metadata.getSuggestions() != null) {
+            for (MediaGroup group : metadata.getSuggestions()) {
+                if (group != null && group.getMediaItems() != null && !group.getMediaItems().isEmpty()) {
+                    return Observable.just(group);
+                }
+            }
+        }
+        return Observable.empty();
+    }
+
+    /** YouTube's mix of a song: songs similar to it, like a radio. */
+    private Observable<MediaGroup> mixObserve(String videoId) {
+        return YouTubeServiceManager.instance().getMediaItemService()
+                .getMetadataObserve(videoId, "RD" + videoId, 0, null)
+                .flatMap(CarMusicService::firstList);
+    }
+
     /** A playlist's videos, loaded the same way the phone and TV screens do it. */
     private Observable<MediaGroup> playlistObserve(Video item) {
         if (item.mediaItem == null) {
@@ -318,16 +636,7 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         }
         return YouTubeServiceManager.instance().getMediaItemService()
                 .getMetadataObserve(item.videoId, item.playlistId, 0, item.playlistParams)
-                .flatMap(metadata -> {
-                    if (metadata != null && metadata.getSuggestions() != null) {
-                        for (MediaGroup group : metadata.getSuggestions()) {
-                            if (group != null && group.getMediaItems() != null && !group.getMediaItems().isEmpty()) {
-                                return Observable.just(group);
-                            }
-                        }
-                    }
-                    return Observable.empty();
-                });
+                .flatMap(CarMusicService::firstList);
     }
 
     private List<MediaItem> kidChannels() {
@@ -341,27 +650,33 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         return items;
     }
 
-    /** Shelves under their titles; the videos of each shelf become its queue. */
-    private List<MediaItem> fromRows(String parentId, List<MediaGroup> groups) {
+    /**
+     * Shelves under their titles; the videos of each shelf become its queue. With a title,
+     * all the groups are one shelf with that title (at most max items, only songs, no long videos).
+     */
+    private List<MediaItem> fromRows(String parentId, List<MediaGroup> groups, String forcedTitle, int max) {
         List<MediaItem> items = new ArrayList<>();
         if (groups == null) {
             return items;
         }
-        boolean showTitles = groups.size() > 1;
+        boolean showTitles = forcedTitle != null || groups.size() > 1;
         int shelf = 0;
+        List<Video> sharedQueue = forcedTitle != null ? new ArrayList<>() : null;
+        int sharedCount = 0;
         for (MediaGroup group : groups) {
             if (group == null || group.getMediaItems() == null || items.size() >= MAX_ITEMS) {
                 continue;
             }
-            String groupTitle = showTitles ? group.getTitle() : null;
-            if (groupTitle != null && groupTitle.trim().equalsIgnoreCase("shorts") && !ContentGate.allowsShorts()) {
+            String groupTitle = forcedTitle != null ? forcedTitle : (showTitles ? group.getTitle() : null);
+            if (group.getTitle() != null && group.getTitle().trim().equalsIgnoreCase("shorts") && !ContentGate.allowsShorts()) {
                 continue;
             }
-            String listKey = parentId + "#" + shelf++;
-            List<Video> queue = new ArrayList<>();
-            int count = 0;
+            String listKey = forcedTitle != null ? parentId : parentId + "#" + shelf++;
+            List<Video> queue = sharedQueue != null ? sharedQueue : new ArrayList<>();
+            int count = forcedTitle != null ? sharedCount : 0;
+            int limit = forcedTitle != null ? max : (showTitles ? MAX_PER_SHELF : max);
             for (com.liskovsoft.mediaserviceinterfaces.data.MediaItem mediaItem : group.getMediaItems()) {
-                if (items.size() >= MAX_ITEMS || (showTitles && count >= MAX_PER_SHELF)) {
+                if (items.size() >= MAX_ITEMS || count >= limit) {
                     break;
                 }
                 Video video = Video.from(mediaItem);
@@ -369,8 +684,11 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
                     continue;
                 }
                 if (video.hasVideo()) {
-                    if (video.isLive || !ContentGate.allows(video)) {
+                    if (video.isLive || video.isShorts || !ContentGate.allows(video)) {
                         continue;
+                    }
+                    if (forcedTitle != null && video.getDurationMs() > MAX_SONG_MS) {
+                        continue; // a long video, not a song
                     }
                     queue.add(video);
                     items.add(playable(listKey, video, groupTitle));
@@ -385,9 +703,26 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
                     }
                 }
             }
+            if (forcedTitle != null) {
+                sharedCount = count;
+            }
             mLists.put(listKey, queue);
         }
         return items;
+    }
+
+    /** A song: with the names and the cover from iTunes when they are known. */
+    private MediaDescriptionCompat songDescription(String mediaId, Video video, Bundle extras) {
+        MusicArt.Info info = MusicArt.cached(this, video.videoId);
+        String title = info != null && info.track != null ? info.track : video.getTitle();
+        String artist = info != null && info.artist != null ? info.artist : MusicArt.cleanAuthor(video.getAuthor());
+        return new MediaDescriptionCompat.Builder()
+                .setMediaId(mediaId)
+                .setTitle(title)
+                .setSubtitle(artist)
+                .setIconUri(CarArtProvider.uriForSong(this, video))
+                .setExtras(extras)
+                .build();
     }
 
     private MediaItem playable(String listKey, Video video, String groupTitle) {
@@ -395,32 +730,30 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         if (groupTitle != null) {
             extras.putString(STYLE_GROUP, groupTitle);
         }
+        return new MediaItem(songDescription(VIDEO + video.videoId + "@" + listKey, video, extras), MediaItem.FLAG_PLAYABLE);
+    }
+
+    private MediaItem browsable(String id, String title, String subtitle, Uri icon, String groupTitle, int playableStyle) {
+        Bundle extras = new Bundle();
+        extras.putInt(STYLE_PLAYABLE, playableStyle);
+        if (groupTitle != null) {
+            extras.putString(STYLE_GROUP, groupTitle);
+        }
         MediaDescriptionCompat description = new MediaDescriptionCompat.Builder()
-                .setMediaId(VIDEO + video.videoId + "@" + listKey)
-                .setTitle(video.getTitle())
-                .setSubtitle(video.getAuthor())
-                .setIconUri(CarArtProvider.uriFor(this, video.getCardImageUrl()))
+                .setMediaId(id)
+                .setTitle(title)
+                .setSubtitle(subtitle)
+                .setIconUri(icon)
                 .setExtras(extras)
                 .build();
-        return new MediaItem(description, MediaItem.FLAG_PLAYABLE);
+        return new MediaItem(description, MediaItem.FLAG_BROWSABLE);
     }
 
     private MediaItem folder(String id, Video video, String groupTitle) {
         mFolders.put(id, video);
-        Bundle extras = new Bundle();
-        extras.putInt(STYLE_PLAYABLE, STYLE_LIST);
-        if (groupTitle != null) {
-            extras.putString(STYLE_GROUP, groupTitle);
-        }
         String title = !TextUtils.isEmpty(video.getTitle()) ? video.getTitle() : video.getAuthor();
-        MediaDescriptionCompat description = new MediaDescriptionCompat.Builder()
-                .setMediaId(id)
-                .setTitle(title)
-                .setSubtitle(id.startsWith(PLAYLIST) ? video.getAuthor() : null)
-                .setIconUri(CarArtProvider.uriFor(this, video.getCardImageUrl()))
-                .setExtras(extras)
-                .build();
-        return new MediaItem(description, MediaItem.FLAG_BROWSABLE);
+        return browsable(id, title, id.startsWith(PLAYLIST) ? video.getAuthor() : null,
+                CarArtProvider.uriFor(this, video.getCardImageUrl()), groupTitle, STYLE_LIST);
     }
 
     private void disposeActions() {
@@ -469,6 +802,9 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         }
         mQueue.clear();
         mQueue.addAll(queue);
+        mQueueGeneration++;
+        mExtending = false;
+        mWaitingForMore = false;
         int index = mQueue.indexOf(start);
         mSkipsInARow = 0;
         mSession.setActive(true);
@@ -481,6 +817,8 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
     private final List<Video> mQueue = new ArrayList<>();
     private int mIndex = -1;
     private CarSongCache mCache;
+    private String mRecordedId;
+    private final java.util.concurrent.ExecutorService mWorker = java.util.concurrent.Executors.newSingleThreadExecutor();
     private static final int SAVE_AHEAD = 3;
     private static final int KEEP_BEHIND = 4;
 
@@ -515,7 +853,61 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
             mPlayer.setPlayWhenReady(true);
         }
         updateState();
+        updateSessionQueue();
         updateCache();
+        lookUpSong(video);
+    }
+
+    /** Album, cover and clean names from iTunes for the song now playing (shown when they arrive). */
+    private void lookUpSong(Video video) {
+        if (video == null || video.videoId == null || MusicArt.cached(this, video.videoId) != null) {
+            return;
+        }
+        String videoId = video.videoId;
+        String title = video.getTitle();
+        String author = video.getAuthor();
+        mWorker.execute(() -> {
+            if (MusicArt.lookup(this, videoId, title, author) != null) {
+                mHandler.post(() -> {
+                    Video current = mPlayer.isActive() ? mPlayer.current() : null;
+                    if (current != null && videoId.equals(current.videoId)) {
+                        updateState();
+                    }
+                });
+            }
+        });
+    }
+
+    /** A song listened to for half a minute counts for the tabs («Para ti», artists, styles…). */
+    private void recordListening() {
+        Video video = mPlayer.isActive() ? mPlayer.current() : null;
+        if (video == null || video.videoId == null || video.videoId.equals(mRecordedId) || mPlayer.uiPosition() < 30_000) {
+            return;
+        }
+        mRecordedId = video.videoId;
+        String videoId = video.videoId;
+        String title = video.getTitle();
+        String author = video.getAuthor();
+        String channelId = video.channelId;
+        String image = video.getCardImageUrl();
+        MusicTaste taste = taste();
+        mWorker.execute(() -> taste.record(videoId, title, author, channelId, image, MusicArt.lookup(this, videoId, title, author)));
+    }
+
+    /** The queue, for the car's «A continuación» and the phone. */
+    private void updateSessionQueue() {
+        List<MediaSessionCompat.QueueItem> items = new ArrayList<>();
+        int from = Math.max(0, mIndex - 5);
+        int to = Math.min(mQueue.size(), from + 60);
+        for (int i = from; i < to; i++) {
+            Video video = mQueue.get(i);
+            if (video.videoId == null) {
+                continue;
+            }
+            items.add(new MediaSessionCompat.QueueItem(songDescription(VIDEO + video.videoId + "@queue", video, null), i));
+        }
+        mSession.setQueue(items);
+        mSession.setQueueTitle("A continuación");
     }
 
     /** Saves the next songs while there is coverage and keeps only the last few played. */
@@ -538,8 +930,15 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
     }
 
     private boolean mExtending;
+    /** The list ended while looking for more songs: play the first one found. */
+    private boolean mWaitingForMore;
+    private int mQueueGeneration;
+    private static final int MAX_SIMILAR = 20;
 
-    /** Like a radio: when the list ends, YouTube's "up next" keeps the music going. */
+    /**
+     * When the list is ending, songs similar to the last one (YouTube's mix of that song, like
+     * a radio), so the music never stops. If there is no mix, the related videos.
+     */
     private void extendQueue() {
         if (mExtending || mQueue.isEmpty()) {
             return;
@@ -549,18 +948,95 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
             return;
         }
         mExtending = true;
-        mActions.add(YouTubeServiceManager.instance().getMediaItemService().getMetadataObserve(last.videoId)
+        String seed = last.videoId;
+        int generation = mQueueGeneration;
+        boolean[] handled = {false};
+        io.reactivex.functions.Consumer<MediaGroup> onMix = group -> {
+            if (handled[0] || generation != mQueueGeneration) {
+                return;
+            }
+            handled[0] = true;
+            int added = group != null ? addSimilar(group.getMediaItems()) : 0;
+            if (added > 0) {
+                extended(added);
+            } else {
+                relatedSongs(seed, generation);
+            }
+        };
+        mActions.add(mixObserve(seed).subscribe(
+                group -> mHandler.post(() -> safeAccept(onMix, group)),
+                error -> mHandler.post(() -> safeAccept(onMix, null)),
+                () -> mHandler.post(() -> safeAccept(onMix, null))));
+    }
+
+    private static void safeAccept(io.reactivex.functions.Consumer<MediaGroup> consumer, MediaGroup group) {
+        try {
+            consumer.accept(group);
+        } catch (Exception e) {
+            // nothing more to add
+        }
+    }
+
+    /** No mix: the videos YouTube suggests next to the song. */
+    private void relatedSongs(String seed, int generation) {
+        mActions.add(YouTubeServiceManager.instance().getMediaItemService().getMetadataObserve(seed)
                 .subscribe(metadata -> mHandler.post(() -> {
-                    mExtending = false;
-                    if (metadata == null || metadata.getNextVideo() == null) {
+                    if (generation != mQueueGeneration) {
                         return;
                     }
-                    Video next = Video.from(metadata.getNextVideo());
-                    if (next != null && next.videoId != null && !containsVideo(next.videoId) && ContentGate.allows(next)) {
-                        mQueue.add(next);
-                        updateCache();
+                    List<com.liskovsoft.mediaserviceinterfaces.data.MediaItem> found = new ArrayList<>();
+                    if (metadata != null && metadata.getNextVideo() != null) {
+                        found.add(metadata.getNextVideo());
                     }
-                }), error -> mHandler.post(() -> mExtending = false)));
+                    if (metadata != null && metadata.getSuggestions() != null) {
+                        for (MediaGroup group : metadata.getSuggestions()) {
+                            if (group != null && group.getMediaItems() != null) {
+                                found.addAll(group.getMediaItems());
+                            }
+                        }
+                    }
+                    extended(addSimilar(found));
+                }), error -> mHandler.post(() -> {
+                    if (generation == mQueueGeneration) {
+                        extended(0);
+                    }
+                })));
+    }
+
+    private int addSimilar(List<com.liskovsoft.mediaserviceinterfaces.data.MediaItem> items) {
+        int added = 0;
+        if (items == null) {
+            return 0;
+        }
+        for (com.liskovsoft.mediaserviceinterfaces.data.MediaItem item : items) {
+            if (added >= MAX_SIMILAR) {
+                break;
+            }
+            Video video = item != null ? Video.from(item) : null;
+            if (video == null || video.videoId == null || video.isLive || video.isShorts || containsVideo(video.videoId)
+                    || video.getDurationMs() > MAX_SONG_MS || !ContentGate.allows(video)) {
+                continue;
+            }
+            mQueue.add(video);
+            added++;
+        }
+        return added;
+    }
+
+    private void extended(int added) {
+        mExtending = false;
+        if (added > 0) {
+            updateSessionQueue();
+            updateCache();
+        }
+        if (mWaitingForMore) {
+            mWaitingForMore = false;
+            if (mIndex + 1 < mQueue.size()) {
+                playAt(mIndex + 1);
+            } else {
+                stopPlayback(false);
+            }
+        }
     }
 
     private boolean containsVideo(String videoId) {
@@ -575,7 +1051,13 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
     private void next() {
         if (mIndex + 1 < mQueue.size()) {
             playAt(mIndex + 1);
-        } else {
+            return;
+        }
+        // The list has ended: similar songs (it waits for them if they are still on their way)
+        mWaitingForMore = true;
+        extendQueue();
+        if (!mExtending) {
+            mWaitingForMore = false;
             stopPlayback(false);
         }
     }
@@ -652,7 +1134,7 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
     public void onFinishRequested() {
         // End of a video with nothing queued, or a video the profile can't see: go on with the next one
         // (also when a song can't be loaded, e.g. no coverage: the next one may be saved on the phone)
-        if (mSkipsInARow++ < 5 && mIndex + 1 < mQueue.size()) {
+        if (mSkipsInARow++ < 5) {
             next();
         } else {
             stopPlayback(false);
@@ -666,6 +1148,7 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
             long now = System.currentTimeMillis();
             int seconds = (int) Math.min(60, Math.max(0, (now - mLastTickMs) / 1000));
             mLastTickMs = now;
+            recordListening();
             FamilyProfile current = profile();
             if (current.isKid && mPlayer.isActive() && mPlayer.uiIsPlaying()) {
                 FamilyProfiles.instance(CarMusicService.this).addUsedSeconds(current, seconds);
@@ -698,11 +1181,12 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
                 | PlaybackStateCompat.ACTION_PLAY_PAUSE | PlaybackStateCompat.ACTION_STOP
                 | PlaybackStateCompat.ACTION_SKIP_TO_NEXT | PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS
                 | PlaybackStateCompat.ACTION_SEEK_TO | PlaybackStateCompat.ACTION_PLAY_FROM_MEDIA_ID
-                | PlaybackStateCompat.ACTION_PLAY_FROM_SEARCH;
+                | PlaybackStateCompat.ACTION_PLAY_FROM_SEARCH | PlaybackStateCompat.ACTION_SKIP_TO_QUEUE_ITEM;
         PlaybackStateCompat.Builder builder = new PlaybackStateCompat.Builder()
                 .setActions(actions)
                 .setState(state, active ? mPlayer.uiPosition() : 0, playing ? 1.0f : 0f)
-                .setBufferedPosition(active ? mPlayer.uiBuffered() : 0);
+                .setBufferedPosition(active ? mPlayer.uiBuffered() : 0)
+                .setActiveQueueItemId(mIndex >= 0 ? mIndex : MediaSessionCompat.QueueItem.UNKNOWN_ID);
         if (mError != null) {
             builder.setErrorMessage(PlaybackStateCompat.ERROR_CODE_APP_ERROR, mError);
         }
@@ -710,14 +1194,24 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
 
         Video video = active ? mPlayer.current() : null;
         if (video != null) {
-            String title = video.getTitleFull() != null ? video.getTitleFull() : video.getTitle();
-            Uri art = CarArtProvider.uriFor(this, video.getCardImageUrl());
+            MusicArt.Info info = MusicArt.cached(this, video.videoId);
+            String title = info != null && info.track != null ? info.track
+                    : (video.getTitleFull() != null ? video.getTitleFull() : video.getTitle());
+            String artist = info != null && info.artist != null ? info.artist : MusicArt.cleanAuthor(video.getAuthor());
+            Uri art = CarArtProvider.uriForSong(this, video);
             MediaMetadataCompat.Builder metadata = new MediaMetadataCompat.Builder()
                     .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, video.videoId)
                     .putString(MediaMetadataCompat.METADATA_KEY_TITLE, title)
                     .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, title)
-                    .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, video.getAuthor())
-                    .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, video.getAuthor());
+                    .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, artist)
+                    .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, artist);
+            if (info != null && info.album != null) {
+                metadata.putString(MediaMetadataCompat.METADATA_KEY_ALBUM, info.album);
+                metadata.putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_DESCRIPTION, info.album);
+            }
+            if (info != null && info.genre != null) {
+                metadata.putString(MediaMetadataCompat.METADATA_KEY_GENRE, info.genre);
+            }
             long duration = mPlayer.uiDuration();
             if (duration > 0) {
                 metadata.putLong(MediaMetadataCompat.METADATA_KEY_DURATION, duration);
@@ -763,8 +1257,8 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
                         notificationAction(ACTION_PLAY_PAUSE, 2))
                 .addAction(R.drawable.mobile_ic_next, "Siguiente", notificationAction(ACTION_NEXT, 3))
                 .setSmallIcon(R.drawable.mobile_ic_play)
-                .setContentTitle(video != null ? video.getTitle() : getString(R.string.app_name))
-                .setContentText(video != null ? video.getAuthor() : null)
+                .setContentTitle(songTitle(video))
+                .setContentText(songArtist(video))
                 .setContentIntent(mSession.getController().getSessionActivity())
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                 .setOnlyAlertOnce(true)
@@ -791,6 +1285,22 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         } catch (RuntimeException e) {
             // Android refused: it still plays while Android Auto is connected
         }
+    }
+
+    private String songTitle(Video video) {
+        if (video == null) {
+            return getString(R.string.app_name);
+        }
+        MusicArt.Info info = MusicArt.cached(this, video.videoId);
+        return info != null && info.track != null ? info.track : video.getTitle();
+    }
+
+    private String songArtist(Video video) {
+        if (video == null) {
+            return null;
+        }
+        MusicArt.Info info = MusicArt.cached(this, video.videoId);
+        return info != null && info.artist != null ? info.artist : MusicArt.cleanAuthor(video.getAuthor());
     }
 
     private void stopForegroundCompat(boolean removeNotification) {
@@ -891,6 +1401,14 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         @Override
         public void onPlayFromSearch(String query, Bundle extras) {
             playFromSearch(query);
+        }
+
+        @Override
+        public void onSkipToQueueItem(long id) {
+            if (id >= 0 && id < mQueue.size()) {
+                mSkipsInARow = 0;
+                playAt((int) id);
+            }
         }
     }
 
