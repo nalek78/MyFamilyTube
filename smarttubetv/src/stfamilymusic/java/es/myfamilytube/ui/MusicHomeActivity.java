@@ -326,7 +326,7 @@ public class MusicHomeActivity extends MotherActivity {
                         + "\n\nLas pestañas se eligen según lo que escuchas: tus artistas, estilos y álbumes favoritos."
                         + "\n\nEn el coche: conecta el móvil y abre " + getString(R.string.app_name)
                         + " en Android Auto. Las canciones siguientes se guardan solas en el móvil para que no se corte sin cobertura."
-                        + "\n\nDatos y carátulas de los discos: MusicBrainz y Cover Art Archive (uso personal; las portadas son de sus propietarios).")
+                        + "\n\nDatos y carátulas de los discos: MusicBrainz, Cover Art Archive e iTunes (uso personal; las portadas son de sus propietarios).")
                 .setPositiveButton("Cambiar perfil", (dialog, which) -> mProfiles.show())
                 .setNeutralButton("Diagnóstico", (dialog, which) -> FamilyDiagnosticsDialog.show(this))
                 .setNegativeButton("Cerrar", null)

@@ -24,13 +24,13 @@ import java.util.regex.Pattern;
 /**
  * The song behind a YouTube video, looked up in MusicBrainz (the free music encyclopedia):
  * clean artist and song names, the album, the kind of music (the artist's genres), and the
- * album cover from the Cover Art Archive. When the song isn't found, the YouTube picture and
- * names are used.
+ * album cover from the Cover Art Archive. When MusicBrainz doesn't have it (or its album has
+ * no cover), the iTunes library. When neither has it, the YouTube picture and names are used.
  *
  * Limits respected: MusicBrainz allows about 1 request per second from each phone (more, and
  * it refuses everything for a while), and every request must say which app it is and how to
  * contact it (User-Agent). The Cover Art Archive has no limit for now. Covers are for personal
- * use: their rights belong to their owners.
+ * use: their rights belong to their owners. iTunes allows about 20 searches a minute.
  */
 public final class MusicArt {
     private static final String PREFS = "music_art_mb";
@@ -153,6 +153,13 @@ public final class MusicArt {
             if (info != null && maxWaitMs >= 10_000) {
                 info.genre = artistGenre(context, info.artistId, maxWaitMs);
             }
+            if (info == null) {
+                // Not in MusicBrainz (or its album has no cover): iTunes
+                if (!takeItunesTurn()) {
+                    return null; // too many iTunes searches this minute: another time
+                }
+                info = searchItunes(guess);
+            }
             save(prefs, videoId, info);
             return info;
         } catch (Exception e) {
@@ -217,6 +224,65 @@ public final class MusicArt {
     }
 
     private static final Info SKIPPED = new Info();
+
+    // ---------------------------------------------------------------- iTunes, when MusicBrainz doesn't have it
+
+    /** iTunes allows about 20 searches a minute. */
+    private static final int ITUNES_PER_MINUTE = 18;
+    private static final java.util.ArrayDeque<Long> sItunesRecent = new java.util.ArrayDeque<>();
+
+    private static synchronized boolean takeItunesTurn() {
+        long now = SystemClock.elapsedRealtime();
+        while (!sItunesRecent.isEmpty() && now - sItunesRecent.peekFirst() > 60_000) {
+            sItunesRecent.pollFirst();
+        }
+        if (sItunesRecent.size() >= ITUNES_PER_MINUTE) {
+            return false;
+        }
+        sItunesRecent.addLast(now);
+        return true;
+    }
+
+    /** The song in the iTunes library (square cover 600 px, album and kind of music). */
+    private static Info searchItunes(Info guess) throws Exception {
+        String term = (guess.artist != null ? guess.artist + " " : "") + guess.track;
+        String url = "https://itunes.apple.com/search?media=music&entity=song&limit=8&country=ES&term=" + Uri.encode(term);
+        HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
+        connection.setConnectTimeout(6000);
+        connection.setReadTimeout(8000);
+        try {
+            int code = connection.getResponseCode();
+            if (code != 200) {
+                throw new IllegalStateException("iTunes " + code); // busy: not saved as «not found»
+            }
+            JSONArray results = new JSONObject(read(connection.getInputStream())).optJSONArray("results");
+            if (results == null) {
+                return null;
+            }
+            for (int i = 0; i < results.length(); i++) {
+                JSONObject song = results.optJSONObject(i);
+                if (song == null) {
+                    continue;
+                }
+                String artist = song.optString("artistName");
+                String track = song.optString("trackName");
+                boolean artistOk = guess.artist == null || similar(artist, guess.artist);
+                String art = song.optString("artworkUrl100", "");
+                if (artistOk && similar(track, guess.track) && !art.isEmpty()) {
+                    Info info = new Info();
+                    info.artist = artist;
+                    info.track = track;
+                    info.album = cleanAlbum(song.optString("collectionName", null));
+                    info.genre = song.optString("primaryGenreName", null);
+                    info.artUrl = art.replace("100x100bb", "600x600bb");
+                    return info;
+                }
+            }
+            return null;
+        } finally {
+            connection.disconnect();
+        }
+    }
 
     /** Artist and song from a YouTube title like «Artista - Canción (Official Video)». */
     public static Info guess(String title, String author) {
