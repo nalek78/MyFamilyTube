@@ -22,10 +22,11 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
- * The song behind a YouTube video, looked up in MusicBrainz (the free music encyclopedia):
+ * The song behind a YouTube video, looked up in iTunes and MusicBrainz (the free music encyclopedia):
  * clean artist and song names, the album, the kind of music (the artist's genres), and the
- * album cover from the Cover Art Archive. When MusicBrainz doesn't have it (or its album has
- * no cover), the iTunes library. When neither has it, the YouTube picture and names are used.
+ * album cover from the Cover Art Archive. iTunes is asked first while it has searches left
+ * this minute, then MusicBrainz; when one doesn't have the song, the other one. When neither
+ * has it, the YouTube picture and names are used.
  *
  * Limits respected: MusicBrainz allows about 1 request per second from each phone (more, and
  * it refuses everything for a while), and every request must say which app it is and how to
@@ -145,26 +146,46 @@ public final class MusicArt {
             return null; // not found lately
         }
         Info guess = guess(title, author);
-        try {
-            Info info = search(context, guess, maxWaitMs);
-            if (info == SKIPPED) {
-                return null; // no turn now: another time
-            }
-            if (info != null && maxWaitMs >= 10_000) {
-                info.genre = artistGenre(context, info.artistId, maxWaitMs);
-            }
-            if (info == null) {
-                // Not in MusicBrainz (or its album has no cover): iTunes
-                if (!takeItunesTurn()) {
-                    return null; // too many iTunes searches this minute: another time
-                }
+        // iTunes first while it has searches left this minute (about 20), then MusicBrainz
+        // (1 per second); if one doesn't have the song, the other one
+        boolean askedItunes = false;
+        boolean askedMusicBrainz = false;
+        Info info = null;
+        if (takeItunesTurn()) {
+            try {
                 info = searchItunes(guess);
+                askedItunes = true;
+            } catch (Exception e) {
+                // busy or no connection
             }
-            save(prefs, videoId, info);
-            return info;
-        } catch (Exception e) {
-            return null; // no connection or MusicBrainz busy: try again next time
         }
+        if (info == null) {
+            try {
+                Info found = search(context, guess, maxWaitMs);
+                if (found != SKIPPED) {
+                    askedMusicBrainz = true;
+                    info = found;
+                    if (info != null && maxWaitMs >= 10_000) {
+                        info.genre = artistGenre(context, info.artistId, maxWaitMs);
+                    }
+                }
+            } catch (Exception e) {
+                // busy or no connection
+            }
+        }
+        if (info == null && !askedItunes && takeItunesTurn()) {
+            try {
+                info = searchItunes(guess);
+                askedItunes = true;
+            } catch (Exception e) {
+                // busy or no connection
+            }
+        }
+        if (info == null && !(askedItunes && askedMusicBrainz)) {
+            return null; // not asked to both: another time (not saved as «not found»)
+        }
+        save(prefs, videoId, info);
+        return info;
     }
 
     private static void save(SharedPreferences prefs, String videoId, Info info) {
