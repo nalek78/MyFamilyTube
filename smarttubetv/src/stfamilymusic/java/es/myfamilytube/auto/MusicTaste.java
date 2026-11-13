@@ -179,6 +179,11 @@ final class MusicTaste {
         return worst;
     }
 
+    /** Already listened to (it is not «new» for this profile). */
+    synchronized boolean knows(String videoId) {
+        return mSongs.containsKey(videoId);
+    }
+
     synchronized boolean isEmpty() {
         return mSongs.isEmpty();
     }

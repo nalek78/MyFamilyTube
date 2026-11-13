@@ -64,6 +64,7 @@ import es.myfamilytube.profiles.FamilyProfiles;
  */
 public class MusicHomeActivity extends MotherActivity {
     private static final String ROOT = "root";
+    private static final String HIDDEN_LISTS = "hidden:lists";
     private static final String GROUP_HINT = "android.media.browse.CONTENT_STYLE_GROUP_TITLE_HINT";
     private static final int REQUEST_VOICE = 4901;
     private static final int BG = 0xFF101114;
@@ -535,6 +536,8 @@ public class MusicHomeActivity extends MotherActivity {
                 subtitle = "Álbum";
             } else if (id.startsWith("mix:")) {
                 subtitle = "Canciones parecidas";
+            } else if (id.equals(HIDDEN_LISTS)) {
+                subtitle = "No parecen de música · mantén pulsada una para mostrarla";
             } else {
                 subtitle = countSongs(children);
             }
@@ -600,6 +603,32 @@ public class MusicHomeActivity extends MotherActivity {
             mController.getTransportControls().playFromMediaId(item.getMediaId(), null);
             showPlayer();
         }
+    }
+
+    /** Long press on a YouTube list: hide it from the music (it isn't music) or show it again. */
+    private boolean onItemLongClicked(MediaItem item) {
+        String id = item.getMediaId();
+        if (id == null || !id.startsWith("pl:") || mController == null) {
+            return false;
+        }
+        String playlistId = id.substring("pl:".length());
+        boolean inHidden = HIDDEN_LISTS.equals(mSubscribed);
+        String name = item.getDescription().getTitle() != null ? item.getDescription().getTitle().toString() : "esta lista";
+        new AlertDialog.Builder(this)
+                .setTitle(name)
+                .setMessage(inHidden
+                        ? "Esta lista está oculta porque no parece de música."
+                        : "¿No es una lista de música? Ocúltala y no saldrá en «Tus listas». La podrás recuperar en «Listas ocultas».")
+                .setPositiveButton(inHidden ? "Mostrar en la música" : "Ocultar", (dialog, which) -> {
+                    Bundle extras = new Bundle();
+                    extras.putString(CarMusicService.EXTRA_PLAYLIST, playlistId);
+                    mController.getTransportControls().sendCustomAction(
+                            inHidden ? CarMusicService.ACTION_SHOW_LIST : CarMusicService.ACTION_HIDE_LIST, extras);
+                    Toast.makeText(this, inHidden ? "Vuelve a salir en «Tus listas»" : "Lista ocultada", Toast.LENGTH_SHORT).show();
+                })
+                .setNegativeButton("Cancelar", null)
+                .show();
+        return true;
     }
 
     private String currentPlaceTitle() {
@@ -1168,6 +1197,7 @@ public class MusicHomeActivity extends MotherActivity {
                 MediaItem media = (MediaItem) item;
                 bindRow(view, media.getDescription(), media.isBrowsable(), isPlaying(media.getDescription()));
                 view.setOnClickListener(v -> onItemClicked(media));
+                view.setOnLongClickListener(v -> onItemLongClicked(media));
             }
         }
     }
@@ -1209,6 +1239,7 @@ public class MusicHomeActivity extends MotherActivity {
             bindArt(view.findViewById(R.id.music_card_art), description);
             view.findViewById(R.id.music_card_playing).setVisibility(isPlaying(description) ? View.VISIBLE : View.GONE);
             view.setOnClickListener(v -> onItemClicked(media));
+            view.setOnLongClickListener(v -> onItemLongClicked(media));
         }
     }
 }

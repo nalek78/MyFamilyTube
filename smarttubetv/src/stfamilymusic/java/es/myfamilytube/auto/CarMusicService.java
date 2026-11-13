@@ -70,6 +70,11 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
     private static final String GENRE = "gen:";
     private static final String ALBUM = "alb:";
     private static final String MIX = "mix:";
+    private static final String HIDDEN_LISTS = "hidden:lists";
+    /** From the phone (long press on a list): it isn't music / it is music. */
+    public static final String ACTION_HIDE_LIST = "es.myfamilymusic.HIDE_LIST";
+    public static final String ACTION_SHOW_LIST = "es.myfamilymusic.SHOW_LIST";
+    public static final String EXTRA_PLAYLIST = "playlist";
 
     private static final String STYLE_SUPPORTED = "android.media.browse.CONTENT_STYLE_SUPPORTED";
     private static final String STYLE_BROWSABLE = "android.media.browse.CONTENT_STYLE_BROWSABLE_HINT";
@@ -323,7 +328,11 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         } else if (TAB_HOME.equals(parentId)) {
             rows = kid ? content.getKidsHomeObserve() : content.getMusicObserve();
         } else if (TAB_LISTS.equals(parentId) && !kid) {
-            grid = content.getPlaylistsObserve();
+            musicPlaylists(false, null, MAX_ITEMS, done); // only the lists that are music
+            return;
+        } else if (HIDDEN_LISTS.equals(parentId) && !kid) {
+            musicPlaylists(true, null, MAX_ITEMS, done);
+            return;
         } else if (TAB_RECENT.equals(parentId) && !kid) {
             grid = content.getHistoryObserve();
         } else if (TAB_CHANNELS.equals(parentId)) {
@@ -367,6 +376,248 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         mHandler.postDelayed(() -> once.onItems(new ArrayList<>()), 20_000);
     }
 
+    // ---------------------------------------------------------------- music lists, recommendations and news
+
+    /** A list of songs found by the app (recommended, new…): one shelf whose songs are its queue. */
+    private List<MediaItem> videoItems(String listKey, List<Video> videos, String groupTitle) {
+        List<MediaItem> items = new ArrayList<>();
+        mLists.put(listKey, videos);
+        for (Video video : videos) {
+            items.add(playable(listKey, video, groupTitle));
+        }
+        return items;
+    }
+
+    private interface VideosDone {
+        void onVideos(List<List<Video>> lists);
+    }
+
+    /** Several YouTube requests at once; the videos of each (empty if it failed) when all arrive or time runs out. */
+    private void collectVideos(List<Observable<List<MediaGroup>>> sources, long timeoutMs, VideosDone done) {
+        List<List<Video>> results = new ArrayList<>();
+        for (int i = 0; i < sources.size(); i++) {
+            results.add(null);
+        }
+        int[] waiting = {sources.size()};
+        boolean[] sent = {false};
+        Runnable finish = () -> {
+            if (sent[0]) {
+                return;
+            }
+            sent[0] = true;
+            List<List<Video>> lists = new ArrayList<>();
+            for (List<Video> list : results) {
+                lists.add(list != null ? list : new ArrayList<>());
+            }
+            try {
+                done.onVideos(lists);
+            } catch (RuntimeException e) {
+                es.myfamilytube.FamilyDiagnostics.instance(this).log("Música: error al preparar una lista: " + e);
+            }
+        };
+        if (sources.isEmpty()) {
+            finish.run();
+            return;
+        }
+        for (int i = 0; i < sources.size(); i++) {
+            int index = i;
+            Runnable failed = () -> {
+                if (results.get(index) == null) {
+                    results.set(index, new ArrayList<>());
+                    if (--waiting[0] == 0) {
+                        finish.run();
+                    }
+                }
+            };
+            mActions.add(sources.get(i).subscribe(
+                    groups -> mHandler.post(() -> {
+                        if (results.get(index) == null) {
+                            results.set(index, videosOf(groups));
+                            if (--waiting[0] == 0) {
+                                finish.run();
+                            }
+                        }
+                    }),
+                    error -> mHandler.post(failed),
+                    () -> mHandler.post(failed)));
+        }
+        mHandler.postDelayed(finish, timeoutMs);
+    }
+
+    private static List<Video> videosOf(List<MediaGroup> groups) {
+        List<Video> videos = new ArrayList<>();
+        if (groups == null) {
+            return videos;
+        }
+        for (MediaGroup group : groups) {
+            if (group == null || group.getMediaItems() == null) {
+                continue;
+            }
+            for (com.liskovsoft.mediaserviceinterfaces.data.MediaItem item : group.getMediaItems()) {
+                Video video = item != null ? Video.from(item) : null;
+                if (video != null) {
+                    videos.add(video);
+                }
+            }
+        }
+        return videos;
+    }
+
+    /** A song that can go in a list: not live, not a Short, not too long, allowed for the profile. */
+    private static boolean playableSong(Video video) {
+        return video != null && video.videoId != null && !video.isLive && !video.isShorts
+                && video.getDurationMs() <= MAX_SONG_MS && ContentGate.allows(video);
+    }
+
+    /**
+     * The profile's YouTube lists that are music (hiddenOnly: the others). Lists not known yet are
+     * looked at first (their first videos), at most 10 s.
+     */
+    private void musicPlaylists(boolean hiddenOnly, String groupTitle, int max, Done done) {
+        Done once = once(done);
+        String profileId = profile().id;
+        mActions.add(content().getPlaylistsObserve().subscribe(
+                group -> mHandler.post(() -> {
+                    List<Video> lists = new ArrayList<>();
+                    List<Video> unknown = new ArrayList<>();
+                    List<Observable<List<MediaGroup>>> sources = new ArrayList<>();
+                    List<MediaGroup> groups = new ArrayList<>();
+                    groups.add(group);
+                    for (Video list : videosOf(groups)) {
+                        if (list.playlistId == null) {
+                            continue;
+                        }
+                        lists.add(list);
+                        if (MusicLists.isMusic(this, profileId, list) == null) {
+                            unknown.add(list);
+                            sources.add(asRows(playlistObserve(list)));
+                        }
+                    }
+                    collectVideos(sources, 10_000, contents -> {
+                        for (int i = 0; i < unknown.size(); i++) {
+                            if (!contents.get(i).isEmpty()) {
+                                MusicLists.saveAutomatic(this, unknown.get(i).playlistId, MusicLists.looksLikeMusic(this, contents.get(i)));
+                            }
+                        }
+                        List<MediaItem> items = new ArrayList<>();
+                        int hidden = 0;
+                        for (Video list : lists) {
+                            Boolean music = MusicLists.isMusic(this, profileId, list);
+                            boolean isHidden = Boolean.FALSE.equals(music); // not known yet: shown
+                            if (isHidden) {
+                                hidden++;
+                            }
+                            if (isHidden == hiddenOnly && items.size() < max) {
+                                items.add(folder(PLAYLIST + list.playlistId, list, groupTitle));
+                            }
+                        }
+                        if (!hiddenOnly && groupTitle == null && hidden > 0) {
+                            items.add(browsable(HIDDEN_LISTS, "Listas ocultas",
+                                    hidden == 1 ? "1 lista que no es de música" : hidden + " listas que no son de música",
+                                    Uri.parse("android.resource://" + getPackageName() + "/" + R.drawable.mobile_ic_library), null, STYLE_LIST));
+                        }
+                        once.onItems(items);
+                    });
+                }),
+                error -> mHandler.post(() -> once.onItems(new ArrayList<>())),
+                () -> mHandler.post(() -> once.onItems(new ArrayList<>()))));
+        mHandler.postDelayed(() -> once.onItems(new ArrayList<>()), 25_000);
+    }
+
+    /** Songs you haven't heard yet, from the mixes of what you listened to lately (different artists). */
+    private void recommended(String listKey, Done done) {
+        MusicTaste taste = taste();
+        List<MusicTaste.Song> seeds = new ArrayList<>();
+        List<String> artists = new ArrayList<>();
+        for (MusicTaste.Song song : taste.recent(40)) {
+            String artist = song.artist != null ? MusicArt.normalize(song.artist) : song.videoId;
+            if (!artists.contains(artist)) {
+                artists.add(artist);
+                seeds.add(song);
+            }
+            if (seeds.size() >= 3) {
+                break;
+            }
+        }
+        List<Observable<List<MediaGroup>>> sources = new ArrayList<>();
+        for (MusicTaste.Song seed : seeds) {
+            sources.add(asRows(mixObserve(seed.videoId)));
+        }
+        collectVideos(sources, 12_000, lists -> {
+            List<Video> picked = roundRobin(lists, 20, 20, video -> playableSong(video) && !taste.knows(video.videoId));
+            done.onItems(videoItems(listKey, picked, "Recomendadas para ti"));
+        });
+    }
+
+    /** What your artists have published lately (only their songs, not other people's videos about them). */
+    private void news(String listKey, List<String> artists, int perArtist, int max, String groupTitle, Done done) {
+        List<Observable<List<MediaGroup>>> sources = new ArrayList<>();
+        for (String artist : artists) {
+            sources.add(content().getSearchObserve(artist,
+                    SearchOptions.TYPE_VIDEO | SearchOptions.UPLOAD_DATE_THIS_YEAR | SearchOptions.SORT_BY_UPLOAD_DATE));
+        }
+        collectVideos(sources, 12_000, lists -> {
+            List<List<Video>> theirs = new ArrayList<>();
+            for (int i = 0; i < lists.size(); i++) {
+                List<Video> songs = new ArrayList<>();
+                for (Video video : lists.get(i)) {
+                    if (playableSong(video) && fromArtist(video, artists.get(i)) && MusicLists.looksLikeSong(this, video)) {
+                        songs.add(video);
+                    }
+                }
+                theirs.add(songs);
+            }
+            done.onItems(videoItems(listKey, roundRobin(theirs, perArtist, max, video -> true), groupTitle));
+        });
+    }
+
+    private static boolean fromArtist(Video video, String artist) {
+        return MusicArt.similar(MusicArt.cleanAuthor(video.getAuthor()), artist)
+                || MusicArt.similar(MusicArt.guess(video.getTitle(), video.getAuthor()).artist, artist);
+    }
+
+    private interface VideoFilter {
+        boolean accept(Video video);
+    }
+
+    /** One from each list in turn (so no list fills everything), without repeating songs. */
+    private static List<Video> roundRobin(List<List<Video>> lists, int perList, int max, VideoFilter filter) {
+        List<Video> picked = new ArrayList<>();
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        int[] next = new int[lists.size()];
+        int[] taken = new int[lists.size()];
+        boolean more = true;
+        while (more && picked.size() < max) {
+            more = false;
+            for (int i = 0; i < lists.size() && picked.size() < max; i++) {
+                List<Video> list = lists.get(i);
+                while (next[i] < list.size() && taken[i] < perList) {
+                    Video video = list.get(next[i]++);
+                    if (filter.accept(video) && seen.add(video.videoId)) {
+                        picked.add(video);
+                        taken[i]++;
+                        more = true;
+                        break;
+                    }
+                }
+            }
+        }
+        return picked;
+    }
+
+    /** From the phone: a list is hidden from the music, or shown again. */
+    private void setListIsMusic(String playlistId, boolean music) {
+        if (TextUtils.isEmpty(playlistId)) {
+            return;
+        }
+        MusicLists.setManual(this, profile().id, playlistId, music);
+        for (String id : new String[]{TAB_LISTS, TAB_FOR_YOU, HIDDEN_LISTS}) {
+            mChildren.remove(id);
+            mChildrenTime.remove(id);
+            notifyChildrenChanged(id);
+        }
+    }
+
     // ---------------------------------------------------------------- screens made of several shelves
 
     /** A shelf: songs already known on the phone, or something asked to YouTube. */
@@ -375,21 +626,32 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         final List<MediaItem> local;
         final Observable<List<MediaGroup>> rows;
         final int max;
+        final Loader loader;
 
-        private Part(String title, List<MediaItem> local, Observable<List<MediaGroup>> rows, int max) {
+        private Part(String title, List<MediaItem> local, Observable<List<MediaGroup>> rows, int max, Loader loader) {
             this.title = title;
             this.local = local;
             this.rows = rows;
             this.max = max;
+            this.loader = loader;
+        }
+
+        /** Built by the app itself (recommended, news, music lists). */
+        static Part custom(Loader loader) {
+            return new Part(null, null, null, 0, loader);
         }
 
         static Part local(List<MediaItem> items) {
-            return new Part(null, items, null, 0);
+            return new Part(null, items, null, 0, null);
         }
 
         static Part rows(String title, Observable<List<MediaGroup>> rows, int max) {
-            return new Part(title, null, rows, max);
+            return new Part(title, null, rows, max, null);
         }
+    }
+
+    private interface Loader {
+        void load(Done done);
     }
 
     private static Observable<List<MediaGroup>> asRows(Observable<MediaGroup> group) {
@@ -406,7 +668,8 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         List<List<MediaItem>> results = new ArrayList<>();
         int[] waiting = {0};
         for (int i = 0; i < parts.size(); i++) {
-            results.add(parts.get(i).rows == null ? parts.get(i).local : null);
+            Part part = parts.get(i);
+            results.add(part.rows == null && part.loader == null ? part.local : null);
         }
         Runnable finish = () -> {
             List<MediaItem> all = new ArrayList<>();
@@ -423,11 +686,22 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         };
         for (int i = 0; i < parts.size(); i++) {
             Part part = parts.get(i);
-            if (part.rows == null) {
+            if (part.rows == null && part.loader == null) {
                 continue;
             }
             waiting[0]++;
             int index = i;
+            if (part.loader != null) {
+                part.loader.load(items -> {
+                    if (results.get(index) == null) {
+                        results.set(index, items != null ? items : new ArrayList<>());
+                        if (--waiting[0] == 0) {
+                            finish.run();
+                        }
+                    }
+                });
+                continue;
+            }
             Runnable failed = () -> {
                 if (results.get(index) == null) {
                     results.set(index, new ArrayList<>());
@@ -466,6 +740,14 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         MusicTaste taste = taste();
         List<Part> parts = new ArrayList<>();
         parts.add(Part.local(localSongs(TAB_FOR_YOU + "#recent", taste.recent(15), "Escuchado recientemente")));
+        if (!taste.isEmpty()) {
+            parts.add(Part.custom(done -> recommended(TAB_FOR_YOU + "#rec", done)));
+            List<String> favourite = new ArrayList<>();
+            for (MusicTaste.Entry artist : taste.topArtists(6)) {
+                favourite.add(artist.name);
+            }
+            parts.add(Part.custom(done -> news(TAB_FOR_YOU + "#new", favourite, 3, 18, "Novedades de tus artistas", done)));
+        }
 
         List<MediaItem> mixes = new ArrayList<>();
         for (MusicTaste.Entry artist : taste.topArtists(6)) {
@@ -489,7 +771,7 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         }
         parts.add(Part.local(artists));
 
-        parts.add(Part.rows("Tus listas", asRows(content().getPlaylistsObserve()), MAX_PER_SHELF));
+        parts.add(Part.custom(done -> musicPlaylists(false, "Tus listas", MAX_PER_SHELF, done)));
         parts.add(Part.rows(null, content().getMusicObserve(), MAX_ITEMS));
         return parts;
     }
@@ -515,6 +797,9 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
             }
         }
         parts.add(Part.local(more));
+        List<String> one = new ArrayList<>();
+        one.add(name);
+        parts.add(Part.custom(done -> news(ARTIST + name + "#new", one, 10, 10, "Lo último de " + name, done)));
         parts.add(Part.rows("Más de " + name, content().getSearchObserve(name, SearchOptions.TYPE_VIDEO), 25));
         parts.add(Part.rows("Listas con " + name, content().getSearchObserve(name, SearchOptions.TYPE_PLAYLIST), 8));
         return parts;
@@ -1401,6 +1686,16 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         @Override
         public void onPlayFromSearch(String query, Bundle extras) {
             playFromSearch(query);
+        }
+
+        @Override
+        public void onCustomAction(String action, Bundle extras) {
+            String playlistId = extras != null ? extras.getString(EXTRA_PLAYLIST) : null;
+            if (ACTION_HIDE_LIST.equals(action)) {
+                setListIsMusic(playlistId, false);
+            } else if (ACTION_SHOW_LIST.equals(action)) {
+                setListIsMusic(playlistId, true);
+            }
         }
 
         @Override
