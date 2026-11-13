@@ -304,21 +304,27 @@ public class MusicHomeActivity extends MotherActivity {
     }
 
     /**
-     * The app runs full screen (like on the TV): without this, the top of the screen (search,
-     * title) goes under the front camera and the bottom under the system buttons.
+     * The app runs full screen (like on the TV). The background reaches the top edge, but the
+     * title / search bar, the list and the player's top move down just enough to stay clear
+     * of the front camera. Nothing at the bottom (the mini player stays where it is).
      */
     private void keepClearOfCameraAndBars(View root) {
+        View content = findViewById(R.id.music_content);
+        View playerContent = findViewById(R.id.music_player_content);
+        View queue = findViewById(R.id.music_queue);
+        int density8 = (int) (8 * getResources().getDisplayMetrics().density);
         root.setOnApplyWindowInsetsListener((view, insets) -> {
             int top = insets.getSystemWindowInsetTop();
-            int bottom = insets.getSystemWindowInsetBottom();
             if (android.os.Build.VERSION.SDK_INT >= 28 && insets.getDisplayCutout() != null) {
                 top = Math.max(top, insets.getDisplayCutout().getSafeInsetTop());
-                bottom = Math.max(bottom, insets.getDisplayCutout().getSafeInsetBottom());
             }
             if (top == 0) {
                 top = statusBarHeight(); // no cutout info: at least the status bar's height
             }
-            view.setPadding(0, top, 0, bottom);
+            content.setPadding(content.getPaddingLeft(), top, content.getPaddingRight(), 0);
+            playerContent.setPadding(playerContent.getPaddingLeft(), top + density8, playerContent.getPaddingRight(),
+                    playerContent.getPaddingBottom());
+            queue.setPadding(queue.getPaddingLeft(), top, queue.getPaddingRight(), 0);
             return insets;
         });
         root.requestApplyInsets();
