@@ -611,6 +611,10 @@ public class MobilePlayerActivity extends MotherActivity implements PlaybackView
     @Override
     protected void onDestroy() {
         mHandler.removeCallbacksAndMessages(null);
+        if (mShortsLoad != null) {
+            mShortsLoad.dispose();
+            mShortsLoad = null;
+        }
         releasePlayer();
         if (mPresenter.getView() == this) {
             mPresenter.onViewDestroyed();
@@ -1049,6 +1053,9 @@ public class MobilePlayerActivity extends MotherActivity implements PlaybackView
             if (!mInPip) {
                 applyOrientation(getResources().getConfiguration().orientation);
             }
+            if (vertical) {
+                topUpShorts(getVideo()); // a vertical video opened from elsewhere: more Shorts after it
+            }
         }
     }
 
@@ -1087,6 +1094,73 @@ public class MobilePlayerActivity extends MotherActivity implements PlaybackView
 
     // ---------------------------------------------------------------- video info
 
+    // ---------------------------------------------------------------- endless Shorts
+
+    /** The Shorts feed page loaded last (to ask YouTube for the next page). */
+    private com.liskovsoft.mediaserviceinterfaces.data.MediaGroup mShortsPage;
+    private io.reactivex.disposables.Disposable mShortsLoad;
+    /** Shorts already queued this time, so they don't come back. */
+    private final java.util.Set<String> mShortsSeen = new java.util.HashSet<>();
+
+    /**
+     * Swiping through Shorts: when only a few are left in the queue, more new ones are added
+     * from YouTube's Shorts feed (page after page), so it never goes back to the first one.
+     */
+    private void topUpShorts(Video current) {
+        if (current == null || !(current.isShorts || mVertical) || mShortsLoad != null) {
+            return;
+        }
+        com.liskovsoft.smartyoutubetv2.common.app.models.data.Playlist playlist =
+                com.liskovsoft.smartyoutubetv2.common.app.models.data.Playlist.instance();
+        for (Video queued : playlist.getAll()) {
+            if (queued != null && queued.videoId != null) {
+                mShortsSeen.add(queued.videoId);
+            }
+        }
+        if (playlist.getAllAfterCurrent().size() > 3) {
+            return;
+        }
+        com.liskovsoft.mediaserviceinterfaces.ContentService content =
+                com.liskovsoft.youtubeapi.service.YouTubeServiceManager.instance().getContentService();
+        io.reactivex.Observable<com.liskovsoft.mediaserviceinterfaces.data.MediaGroup> source =
+                mShortsPage != null ? content.continueGroupObserve(mShortsPage) : content.getShortsObserve();
+        mShortsLoad = source.subscribe(
+                group -> runOnUiThread(() -> {
+                    mShortsLoad = null;
+                    addShorts(group);
+                }),
+                error -> runOnUiThread(() -> {
+                    mShortsLoad = null;
+                    mShortsPage = null; // start from the first page next time
+                }),
+                () -> runOnUiThread(() -> mShortsLoad = null));
+    }
+
+    private void addShorts(com.liskovsoft.mediaserviceinterfaces.data.MediaGroup group) {
+        if (isFinishing() || group == null || group.getMediaItems() == null) {
+            mShortsPage = null;
+            return;
+        }
+        mShortsPage = group;
+        List<Video> fresh = new ArrayList<>();
+        for (com.liskovsoft.mediaserviceinterfaces.data.MediaItem item : group.getMediaItems()) {
+            Video video = Video.from(item);
+            if (video == null || video.videoId == null || mShortsSeen.contains(video.videoId)
+                    || !com.liskovsoft.smartyoutubetv2.common.misc.ContentGate.allows(video)) {
+                continue;
+            }
+            video.isShorts = true;
+            mShortsSeen.add(video.videoId);
+            fresh.add(video);
+        }
+        if (!fresh.isEmpty()) {
+            com.liskovsoft.smartyoutubetv2.common.app.models.data.Playlist.instance().addAll(fresh);
+        } else {
+            // Nothing new on this page: try the next one
+            topUpShorts(getVideo());
+        }
+    }
+
     private void showVideoInfo(Video video) {
         if (video == null) {
             return;
@@ -1097,6 +1171,7 @@ public class MobilePlayerActivity extends MotherActivity implements PlaybackView
         } else if (mPlayer == null || mPlayer.getVideoFormat() == null) {
             setVertical(false);
         }
+        topUpShorts(video);
         String title = video.getTitleFull() != null ? video.getTitleFull() : video.getTitle();
         mTitle.setText(title);
         mOverlayTitle.setText(title);
