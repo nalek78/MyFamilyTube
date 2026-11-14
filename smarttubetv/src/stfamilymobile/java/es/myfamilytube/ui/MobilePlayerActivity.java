@@ -303,7 +303,11 @@ public class MobilePlayerActivity extends MotherActivity implements PlaybackView
         @Override
         public void onPlayerStateChanged(boolean playWhenReady, int playbackState) {
             updatePlayButton();
-            mBuffering.setVisibility(playbackState == Player.STATE_BUFFERING ? View.VISIBLE : View.GONE);
+            if (playbackState == Player.STATE_READY) {
+                preloadNextShort();
+            }
+            boolean covered = mCover != null && mCover.getVisibility() == View.VISIBLE;
+            mBuffering.setVisibility(playbackState == Player.STATE_BUFFERING && !covered ? View.VISIBLE : View.GONE);
             mVideoFrame.setKeepScreenOn(playWhenReady && playbackState != Player.STATE_ENDED && playbackState != Player.STATE_IDLE);
             updatePipActions();
             MobilePlaybackService.update(MobilePlayerActivity.this);
@@ -1036,6 +1040,11 @@ public class MobilePlayerActivity extends MotherActivity implements PlaybackView
     private final com.google.android.exoplayer2.video.VideoListener mVideoSizeListener =
             new com.google.android.exoplayer2.video.VideoListener() {
                 @Override
+                public void onRenderedFirstFrame() {
+                    hideCover();
+                }
+
+                @Override
                 public void onVideoSizeChanged(int width, int height, int unappliedRotationDegrees, float pixelWidthHeightRatio) {
                     if (width <= 0 || height <= 0) {
                         return;
@@ -1161,9 +1170,73 @@ public class MobilePlayerActivity extends MotherActivity implements PlaybackView
         }
     }
 
+    // ---------------------------------------------------------------- smooth change between Shorts
+
+    private ImageView mCover;
+    private String mShownVideoId;
+    private final Runnable mHideCover = this::hideCover;
+
+    /** Swiping to another Short: its picture shows at once, until its first frame is ready. */
+    private void showCover(Video video) {
+        if (mCover == null) {
+            mCover = findViewById(R.id.mobile_player_cover);
+        }
+        String url = video.getCardImageUrl();
+        if (mCover == null || TextUtils.isEmpty(url)) {
+            return;
+        }
+        com.bumptech.glide.Glide.with(mCover).load(url).centerCrop().into(mCover);
+        mCover.setVisibility(View.VISIBLE);
+        mBuffering.setVisibility(View.GONE);
+        mHandler.removeCallbacks(mHideCover);
+        mHandler.postDelayed(mHideCover, 8000); // never stays forever
+    }
+
+    private String mPreloadedAfter;
+
+    /**
+     * While a Short plays, YouTube's data for the next one is asked for in advance (it stays
+     * ready in memory), so swiping to it skips that wait.
+     */
+    private void preloadNextShort() {
+        Video current = getVideo();
+        if (!mVertical || current == null || current.videoId == null || current.videoId.equals(mPreloadedAfter)) {
+            return;
+        }
+        mPreloadedAfter = current.videoId;
+        Video next = com.liskovsoft.smartyoutubetv2.common.app.models.data.Playlist.instance().getNext();
+        if (next != null && next.videoId != null && !next.videoId.equals(current.videoId)) {
+            // A moment later, so the current one isn't slowed down
+            mHandler.postDelayed(() -> {
+                if (!isFinishing()) {
+                    com.liskovsoft.smartyoutubetv2.common.misc.MediaServiceManager.instance()
+                            .loadFormatInfo(next, info -> { });
+                }
+            }, 1500);
+        }
+    }
+
+    private void hideCover() {
+        mHandler.removeCallbacks(mHideCover);
+        if (mCover != null && mCover.getVisibility() == View.VISIBLE) {
+            mCover.setVisibility(View.GONE);
+            if (mPlayer != null && mPlayer.getPlaybackState() == Player.STATE_BUFFERING) {
+                mBuffering.setVisibility(View.VISIBLE);
+            }
+        }
+    }
+
     private void showVideoInfo(Video video) {
         if (video == null) {
             return;
+        }
+        boolean newVideo = video.videoId != null && !video.videoId.equals(mShownVideoId);
+        if (newVideo) {
+            boolean wasShort = mVertical;
+            mShownVideoId = video.videoId;
+            if (video.isShorts || wasShort) {
+                showCover(video);
+            }
         }
         // Shorts are known before the first frame: lay out vertically at once (the real size confirms it)
         if (video.isShorts) {
@@ -1392,6 +1465,9 @@ public class MobilePlayerActivity extends MotherActivity implements PlaybackView
 
     @Override
     public void showProgressBar(boolean show) {
+        if (show && mCover != null && mCover.getVisibility() == View.VISIBLE) {
+            return; // the next Short's picture is showing instead
+        }
         if (mController.isLoading() || mController.isBuffering()) {
             return; // the player shows its own buffering
         }

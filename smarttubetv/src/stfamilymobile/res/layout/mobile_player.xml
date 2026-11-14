@@ -19,9 +19,20 @@
             android:id="@+id/mobile_player_view"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
+            app:keep_content_on_player_reset="true"
             app:resize_mode="fit"
             app:shutter_background_color="@android:color/black"
             app:use_controller="false" />
+
+        <!-- Next Short's picture while it starts: no black screen nor spinner between Shorts -->
+        <ImageView
+            android:id="@+id/mobile_player_cover"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@android:color/black"
+            android:importantForAccessibility="no"
+            android:scaleType="centerCrop"
+            android:visibility="gone" />
 
         <!-- Takes the taps: one tap shows/hides the controls, a double tap jumps 10 s -->
         <View

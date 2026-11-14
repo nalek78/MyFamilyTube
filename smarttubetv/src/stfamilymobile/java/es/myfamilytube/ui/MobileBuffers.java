@@ -35,7 +35,7 @@ public final class MobileBuffers {
                 break;
         }
         DefaultLoadControl.Builder builder = new DefaultLoadControl.Builder()
-                .setBufferDurationsMs(min, max, 2_500, 5_000)
+                .setBufferDurationsMs(min, max, 1_200, 3_000) // starts sooner (Shorts change quickly)
                 .setTargetBufferBytes(maxBytes); // never more than the phone can spare
         if (back > 0) {
             builder.setBackBuffer(back, true);
