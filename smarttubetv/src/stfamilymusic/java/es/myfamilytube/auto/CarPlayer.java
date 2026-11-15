@@ -201,8 +201,42 @@ final class CarPlayer implements PlaybackView, BasePresenter.Headless {
         mPresenter = PlaybackPresenter.instance(mContext);
     }
 
+    // ---------------------------------------------------------------- the Chromecast
+
+    private CastController mRemote;
+    private Video mRemoteVideo;
+
+    void setRemote(CastController remote) {
+        mRemote = remote;
+    }
+
+    /** The song is playing on the Chromecast (the phone stays quiet). */
+    boolean isRemote() {
+        return mRemoteVideo != null && mRemote != null && mRemote.isCasting();
+    }
+
+    /** From now on this song plays on the Chromecast: the phone's players stop. */
+    void playRemote(Video video) {
+        stopLocal();
+        if (mController != null && mPresenter.getView() == this) {
+            mController.setPlayWhenReady(false);
+        }
+        mRemoteVideo = video;
+        mListener.onStateChanged();
+    }
+
+    void stopRemote() {
+        mRemoteVideo = null;
+    }
+
+    /** The song that was sent to the Chromecast (also after the connection ended). */
+    Video remoteVideo() {
+        return mRemoteVideo;
+    }
+
     /** Takes the engine (the phone player, if open, gives it up) and plays the video. */
     void play(Video video) {
+        stopRemote();
         stopLocal();
         ensureEngine();
         mPresenter.setView(this);
@@ -210,7 +244,7 @@ final class CarPlayer implements PlaybackView, BasePresenter.Headless {
     }
 
     boolean isActive() {
-        return mLocalVideo != null || (mPlayer != null && mPresenter.getView() == this);
+        return isRemote() || mLocalVideo != null || (mPlayer != null && mPresenter.getView() == this);
     }
 
     // ---------------------------------------------------------------- songs already on the phone
@@ -235,6 +269,7 @@ final class CarPlayer implements PlaybackView, BasePresenter.Headless {
     };
 
     void playLocal(Video video, java.io.File file) {
+        stopRemote();
         // The engine stays quiet meanwhile
         if (mController != null && mPresenter.getView() == this) {
             mController.setPlayWhenReady(false);
@@ -272,14 +307,23 @@ final class CarPlayer implements PlaybackView, BasePresenter.Headless {
     // What the car shows and controls, whichever of the two is playing
 
     Video current() {
+        if (isRemote()) {
+            return mRemoteVideo;
+        }
         return mLocalVideo != null ? mLocalVideo : getVideo();
     }
 
     long uiPosition() {
+        if (isRemote()) {
+            return mRemote.position();
+        }
         return mLocalVideo != null ? mLocal.getCurrentPosition() : getPositionMs();
     }
 
     long uiDuration() {
+        if (isRemote()) {
+            return mRemote.duration();
+        }
         if (mLocalVideo != null) {
             long duration = mLocal.getDuration();
             return duration == C.TIME_UNSET ? 0 : duration;
@@ -288,26 +332,50 @@ final class CarPlayer implements PlaybackView, BasePresenter.Headless {
     }
 
     long uiBuffered() {
+        if (isRemote()) {
+            return mRemote.position();
+        }
         return mLocalVideo != null ? mLocal.getBufferedPosition() : getBufferedPositionMs();
     }
 
     int uiState() {
+        if (isRemote()) {
+            return mRemote.isBuffering() ? Player.STATE_BUFFERING : Player.STATE_READY;
+        }
         return mLocalVideo != null ? mLocal.getPlaybackState() : getPlaybackState();
     }
 
     boolean uiPlayWhenReady() {
+        if (isRemote()) {
+            return mRemote.wantsToPlay();
+        }
         return mLocalVideo != null ? mLocal.getPlayWhenReady() : getPlayWhenReady();
     }
 
     boolean uiIsPlaying() {
+        if (isRemote()) {
+            return mRemote.isPlaying();
+        }
         return mLocalVideo != null ? mLocal.getPlayWhenReady() && mLocal.getPlaybackState() == Player.STATE_READY : isPlaying();
     }
 
     boolean uiHasMedia() {
+        if (isRemote()) {
+            return true;
+        }
         return mLocalVideo != null || containsMedia();
     }
 
     void uiSetPlayWhenReady(boolean play) {
+        if (isRemote()) {
+            if (play) {
+                mRemote.play();
+            } else {
+                mRemote.pause();
+            }
+            mListener.onStateChanged();
+            return;
+        }
         if (mLocalVideo != null) {
             mLocal.setPlayWhenReady(play);
             mListener.onStateChanged();
@@ -317,6 +385,10 @@ final class CarPlayer implements PlaybackView, BasePresenter.Headless {
     }
 
     void uiSeek(long positionMs) {
+        if (isRemote()) {
+            mRemote.seek(positionMs);
+            return;
+        }
         if (mLocalVideo != null) {
             mLocal.seekTo(positionMs);
         } else {

@@ -310,4 +310,7 @@ dependencies {
     implementation 'org.conscrypt:conscrypt-android:' + conscryptVersion
 
     implementation 'androidx.work:work-runtime:' + workVersion
+
+    // My Family Music: send the music to a Chromecast (Google Cast)
+    stfamilymusicImplementation 'com.google.android.gms:play-services-cast-framework:21.4.0'
 }

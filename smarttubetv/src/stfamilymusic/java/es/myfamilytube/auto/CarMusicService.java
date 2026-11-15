@@ -152,6 +152,9 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
     }
 
     private void applyVideoMode(boolean on) {
+        if (on && mPlayer.isRemote()) {
+            return; // on the Chromecast: only the sound
+        }
         if (mPlayer.isVideoMode() == on) {
             return;
         }
@@ -173,6 +176,104 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         }
     }
 
+    // ---------------------------------------------------------------- Chromecast
+
+    private CastController mCast;
+    private final CastBridge mBridge = new CastBridge();
+    private androidx.media.VolumeProviderCompat mCastVolume;
+    private static final int CAST_VOLUME_STEPS = 20;
+
+    /** The device the music is being sent to (null: not sending). For the phone screen. */
+    public static String castDeviceName() {
+        CarMusicService service = sInstance;
+        return service != null && service.mCast != null && service.mCast.isCasting() ? service.mCast.deviceName() : null;
+    }
+
+    /** The song on the Chromecast: the phone gets it ready and hands it over the Wi-Fi. */
+    private void castSong(Video video, long startMs, boolean play) {
+        mPlayer.playRemote(video);
+        String videoId = video.videoId;
+        MusicArt.Info info = MusicArt.cached(this, videoId);
+        String title = songTitle(video);
+        String artist = songArtist(video);
+        String album = info != null ? info.album : null;
+        String image = info != null && info.artUrl != null ? info.artUrl : "https://i.ytimg.com/vi/" + videoId + "/hqdefault.jpg";
+        mBridge.prepare(videoId, (url, mime) -> mHandler.post(() -> {
+            Video current = mPlayer.isRemote() ? mPlayer.current() : null;
+            if (current == null || !videoId.equals(current.videoId) || mCast == null || !mCast.isCasting()) {
+                return; // another song meanwhile, or no longer sending
+            }
+            if (url == null) {
+                showError("Para enviar al Chromecast, el móvil tiene que estar en la misma Wi‑Fi");
+                return;
+            }
+            mCast.load(url, mime, title, artist, album, image, startMs, play);
+            updateState();
+        }));
+    }
+
+    private final CastController.Listener mCastListener = new CastController.Listener() {
+        @Override
+        public void onCastStarted(String deviceName) {
+            // What was playing on the phone goes on on the Chromecast, at the same point
+            Video current = mPlayer.isActive() ? mPlayer.current() : null;
+            long position = current != null ? mPlayer.uiPosition() : 0;
+            if (current != null && current.videoId != null) {
+                castSong(current, position, true);
+            }
+            int volume = (int) Math.round(mCast.volume() * CAST_VOLUME_STEPS);
+            mCastVolume = new androidx.media.VolumeProviderCompat(androidx.media.VolumeProviderCompat.VOLUME_CONTROL_ABSOLUTE,
+                    CAST_VOLUME_STEPS, volume) {
+                @Override
+                public void onSetVolumeTo(int value) {
+                    int clamped = Math.max(0, Math.min(CAST_VOLUME_STEPS, value));
+                    mCast.setVolume(clamped / (double) CAST_VOLUME_STEPS);
+                    setCurrentVolume(clamped);
+                }
+
+                @Override
+                public void onAdjustVolume(int direction) {
+                    onSetVolumeTo(getCurrentVolume() + direction);
+                }
+            };
+            mSession.setPlaybackToRemote(mCastVolume); // the phone's volume buttons control the Chromecast
+            updateState();
+        }
+
+        @Override
+        public void onCastEnded(long positionMs) {
+            mSession.setPlaybackToLocal(android.media.AudioManager.STREAM_MUSIC);
+            mCastVolume = null;
+            Video current = mPlayer.remoteVideo();
+            mPlayer.stopRemote();
+            if (current != null && current.videoId != null) {
+                // The same song on the phone, paused at the same point (like YouTube Music)
+                Playlist playlist = Playlist.instance();
+                playlist.clear();
+                playlist.add(current);
+                playlist.setCurrent(current);
+                current.fromQueue = true;
+                mPlayer.play(current);
+                mPlayer.setPlayWhenReady(false);
+                mPendingSeekMs = positionMs;
+            }
+            updateState();
+        }
+
+        @Override
+        public void onRemoteState() {
+            updateState();
+        }
+
+        @Override
+        public void onRemoteFinished(boolean error) {
+            if (error) {
+                es.myfamilytube.FamilyDiagnostics.instance(CarMusicService.this).log("Chromecast: no se pudo reproducir una canción");
+            }
+            onFinishRequested(); // the next one (also on the Chromecast)
+        }
+    };
+
     /** The phone player opened a video: the car stops (both share the engine). */
     public static void onPhonePlayerOpened() {
         CarMusicService service = sInstance;
@@ -186,6 +287,8 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         super.onCreate();
         sInstance = this;
         mPlayer = new CarPlayer(this, this);
+        mCast = CastController.create(this, mCastListener);
+        mPlayer.setRemote(mCast);
         mCache = new CarSongCache(this);
         mPlayer.setSongDir(mCache.dir());
         mSession = new MediaSessionCompat(this, "MyFamilyTubeCar");
@@ -208,6 +311,10 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         stopPlayback(true);
         mCache.shutdown();
         mWorker.shutdownNow();
+        if (mCast != null) {
+            mCast.release();
+        }
+        mBridge.stop();
         mSession.release();
         super.onDestroy();
     }
@@ -1327,8 +1434,17 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
             return;
         }
         mError = null;
-        File saved = mPlayer.isVideoMode() ? null : mCache.get(video.videoId); // the saved copy has no picture
         mPendingSeekMs = -1;
+        if (mCast != null && mCast.isCasting()) {
+            // Sending to the Chromecast: the song plays there
+            castSong(video, 0, true);
+            updateState();
+            updateSessionQueue();
+            updateCache();
+            lookUpSong(video);
+            return;
+        }
+        File saved = mPlayer.isVideoMode() ? null : mCache.get(video.videoId); // the saved copy has no picture
         if (saved != null) {
             // Already on the phone: plays even without coverage
             mPlayer.playLocal(video, saved);
@@ -1620,7 +1736,7 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
 
     @Override
     public void onStateChanged() {
-        if (mPendingSeekMs >= 0 && !mPlayer.isLocal() && mPlayer.uiState() == com.google.android.exoplayer2.Player.STATE_READY) {
+        if (mPendingSeekMs >= 0 && !mPlayer.isLocal() && !mPlayer.isRemote() && mPlayer.uiState() == com.google.android.exoplayer2.Player.STATE_READY) {
             long position = mPendingSeekMs;
             mPendingSeekMs = -1;
             mPlayer.uiSeek(position); // went on from the saved copy: same point of the song

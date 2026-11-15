@@ -63,6 +63,14 @@
                 android:textStyle="bold" />
 
             <ImageView
+                android:id="@+id/music_cast"
+                style="@style/MobileIconButton"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:contentDescription="Enviar a un Chromecast"
+                android:src="@drawable/music_ic_cast" />
+
+            <ImageView
                 android:id="@+id/music_search"
                 style="@style/MobileIconButton"
                 android:layout_width="48dp"
@@ -357,8 +365,20 @@
                         android:id="@+id/music_player_source"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
+                        android:layout_gravity="center"
+                        android:ellipsize="end"
+                        android:fontFamily="sans-serif-medium"
+                        android:singleLine="true"
+                        android:textColor="@color/music_accent"
+                        android:textSize="14sp"
                         android:visibility="gone" />
                 </FrameLayout>
+
+                <ImageView
+                    android:id="@+id/music_player_cast"
+                    style="@style/MobileIconButton"
+                    android:contentDescription="Enviar a un Chromecast"
+                    android:src="@drawable/music_ic_cast" />
 
                 <ImageView
                     android:id="@+id/music_player_queue"

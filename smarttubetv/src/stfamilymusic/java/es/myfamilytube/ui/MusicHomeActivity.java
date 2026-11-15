@@ -182,6 +182,7 @@ public class MusicHomeActivity extends MotherActivity {
         findViewById(R.id.music_more).setOnClickListener(v -> showMoreMenu());
         mBack.setOnClickListener(v -> onBackPressed());
         findViewById(R.id.music_search).setOnClickListener(v -> openSearch());
+        findViewById(R.id.music_cast).setOnClickListener(v -> MusicCastDialog.show(this));
         findViewById(R.id.music_search_close).setOnClickListener(v -> closeSearch());
         findViewById(R.id.music_mic).setOnClickListener(v -> startVoiceSearch());
         mSearchField.setOnEditorActionListener((v, actionId, event) -> {
@@ -247,6 +248,7 @@ public class MusicHomeActivity extends MotherActivity {
         mHandler.postDelayed(() -> MobileUpdates.checkOnce(this), 2000);
         mHandler.post(mTicker);
         mResumed = true;
+        showCastState();
         applyVideo();
     }
 
@@ -876,6 +878,7 @@ public class MusicHomeActivity extends MotherActivity {
         findViewById(R.id.music_mini_next).setOnClickListener(v -> skipToNext());
         findViewById(R.id.music_player_close).setOnClickListener(v -> hidePlayer());
         findViewById(R.id.music_player_add).setOnClickListener(v -> addPlayingToList());
+        findViewById(R.id.music_player_cast).setOnClickListener(v -> MusicCastDialog.show(this));
         mModeSong.setOnClickListener(v -> setVideoWanted(false));
         mModeVideo.setOnClickListener(v -> setVideoWanted(true));
         mModeSong.setActivated(true);
@@ -942,7 +945,7 @@ public class MusicHomeActivity extends MotherActivity {
     private void applyVideo() {
         mModeSong.setActivated(!mVideoWanted);
         mModeVideo.setActivated(mVideoWanted);
-        boolean on = mVideoWanted && mResumed && !mPlayerClosing
+        boolean on = mVideoWanted && mResumed && !mPlayerClosing && CarMusicService.castDeviceName() == null
                 && (mFullscreen || mPlayer.getVisibility() == View.VISIBLE);
         mVideoBox.setVisibility(on && !mFullscreen ? View.VISIBLE : View.GONE);
         mPlayerArt.setVisibility(on && !mFullscreen ? View.INVISIBLE : View.VISIBLE);
@@ -961,6 +964,32 @@ public class MusicHomeActivity extends MotherActivity {
             CarMusicService.setVideoMode(false);
             CarMusicService.setVideoView(null, null);
         }
+    }
+
+    // ---------------------------------------------------------------- Chromecast
+
+    private boolean mWasCasting;
+
+    /** The cast buttons and «Sonando en …»; returns the device the music is sent to (or null). */
+    private String showCastState() {
+        String device = CarMusicService.castDeviceName();
+        boolean casting = device != null;
+        int icon = casting ? R.drawable.music_ic_cast_on : R.drawable.music_ic_cast;
+        ((ImageView) findViewById(R.id.music_cast)).setImageResource(icon);
+        ((ImageView) findViewById(R.id.music_player_cast)).setImageResource(icon);
+        findViewById(R.id.music_player_modes).setVisibility(casting ? View.GONE : View.VISIBLE); // only the sound there
+        mPlayerSource.setVisibility(casting ? View.VISIBLE : View.GONE);
+        if (casting) {
+            mPlayerSource.setText("Sonando en " + device);
+        }
+        if (casting != mWasCasting) {
+            mWasCasting = casting;
+            if (casting) {
+                exitFullscreen();
+            }
+            applyVideo();
+        }
+        return device;
     }
 
     // ---------------------------------------------------------------- full screen
@@ -1110,7 +1139,6 @@ public class MusicHomeActivity extends MotherActivity {
         if (mPlayer.getVisibility() == View.VISIBLE) {
             return;
         }
-        mPlayerSource.setText(mSource);
         mPlayer.setVisibility(View.VISIBLE);
         mPlayer.setTranslationY(getResources().getDisplayMetrics().heightPixels * 0.25f);
         mPlayer.setAlpha(0f);
@@ -1169,6 +1197,7 @@ public class MusicHomeActivity extends MotherActivity {
         if (mController == null) {
             return;
         }
+        showCastState();
         MediaMetadataCompat metadata = mController.getMetadata();
         PlaybackStateCompat state = mController.getPlaybackState();
         boolean hasSong = metadata != null && !TextUtils.isEmpty(metadata.getString(MediaMetadataCompat.METADATA_KEY_TITLE));
@@ -1200,7 +1229,10 @@ public class MusicHomeActivity extends MotherActivity {
         mPlayerAlbum.setVisibility(TextUtils.isEmpty(album) ? View.GONE : View.VISIBLE);
         if (TextUtils.isEmpty(mSource)) {
             mSource = getString(R.string.app_name);
-            mPlayerSource.setText(mSource);
+        }
+        String castDevice = showCastState();
+        if (castDevice != null) {
+            mMiniArtist.setText(TextUtils.isEmpty(artist) ? "En " + castDevice : artist + " · En " + castDevice);
         }
         String art = metadata.getString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI);
         if (art != null) {
