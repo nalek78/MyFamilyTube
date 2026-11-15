@@ -105,6 +105,15 @@ public class MusicHomeActivity extends MotherActivity {
     private ImageView mPlayerPlay;
     private View mQueue;
     private boolean mSeeking;
+    private View mVideoBox;
+    private android.view.TextureView mVideoView;
+    private TextView mModeSong;
+    private TextView mModeVideo;
+    /** «Vídeo» chosen; the picture plays only while the full player is on screen. */
+    private boolean mVideoWanted;
+    private boolean mResumed;
+    private boolean mPlayerClosing;
+    private float mVideoAspect = 16f / 9f;
 
     private final MusicAdapter mAdapter = new MusicAdapter();
     private final QueueAdapter mQueueAdapter = new QueueAdapter();
@@ -222,12 +231,16 @@ public class MusicHomeActivity extends MotherActivity {
         }
         mHandler.postDelayed(() -> MobileUpdates.checkOnce(this), 2000);
         mHandler.post(mTicker);
+        mResumed = true;
+        applyVideo();
     }
 
     @Override
     protected void onPause() {
         super.onPause();
         mHandler.removeCallbacks(mTicker);
+        mResumed = false;
+        applyVideo(); // in the background: only the sound
     }
 
     @Override
@@ -299,6 +312,11 @@ public class MusicHomeActivity extends MotherActivity {
         mPlayerDuration = findViewById(R.id.music_player_duration);
         mPlayerPlay = findViewById(R.id.music_player_play);
         mQueue = findViewById(R.id.music_queue);
+        mVideoBox = findViewById(R.id.music_player_video_box);
+        mVideoView = findViewById(R.id.music_player_video);
+        mModeSong = findViewById(R.id.music_mode_song);
+        mModeVideo = findViewById(R.id.music_mode_video);
+        mVideoBox.setClipToOutline(true);
         clipToRoundedBackground(mMiniArt);
         clipToRoundedBackground(mPlayerArt);
     }
@@ -378,6 +396,7 @@ public class MusicHomeActivity extends MotherActivity {
                 mController.registerCallback(mControllerCallback);
                 showPlayback();
                 showQueue();
+                applyVideo();
             } catch (Exception e) {
                 // without controls the lists still work
             }
@@ -830,6 +849,9 @@ public class MusicHomeActivity extends MotherActivity {
         findViewById(R.id.music_mini_next).setOnClickListener(v -> skipToNext());
         findViewById(R.id.music_player_close).setOnClickListener(v -> hidePlayer());
         findViewById(R.id.music_player_add).setOnClickListener(v -> addPlayingToList());
+        mModeSong.setOnClickListener(v -> setVideoWanted(false));
+        mModeVideo.setOnClickListener(v -> setVideoWanted(true));
+        mModeSong.setActivated(true);
         findViewById(R.id.music_player_queue).setOnClickListener(v -> {
             showQueue();
             mQueue.setVisibility(View.VISIBLE);
@@ -874,7 +896,61 @@ public class MusicHomeActivity extends MotherActivity {
                 params.height = size;
                 mPlayerArt.post(() -> mPlayerArt.setLayoutParams(params));
             }
+            mPlayerArtBox.post(this::sizeVideoBox);
         });
+    }
+
+    // ---------------------------------------------------------------- «Canción | Vídeo»
+
+    private void setVideoWanted(boolean video) {
+        mVideoWanted = video;
+        applyVideo();
+    }
+
+    /**
+     * The picture only while the full player is on screen and «Vídeo» is chosen. Closing the
+     * player or leaving the app goes back to the sound only (much less data); the music goes on.
+     */
+    private void applyVideo() {
+        mModeSong.setActivated(!mVideoWanted);
+        mModeVideo.setActivated(mVideoWanted);
+        boolean on = mVideoWanted && mResumed && !mPlayerClosing && mPlayer.getVisibility() == View.VISIBLE;
+        mVideoBox.setVisibility(on ? View.VISIBLE : View.GONE);
+        mPlayerArt.setVisibility(on ? View.INVISIBLE : View.VISIBLE);
+        if (on) {
+            CarMusicService.setVideoView(mVideoView, (width, height, ratio) -> mHandler.post(() -> {
+                if (width > 0 && height > 0) {
+                    mVideoAspect = width * (ratio > 0 ? ratio : 1f) / height;
+                    sizeVideoBox();
+                }
+            }));
+            CarMusicService.setVideoMode(true);
+            sizeVideoBox();
+        } else {
+            CarMusicService.setVideoMode(false);
+            CarMusicService.setVideoView(null, null);
+        }
+    }
+
+    /** The picture as big as fits in the cover's space, without stretching. */
+    private void sizeVideoBox() {
+        int width = mPlayerArtBox.getWidth();
+        int height = mPlayerArtBox.getHeight();
+        if (width <= 0 || height <= 0) {
+            return;
+        }
+        int videoWidth = width;
+        int videoHeight = Math.round(width / mVideoAspect);
+        if (videoHeight > height) {
+            videoHeight = height;
+            videoWidth = Math.round(height * mVideoAspect);
+        }
+        ViewGroup.LayoutParams params = mVideoBox.getLayoutParams();
+        if (params.width != videoWidth || params.height != videoHeight) {
+            params.width = videoWidth;
+            params.height = videoHeight;
+            mVideoBox.setLayoutParams(params);
+        }
     }
 
     private void skipToNext() {
@@ -894,12 +970,16 @@ public class MusicHomeActivity extends MotherActivity {
         mPlayer.animate().translationY(0).alpha(1f).setDuration(220).start();
         mPlayerTitle.setSelected(true); // long titles scroll
         updateProgress();
+        applyVideo();
     }
 
     private void hidePlayer() {
         mQueue.setVisibility(View.GONE);
+        mPlayerClosing = true;
+        applyVideo(); // back to the sound only
         mPlayer.animate().translationY(getResources().getDisplayMetrics().heightPixels * 0.25f).alpha(0f).setDuration(180)
                 .withEndAction(() -> {
+                    mPlayerClosing = false;
                     mPlayer.setVisibility(View.GONE);
                     mPlayer.setTranslationY(0);
                     mPlayer.setAlpha(1f);

@@ -304,32 +304,61 @@
                     android:rotation="-90"
                     android:src="@drawable/mobile_ic_back" />
 
-                <LinearLayout
+                <!-- «Canción | Vídeo», like YouTube Music -->
+                <FrameLayout
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:gravity="center"
-                    android:orientation="vertical">
+                    android:layout_weight="1">
 
-                    <TextView
+                    <LinearLayout
+                        android:id="@+id/music_player_modes"
                         android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:letterSpacing="0.1"
-                        android:text="REPRODUCIENDO"
-                        android:textColor="#B3FFFFFF"
-                        android:textSize="11sp" />
+                        android:layout_height="38dp"
+                        android:layout_gravity="center"
+                        android:background="@drawable/music_mode_bar_bg"
+                        android:orientation="horizontal"
+                        android:padding="3dp">
 
+                        <TextView
+                            android:id="@+id/music_mode_song"
+                            android:layout_width="wrap_content"
+                            android:layout_height="match_parent"
+                            android:background="@drawable/music_mode_bg"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:fontFamily="sans-serif-medium"
+                            android:gravity="center"
+                            android:minWidth="88dp"
+                            android:paddingLeft="16dp"
+                            android:paddingRight="16dp"
+                            android:text="Canción"
+                            android:textColor="@color/music_mode_text"
+                            android:textSize="14sp" />
+
+                        <TextView
+                            android:id="@+id/music_mode_video"
+                            android:layout_width="wrap_content"
+                            android:layout_height="match_parent"
+                            android:background="@drawable/music_mode_bg"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:fontFamily="sans-serif-medium"
+                            android:gravity="center"
+                            android:minWidth="88dp"
+                            android:paddingLeft="16dp"
+                            android:paddingRight="16dp"
+                            android:text="Vídeo"
+                            android:textColor="@color/music_mode_text"
+                            android:textSize="14sp" />
+                    </LinearLayout>
+
+                    <!-- Where the song is playing from (kept for the code, not shown) -->
                     <TextView
                         android:id="@+id/music_player_source"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="1dp"
-                        android:ellipsize="end"
-                        android:fontFamily="sans-serif-medium"
-                        android:singleLine="true"
-                        android:textColor="#FFFFFF"
-                        android:textSize="13sp" />
-                </LinearLayout>
+                        android:visibility="gone" />
+                </FrameLayout>
 
                 <ImageView
                     android:id="@+id/music_player_queue"
@@ -356,6 +385,22 @@
                     android:elevation="16dp"
                     android:importantForAccessibility="no"
                     android:scaleType="centerCrop" />
+
+                <!-- «Vídeo»: the picture instead of the cover (sized in code, without stretching) -->
+                <FrameLayout
+                    android:id="@+id/music_player_video_box"
+                    android:layout_width="0dp"
+                    android:layout_height="0dp"
+                    android:layout_gravity="center"
+                    android:background="@drawable/music_video_bg"
+                    android:elevation="16dp"
+                    android:visibility="gone">
+
+                    <TextureView
+                        android:id="@+id/music_player_video"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent" />
+                </FrameLayout>
             </FrameLayout>
 
             <LinearLayout

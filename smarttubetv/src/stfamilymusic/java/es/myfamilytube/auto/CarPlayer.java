@@ -64,8 +64,91 @@ final class CarPlayer implements PlaybackView, BasePresenter.Headless {
         public void onTracksChanged(com.google.android.exoplayer2.source.TrackGroupArray trackGroups,
                                     com.google.android.exoplayer2.trackselection.TrackSelectionArray trackSelections) {
             mHandler.post(CarPlayer.this::selectBestAudio);
+            mHandler.post(CarPlayer.this::applyVideoMode);
         }
     };
+
+    // ---------------------------------------------------------------- the video, on the phone
+
+    /** The picture is wanted (phone player in «Vídeo»). Otherwise only the sound. */
+    private boolean mVideoMode;
+    private android.view.TextureView mVideoView;
+    private VideoSizeListener mVideoSizeListener;
+    private static final int MAX_VIDEO_HEIGHT = 720;
+
+    interface VideoSizeListener {
+        void onVideoSize(int width, int height, float pixelRatio);
+    }
+
+    private final com.google.android.exoplayer2.video.VideoListener mVideoListener = new com.google.android.exoplayer2.video.VideoListener() {
+        @Override
+        public void onVideoSizeChanged(int width, int height, int unappliedRotationDegrees, float pixelWidthHeightRatio) {
+            VideoSizeListener listener = mVideoSizeListener;
+            if (listener != null) {
+                listener.onVideoSize(width, height, pixelWidthHeightRatio);
+            }
+        }
+    };
+
+    boolean isVideoMode() {
+        return mVideoMode;
+    }
+
+    /** Where the picture is drawn (null: nowhere). */
+    void setVideoView(android.view.TextureView view, VideoSizeListener sizeListener) {
+        if (mPlayer != null && mVideoView != null && mVideoView != view) {
+            mPlayer.clearVideoTextureView(mVideoView);
+        }
+        mVideoView = view;
+        mVideoSizeListener = sizeListener;
+        if (mPlayer != null && view != null) {
+            mPlayer.setVideoTextureView(view);
+        }
+    }
+
+    void setVideoMode(boolean on) {
+        mVideoMode = on;
+        applyVideoMode();
+    }
+
+    /** «Vídeo»: the best picture up to 720p; «Canción»: no picture (much less data). */
+    private void applyVideoMode() {
+        if (mController == null || mLocalVideo != null) {
+            return;
+        }
+        if (!mVideoMode) {
+            FormatItem current = mController.getVideoFormat();
+            if (current != null && !FormatItem.NO_VIDEO.equals(current)) {
+                mController.selectFormat(FormatItem.NO_VIDEO);
+            }
+            return;
+        }
+        List<FormatItem> formats = mController.getVideoFormats();
+        if (formats == null) {
+            return;
+        }
+        FormatItem best = null;
+        long bestScore = -1;
+        for (FormatItem format : formats) {
+            if (format == null || format.getTrack() == null || format.getTrack().format == null) {
+                continue;
+            }
+            com.google.android.exoplayer2.Format exo = format.getTrack().format;
+            int height = Math.min(exo.height, exo.width > 0 ? exo.width : exo.height); // vertical videos too
+            if (height <= 0 || height > MAX_VIDEO_HEIGHT) {
+                continue;
+            }
+            float fps = exo.frameRate > 0 ? exo.frameRate : 30;
+            long score = height * 1000L + (long) Math.min(fps, 60) * 10 + Math.max(0, exo.bitrate) / 100000;
+            if (score > bestScore) {
+                best = format;
+                bestScore = score;
+            }
+        }
+        if (best != null && !best.equals(mController.getVideoFormat())) {
+            mController.selectFormat(best);
+        }
+    }
 
     /**
      * Music: always the best sound YouTube offers for the song (usually Opus ~160 kbps) in its
@@ -269,9 +352,13 @@ final class CarPlayer implements PlaybackView, BasePresenter.Headless {
                 mListener.onStateChanged();
             }
         });
-        // Only the sound: much less data
+        // Only the sound: much less data (the phone can ask for the picture: «Vídeo»)
         mController.selectFormat(FormatItem.NO_VIDEO);
         mPlayer.addListener(mStateListener);
+        mPlayer.addVideoListener(mVideoListener);
+        if (mVideoView != null) {
+            mPlayer.setVideoTextureView(mVideoView);
+        }
         mPresenter.setView(this);
         mPresenter.onViewInitialized();
         mPresenter.onEngineInitialized();
@@ -291,6 +378,10 @@ final class CarPlayer implements PlaybackView, BasePresenter.Headless {
             mPresenter.onEngineReleased();
         }
         mPlayer.removeListener(mStateListener);
+        mPlayer.removeVideoListener(mVideoListener);
+        if (mVideoView != null) {
+            mPlayer.clearVideoTextureView(mVideoView);
+        }
         mInitializer.release();
         mController.release();
         mPlayer = null;
@@ -476,9 +567,13 @@ final class CarPlayer implements PlaybackView, BasePresenter.Headless {
         if (mController == null || option == null) {
             return;
         }
-        // The engine restores the saved video quality: in the car the picture stays off
+        // The engine restores the saved video quality: the picture only in «Vídeo» on the phone
         if (option.getType() == FormatItem.TYPE_VIDEO) {
-            mController.selectFormat(FormatItem.NO_VIDEO);
+            if (mVideoMode) {
+                mHandler.post(this::applyVideoMode);
+            } else {
+                mController.selectFormat(FormatItem.NO_VIDEO);
+            }
         } else if (option.getType() == FormatItem.TYPE_AUDIO) {
             mHandler.post(this::selectBestAudio); // the best sound, not the TV's saved choice
         } else {

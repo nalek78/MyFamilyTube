@@ -126,6 +126,53 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
     private List<MediaItem> mTabs;
     private long mTabsTime;
 
+    // ---------------------------------------------------------------- the video on the phone
+
+    /** Size of the video picture, to draw it without stretching. */
+    public interface VideoSize {
+        void onVideoSize(int width, int height, float pixelRatio);
+    }
+
+    private long mPendingSeekMs = -1;
+
+    /** The phone's full player: where to draw the picture (null when it isn't shown). */
+    public static void setVideoView(android.view.TextureView view, VideoSize size) {
+        CarMusicService service = sInstance;
+        if (service != null && service.mPlayer != null) {
+            service.mPlayer.setVideoView(view, size == null ? null : size::onVideoSize);
+        }
+    }
+
+    /** «Vídeo» / «Canción» on the phone. Android Auto never shows the picture. */
+    public static void setVideoMode(boolean on) {
+        CarMusicService service = sInstance;
+        if (service != null && service.mPlayer != null) {
+            service.applyVideoMode(on);
+        }
+    }
+
+    private void applyVideoMode(boolean on) {
+        if (mPlayer.isVideoMode() == on) {
+            return;
+        }
+        mPlayer.setVideoMode(on);
+        if (on && mPlayer.isLocal()) {
+            // The saved copy has only the sound: the same song from YouTube, at the same point
+            Video video = mPlayer.current();
+            long position = mPlayer.uiPosition();
+            boolean playing = mPlayer.uiPlayWhenReady();
+            Playlist playlist = Playlist.instance();
+            playlist.clear();
+            playlist.add(video);
+            playlist.setCurrent(video);
+            video.fromQueue = true;
+            mPlayer.play(video);
+            mPlayer.setPlayWhenReady(playing);
+            mPendingSeekMs = position;
+            updateState();
+        }
+    }
+
     /** The phone player opened a video: the car stops (both share the engine). */
     public static void onPhonePlayerOpened() {
         CarMusicService service = sInstance;
@@ -1280,7 +1327,8 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
             return;
         }
         mError = null;
-        File saved = mCache.get(video.videoId);
+        File saved = mPlayer.isVideoMode() ? null : mCache.get(video.videoId); // the saved copy has no picture
+        mPendingSeekMs = -1;
         if (saved != null) {
             // Already on the phone: plays even without coverage
             mPlayer.playLocal(video, saved);
@@ -1572,6 +1620,11 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
 
     @Override
     public void onStateChanged() {
+        if (mPendingSeekMs >= 0 && !mPlayer.isLocal() && mPlayer.uiState() == com.google.android.exoplayer2.Player.STATE_READY) {
+            long position = mPendingSeekMs;
+            mPendingSeekMs = -1;
+            mPlayer.uiSeek(position); // went on from the saved copy: same point of the song
+        }
         updateState();
     }
 
