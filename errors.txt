@@ -1,0 +1,234 @@
+78:Please instead set the namespace (or testNamespace) in the module's build.gradle file, as described here: https://developer.android.com/studio/build/configure-app-module#set-namespace
+84:Please instead set the namespace (or testNamespace) in the module's build.gradle file, as described here: https://developer.android.com/studio/build/configure-app-module#set-namespace
+90:Please instead set the namespace (or testNamespace) in the module's build.gradle file, as described here: https://developer.android.com/studio/build/configure-app-module#set-namespace
+96:Please instead set the namespace (or testNamespace) in the module's build.gradle file, as described here: https://developer.android.com/studio/build/configure-app-module#set-namespace
+194:Please instead set the namespace (or testNamespace) in the module's build.gradle file, as described here: https://developer.android.com/studio/build/configure-app-module#set-namespace
+200:Please instead set the namespace (or testNamespace) in the module's build.gradle file, as described here: https://developer.android.com/studio/build/configure-app-module#set-namespace
+212:Please instead set the namespace (or testNamespace) in the module's build.gradle file, as described here: https://developer.android.com/studio/build/configure-app-module#set-namespace
+222:Please instead set the namespace (or testNamespace) in the module's build.gradle file, as described here: https://developer.android.com/studio/build/configure-app-module#set-namespace
+239:Please instead set the namespace (or testNamespace) in the module's build.gradle file, as described here: https://developer.android.com/studio/build/configure-app-module#set-namespace
+251:Please instead set the namespace (or testNamespace) in the module's build.gradle file, as described here: https://developer.android.com/studio/build/configure-app-module#set-namespace
+261:Please instead set the namespace (or testNamespace) in the module's build.gradle file, as described here: https://developer.android.com/studio/build/configure-app-module#set-namespace
+277:Please instead set the namespace (or testNamespace) in the module's build.gradle file, as described here: https://developer.android.com/studio/build/configure-app-module#set-namespace
+290:Please instead set the namespace (or testNamespace) in the module's build.gradle file, as described here: https://developer.android.com/studio/build/configure-app-module#set-namespace
+303:Please instead set the namespace (or testNamespace) in the module's build.gradle file, as described here: https://developer.android.com/studio/build/configure-app-module#set-namespace
+318:Please instead set the namespace (or testNamespace) in the module's build.gradle file, as described here: https://developer.android.com/studio/build/configure-app-module#set-namespace
+329:Please instead set the namespace (or testNamespace) in the module's build.gradle file, as described here: https://developer.android.com/studio/build/configure-app-module#set-namespace
+342:Please instead set the namespace (or testNamespace) in the module's build.gradle file, as described here: https://developer.android.com/studio/build/configure-app-module#set-namespace
+352:Please instead set the namespace (or testNamespace) in the module's build.gradle file, as described here: https://developer.android.com/studio/build/configure-app-module#set-namespace
+366:Please instead set the namespace (or testNamespace) in the module's build.gradle file, as described here: https://developer.android.com/studio/build/configure-app-module#set-namespace
+377:Note: Some input files use or override a deprecated API.
+378:Note: Recompile with -Xlint:deprecation for details.
+384:Note: Some input files use or override a deprecated API.
+385:Note: Recompile with -Xlint:deprecation for details.
+390:Note: /home/runner/work/MyFamilyTube/MyFamilyTube/chatkit/src/main/java/com/stfalcon/chatkit/utils/RoundedImageView.java uses or overrides a deprecated API.
+391:Note: Recompile with -Xlint:deprecation for details.
+392:Note: Some input files use unchecked or unsafe operations.
+393:Note: Recompile with -Xlint:unchecked for details.
+404:Please instead set the namespace (or testNamespace) in the module's build.gradle file, as described here: https://developer.android.com/studio/build/configure-app-module#set-namespace
+421:Please instead set the namespace (or testNamespace) in the module's build.gradle file, as described here: https://developer.android.com/studio/build/configure-app-module#set-namespace
+432:Please instead set the namespace (or testNamespace) in the module's build.gradle file, as described here: https://developer.android.com/studio/build/configure-app-module#set-namespace
+442:Note: Some input files use or override a deprecated API.
+443:Note: Recompile with -Xlint:deprecation for details.
+465:Note: /home/runner/work/MyFamilyTube/MyFamilyTube/SharedModules/j2v8/src/main/java/com/eclipsesource/v8/utils/V8ObjectUtils.java uses or overrides a deprecated API.
+466:Note: Recompile with -Xlint:deprecation for details.
+475:Note: Some input files use or override a deprecated API.
+476:Note: Recompile with -Xlint:deprecation for details.
+504:Note: /home/runner/work/MyFamilyTube/MyFamilyTube/exoplayer-amzn-2.10.6/library/smoothstreaming/src/main/java/com/google/android/exoplayer2/source/smoothstreaming/SsMediaSource.java uses or overrides a deprecated API.
+505:Note: Recompile with -Xlint:deprecation for details.
+510:Note: Some input files use or override a deprecated API.
+511:Note: Recompile with -Xlint:deprecation for details.
+523:Note: Some input files use or override a deprecated API.
+524:Note: Recompile with -Xlint:deprecation for details.
+533:Note: Some input files use or override a deprecated API.
+534:Note: Recompile with -Xlint:deprecation for details.
+539:Note: Some input files use or override a deprecated API.
+540:Note: Recompile with -Xlint:deprecation for details.
+541:Note: Some input files use unchecked or unsafe operations.
+542:Note: Recompile with -Xlint:unchecked for details.
+547:Note: Some input files use or override a deprecated API.
+548:Note: Recompile with -Xlint:deprecation for details.
+570:Please instead set the namespace (or testNamespace) in the module's build.gradle file, as described here: https://developer.android.com/studio/build/configure-app-module#set-namespace
+596:Please instead set the namespace (or testNamespace) in the module's build.gradle file, as described here: https://developer.android.com/studio/build/configure-app-module#set-namespace
+604:Note: /home/runner/work/MyFamilyTube/MyFamilyTube/exoplayer-amzn-2.10.6/extensions/leanback/src/main/java/com/google/android/exoplayer2/ext/leanback/LeanbackPlayerAdapter.java uses or overrides a deprecated API.
+605:Note: Recompile with -Xlint:deprecation for details.
+628:Please instead set the namespace (or testNamespace) in the module's build.gradle file, as described here: https://developer.android.com/studio/build/configure-app-module#set-namespace
+635:Note: /home/runner/work/MyFamilyTube/MyFamilyTube/exoplayer-amzn-2.10.6/extensions/mediasession/src/main/java/com/google/android/exoplayer2/ext/mediasession/MediaSessionConnector.java uses or overrides a deprecated API.
+636:Note: Recompile with -Xlint:deprecation for details.
+1127:Unable to strip the following libraries, packaging them as they are: libj2v8.so.
+1411:Please instead set the namespace (or testNamespace) in the module's build.gradle file, as described here: https://developer.android.com/studio/build/configure-app-module#set-namespace
+1426:Note: /home/runner/work/MyFamilyTube/MyFamilyTube/exoplayer-amzn-2.10.6/library/dash/src/main/java/com/google/android/exoplayer2/source/dash/DashMediaSource.java uses or overrides a deprecated API.
+1427:Note: Recompile with -Xlint:deprecation for details.
+1439:Note: /home/runner/work/MyFamilyTube/MyFamilyTube/leanbackassistant/src/main/java/com/liskovsoft/leanbackassistant/channels/UpdateChannelsJobService.java uses or overrides a deprecated API.
+1440:Note: Recompile with -Xlint:deprecation for details.
+1475:Note: Some input files use or override a deprecated API.
+1476:Note: Recompile with -Xlint:deprecation for details.
+1527:Note: [1] Wrote GeneratedAppGlideModule with: [com.bumptech.glide.integration.webp.WebpGlideLibraryModule]
+1528:Note: Some input files use or override a deprecated API.
+1529:Note: Recompile with -Xlint:deprecation for details.
+1530:Note: Some input files use unchecked or unsafe operations.
+1531:Note: Recompile with -Xlint:unchecked for details.
+1536:Unable to strip the following libraries, packaging them as they are: libconscrypt_jni.so, libcronet.105.0.5195.68.so, libglide-webp.so, libj2v8.so.
+1572:Please instead set the namespace (or testNamespace) in the module's build.gradle file, as described here: https://developer.android.com/studio/build/configure-app-module#set-namespace
+1801:Unable to strip the following libraries, packaging them as they are: libconscrypt_jni.so, libcronet.105.0.5195.68.so, libglide-webp.so, libj2v8.so.
+1810: Example of androidX reference: 'androidx/core/app/TaskStackBuilder'
+1811: Example of support library reference: 'android/support/v4/media/session/MediaSessionCompat$Token'
+1818:Note: [1] Wrote GeneratedAppGlideModule with: [com.bumptech.glide.integration.webp.WebpGlideLibraryModule]
+1819:Note: Some input files use or override a deprecated API.
+1820:Note: Recompile with -Xlint:deprecation for details.
+1821:Note: Some input files use unchecked or unsafe operations.
+1822:Note: Recompile with -Xlint:unchecked for details.
+1873:> Task :smarttubetv:processStfamilymusicReleaseMainManifest FAILED
+1876:Please instead set the namespace (or testNamespace) in the module's build.gradle file, as described here: https://developer.android.com/studio/build/configure-app-module#set-namespace
+2052:* What went wrong:
+2069:BUILD FAILED in 2m 54s
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-es/values-es.xml:533:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_status. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-nb/values-nb.xml:78:4: Multiple substitutions specified in non-positional format of string resource string/auto_frame_rate_applying. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-th/values-th.xml:76:4: Multiple substitutions specified in non-positional format of string resource string/auto_frame_rate_applying. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-nb/values-nb.xml:531:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_error. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-nb/values-nb.xml:532:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_start. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-nb/values-nb.xml:533:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_status. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-th/values-th.xml:529:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_error. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-th/values-th.xml:530:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_start. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-th/values-th.xml:531:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_status. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-fi/values-fi.xml:78:4: Multiple substitutions specified in non-positional format of string resource string/auto_frame_rate_applying. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-tr/values-tr.xml:78:4: Multiple substitutions specified in non-positional format of string resource string/auto_frame_rate_applying. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-fi/values-fi.xml:531:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_error. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-fi/values-fi.xml:532:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_start. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-fi/values-fi.xml:533:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_status. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-tr/values-tr.xml:531:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_error. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-tr/values-tr.xml:532:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_start. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-tr/values-tr.xml:533:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_status. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-lt/values-lt.xml:82:4: Multiple substitutions specified in non-positional format of string resource string/auto_frame_rate_applying. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-pl/values-pl.xml:82:4: Multiple substitutions specified in non-positional format of string resource string/auto_frame_rate_applying. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-lt/values-lt.xml:535:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_error. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-lt/values-lt.xml:536:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_start. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-lt/values-lt.xml:537:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_status. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-pl/values-pl.xml:535:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_error. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-pl/values-pl.xml:536:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_start. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-pl/values-pl.xml:537:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_status. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-el/values-el.xml:78:4: Multiple substitutions specified in non-positional format of string resource string/auto_frame_rate_applying. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-el/values-el.xml:531:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_error. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-el/values-el.xml:532:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_start. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-el/values-el.xml:533:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_status. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-et/values-et.xml:78:4: Multiple substitutions specified in non-positional format of string resource string/auto_frame_rate_applying. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-hu/values-hu.xml:78:4: Multiple substitutions specified in non-positional format of string resource string/auto_frame_rate_applying. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-et/values-et.xml:531:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_error. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-et/values-et.xml:532:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_start. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-et/values-et.xml:533:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_status. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-hu/values-hu.xml:531:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_error. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-hu/values-hu.xml:532:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_start. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-hu/values-hu.xml:533:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_status. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-he/values-he.xml:78:4: Multiple substitutions specified in non-positional format of string resource string/auto_frame_rate_applying. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-ja/values-ja.xml:76:4: Multiple substitutions specified in non-positional format of string resource string/auto_frame_rate_applying. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-he/values-he.xml:531:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_error. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-he/values-he.xml:532:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_start. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-he/values-he.xml:533:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_status. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-ja/values-ja.xml:529:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_error. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-ja/values-ja.xml:530:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_start. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-ja/values-ja.xml:531:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_status. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-ro/values-ro.xml:80:4: Multiple substitutions specified in non-positional format of string resource string/auto_frame_rate_applying. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-ro/values-ro.xml:533:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_error. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-ro/values-ro.xml:534:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_start. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-ro/values-ro.xml:535:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_status. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-hy/values-hy.xml:78:4: Multiple substitutions specified in non-positional format of string resource string/auto_frame_rate_applying. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-hy/values-hy.xml:531:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_error. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-hy/values-hy.xml:532:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_start. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-hy/values-hy.xml:533:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_status. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-sl/values-sl.xml:82:4: Multiple substitutions specified in non-positional format of string resource string/auto_frame_rate_applying. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-sl/values-sl.xml:535:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_error. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-sl/values-sl.xml:536:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_start. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-sl/values-sl.xml:537:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_status. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-iw/values-iw.xml:78:4: Multiple substitutions specified in non-positional format of string resource string/auto_frame_rate_applying. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-sr/values-sr.xml:80:4: Multiple substitutions specified in non-positional format of string resource string/auto_frame_rate_applying. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-iw/values-iw.xml:531:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_error. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-iw/values-iw.xml:532:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_start. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-iw/values-iw.xml:533:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_status. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-sr/values-sr.xml:533:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_error. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-sr/values-sr.xml:534:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_start. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-sr/values-sr.xml:535:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_status. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-sv/values-sv.xml:78:4: Multiple substitutions specified in non-positional format of string resource string/auto_frame_rate_applying. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-bg/values-bg.xml:78:4: Multiple substitutions specified in non-positional format of string resource string/auto_frame_rate_applying. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-sv/values-sv.xml:531:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_error. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-sv/values-sv.xml:532:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_start. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-sv/values-sv.xml:533:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_status. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-bg/values-bg.xml:531:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_error. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-bg/values-bg.xml:532:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_start. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-bg/values-bg.xml:533:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_status. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-te/values-te.xml:78:4: Multiple substitutions specified in non-positional format of string resource string/auto_frame_rate_applying. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-te/values-te.xml:531:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_error. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-te/values-te.xml:532:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_start. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-te/values-te.xml:533:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_status. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-ko/values-ko.xml:76:4: Multiple substitutions specified in non-positional format of string resource string/auto_frame_rate_applying. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-ko/values-ko.xml:529:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_error. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-ko/values-ko.xml:530:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_start. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-ko/values-ko.xml:531:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_status. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-lv/values-lv.xml:80:4: Multiple substitutions specified in non-positional format of string resource string/auto_frame_rate_applying. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-lv/values-lv.xml:533:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_error. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-lv/values-lv.xml:534:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_start. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-lv/values-lv.xml:535:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_status. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-pt-rBR/values-pt-rBR.xml:78:4: Multiple substitutions specified in non-positional format of string resource string/auto_frame_rate_applying. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-pt-rBR/values-pt-rBR.xml:531:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_error. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-pt-rBR/values-pt-rBR.xml:532:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_start. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-pt-rBR/values-pt-rBR.xml:533:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_status. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-uk/values-uk.xml:82:4: Multiple substitutions specified in non-positional format of string resource string/auto_frame_rate_applying. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-fa-rIR/values-fa-rIR.xml:78:4: Multiple substitutions specified in non-positional format of string resource string/auto_frame_rate_applying. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-uk/values-uk.xml:535:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_error. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-uk/values-uk.xml:536:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_start. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-uk/values-uk.xml:537:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_status. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-fa-rIR/values-fa-rIR.xml:531:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_error. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-fa-rIR/values-fa-rIR.xml:532:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_start. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-fa-rIR/values-fa-rIR.xml:533:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_status. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-de/values-de.xml:78:4: Multiple substitutions specified in non-positional format of string resource string/auto_frame_rate_applying. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-de/values-de.xml:531:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_error. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-de/values-de.xml:532:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_start. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-de/values-de.xml:533:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_status. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-zh-rTW/values-zh-rTW.xml:76:4: Multiple substitutions specified in non-positional format of string resource string/auto_frame_rate_applying. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-zh-rTW/values-zh-rTW.xml:529:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_error. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-zh-rTW/values-zh-rTW.xml:530:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_start. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-zh-rTW/values-zh-rTW.xml:531:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_status. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-mo/values-mo.xml:78:4: Multiple substitutions specified in non-positional format of string resource string/auto_frame_rate_applying. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-mo/values-mo.xml:531:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_error. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-mo/values-mo.xml:532:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_start. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-mo/values-mo.xml:533:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_status. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-nl/values-nl.xml:78:4: Multiple substitutions specified in non-positional format of string resource string/auto_frame_rate_applying. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-nl/values-nl.xml:531:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_error. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-nl/values-nl.xml:532:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_start. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-nl/values-nl.xml:533:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_status. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-vi/values-vi.xml:76:4: Multiple substitutions specified in non-positional format of string resource string/auto_frame_rate_applying. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-fr/values-fr.xml:78:4: Multiple substitutions specified in non-positional format of string resource string/auto_frame_rate_applying. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-vi/values-vi.xml:529:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_error. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-vi/values-vi.xml:530:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_start. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-vi/values-vi.xml:531:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_status. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-fr/values-fr.xml:531:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_error. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-fr/values-fr.xml:532:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_start. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-fr/values-fr.xml:533:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_status. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-ka-rGE/values-ka-rGE.xml:78:4: Multiple substitutions specified in non-positional format of string resource string/auto_frame_rate_applying. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-ka-rGE/values-ka-rGE.xml:531:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_error. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-ka-rGE/values-ka-rGE.xml:532:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_start. Did you mean to add the formatted="false" attribute?
+/home/runner/work/MyFamilyTube/MyFamilyTube/common/build/intermediates/packaged_res/stbetaRelease/values-ka-rGE/values-ka-rGE.xml:533:4: Multiple substitutions specified in non-positional format of string resource string/proxy_test_status. Did you mean to add the formatted="false" attribute?
+
+> Task :smarttubetv:mergeDexStfamilymobileRelease
+> Task :smarttubetv:lintVitalReportStfamilymobileRelease
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':smarttubetv:processStfamilymusicReleaseMainManifest'.
+> Manifest merger failed with multiple errors, see logs
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+
+* Get more help at https://help.gradle.org
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 8.0.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+See https://docs.gradle.org/7.5/userguide/command_line_interface.html#sec:command_line_warnings
+
+BUILD FAILED in 2m 54s
+827 actionable tasks: 827 executed
