@@ -210,6 +210,7 @@ android {
         // My Family Music: the music for Android Auto (sound only), as its own app
         stfamilymusic {
             applicationId "es.myfamilymusic"
+            minSdkVersion 21 // Google Cast (Chromecast) needs Android 5
             targetSdkVersion project.properties.compileSdkVersion
             matchingFallbacks = ['stbeta']
             def musicVersion = familyVersion('musica')
