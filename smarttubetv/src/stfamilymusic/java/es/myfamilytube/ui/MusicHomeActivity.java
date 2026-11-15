@@ -114,6 +114,21 @@ public class MusicHomeActivity extends MotherActivity {
     private boolean mResumed;
     private boolean mPlayerClosing;
     private float mVideoAspect = 16f / 9f;
+    /** The video in full screen (landscape, only while it lasts). */
+    private boolean mFullscreen;
+    private View mFull;
+    private android.view.TextureView mFullVideo;
+    private View mFullControls;
+    private ImageView mFullPlay;
+    private SeekBar mFullSeek;
+    private TextView mFullTime;
+    private TextView mFullDuration;
+    private TextView mFullTitle;
+    private final Runnable mHideFullControls = () -> {
+        if (mFullControls != null) {
+            mFullControls.animate().alpha(0f).setDuration(200).withEndAction(() -> mFullControls.setVisibility(View.GONE)).start();
+        }
+    };
 
     private final MusicAdapter mAdapter = new MusicAdapter();
     private final QueueAdapter mQueueAdapter = new QueueAdapter();
@@ -261,6 +276,10 @@ public class MusicHomeActivity extends MotherActivity {
         if (mProfiles.onBack()) {
             return;
         }
+        if (mFullscreen) {
+            exitFullscreen();
+            return;
+        }
         if (mQueue.getVisibility() == View.VISIBLE) {
             mQueue.setVisibility(View.GONE);
             return;
@@ -317,6 +336,14 @@ public class MusicHomeActivity extends MotherActivity {
         mModeSong = findViewById(R.id.music_mode_song);
         mModeVideo = findViewById(R.id.music_mode_video);
         mVideoBox.setClipToOutline(true);
+        mFull = findViewById(R.id.music_fullscreen);
+        mFullVideo = findViewById(R.id.music_full_video);
+        mFullControls = findViewById(R.id.music_full_controls);
+        mFullPlay = findViewById(R.id.music_full_play);
+        mFullSeek = findViewById(R.id.music_full_seek);
+        mFullTime = findViewById(R.id.music_full_time);
+        mFullDuration = findViewById(R.id.music_full_duration);
+        mFullTitle = findViewById(R.id.music_full_title);
         clipToRoundedBackground(mMiniArt);
         clipToRoundedBackground(mPlayerArt);
     }
@@ -852,6 +879,7 @@ public class MusicHomeActivity extends MotherActivity {
         mModeSong.setOnClickListener(v -> setVideoWanted(false));
         mModeVideo.setOnClickListener(v -> setVideoWanted(true));
         mModeSong.setActivated(true);
+        setupFullscreen();
         findViewById(R.id.music_player_queue).setOnClickListener(v -> {
             showQueue();
             mQueue.setVisibility(View.VISIBLE);
@@ -914,21 +942,140 @@ public class MusicHomeActivity extends MotherActivity {
     private void applyVideo() {
         mModeSong.setActivated(!mVideoWanted);
         mModeVideo.setActivated(mVideoWanted);
-        boolean on = mVideoWanted && mResumed && !mPlayerClosing && mPlayer.getVisibility() == View.VISIBLE;
-        mVideoBox.setVisibility(on ? View.VISIBLE : View.GONE);
-        mPlayerArt.setVisibility(on ? View.INVISIBLE : View.VISIBLE);
+        boolean on = mVideoWanted && mResumed && !mPlayerClosing
+                && (mFullscreen || mPlayer.getVisibility() == View.VISIBLE);
+        mVideoBox.setVisibility(on && !mFullscreen ? View.VISIBLE : View.GONE);
+        mPlayerArt.setVisibility(on && !mFullscreen ? View.INVISIBLE : View.VISIBLE);
         if (on) {
-            CarMusicService.setVideoView(mVideoView, (width, height, ratio) -> mHandler.post(() -> {
+            CarMusicService.setVideoView(mFullscreen ? mFullVideo : mVideoView, (width, height, ratio) -> mHandler.post(() -> {
                 if (width > 0 && height > 0) {
                     mVideoAspect = width * (ratio > 0 ? ratio : 1f) / height;
                     sizeVideoBox();
+                    sizeFullVideo();
                 }
             }));
             CarMusicService.setVideoMode(true);
             sizeVideoBox();
+            sizeFullVideo();
         } else {
             CarMusicService.setVideoMode(false);
             CarMusicService.setVideoView(null, null);
+        }
+    }
+
+    // ---------------------------------------------------------------- full screen
+
+    private void setupFullscreen() {
+        findViewById(R.id.music_video_expand).setOnClickListener(v -> enterFullscreen());
+        findViewById(R.id.music_full_close).setOnClickListener(v -> exitFullscreen());
+        findViewById(R.id.music_full_shrink).setOnClickListener(v -> exitFullscreen());
+        mFull.setOnClickListener(v -> toggleFullControls());
+        mFullControls.setOnClickListener(v -> toggleFullControls());
+        mFullPlay.setOnClickListener(v -> {
+            togglePlay();
+            showFullControls();
+        });
+        findViewById(R.id.music_full_next).setOnClickListener(v -> {
+            skipToNext();
+            showFullControls();
+        });
+        findViewById(R.id.music_full_prev).setOnClickListener(v -> {
+            if (mController != null) {
+                mController.getTransportControls().skipToPrevious();
+            }
+            showFullControls();
+        });
+        mFullSeek.setMax(1000);
+        mFullSeek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                if (fromUser) {
+                    mFullTime.setText(formatTime(progress * duration() / 1000));
+                }
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+                mSeeking = true;
+                mHandler.removeCallbacks(mHideFullControls);
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+                mSeeking = false;
+                long duration = duration();
+                if (mController != null && duration > 0) {
+                    mController.getTransportControls().seekTo(seekBar.getProgress() * duration / 1000);
+                }
+                showFullControls();
+            }
+        });
+        mFull.addOnLayoutChangeListener((v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) ->
+                mFull.post(this::sizeFullVideo)); // turning the phone
+    }
+
+    private void enterFullscreen() {
+        if (mFullscreen) {
+            return;
+        }
+        mFullscreen = true;
+        mFull.setVisibility(View.VISIBLE);
+        setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
+        getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_FULLSCREEN
+                | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
+        applyVideo();
+        showPlayback();
+        showFullControls();
+    }
+
+    private void exitFullscreen() {
+        if (!mFullscreen) {
+            return;
+        }
+        mFullscreen = false;
+        mHandler.removeCallbacks(mHideFullControls);
+        mFull.setVisibility(View.GONE);
+        setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+        getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
+        applyVideo();
+    }
+
+    private void showFullControls() {
+        mFullControls.animate().cancel();
+        mFullControls.setAlpha(1f);
+        mFullControls.setVisibility(View.VISIBLE);
+        mHandler.removeCallbacks(mHideFullControls);
+        mHandler.postDelayed(mHideFullControls, 3500);
+    }
+
+    private void toggleFullControls() {
+        if (mFullControls.getVisibility() == View.VISIBLE && mFullControls.getAlpha() > 0.5f) {
+            mHandler.removeCallbacks(mHideFullControls);
+            mHideFullControls.run();
+        } else {
+            showFullControls();
+        }
+    }
+
+    /** The video as big as fits on the screen, without stretching. */
+    private void sizeFullVideo() {
+        int width = mFull.getWidth();
+        int height = mFull.getHeight();
+        if (width <= 0 || height <= 0) {
+            return;
+        }
+        int videoWidth = width;
+        int videoHeight = Math.round(width / mVideoAspect);
+        if (videoHeight > height) {
+            videoHeight = height;
+            videoWidth = Math.round(height * mVideoAspect);
+        }
+        ViewGroup.LayoutParams params = mFullVideo.getLayoutParams();
+        if (params.width != videoWidth || params.height != videoHeight) {
+            params.width = videoWidth;
+            params.height = videoHeight;
+            mFullVideo.setLayoutParams(params);
         }
     }
 
@@ -974,6 +1121,7 @@ public class MusicHomeActivity extends MotherActivity {
     }
 
     private void hidePlayer() {
+        exitFullscreen();
         mQueue.setVisibility(View.GONE);
         mPlayerClosing = true;
         applyVideo(); // back to the sound only
@@ -1072,6 +1220,8 @@ public class MusicHomeActivity extends MotherActivity {
         int icon = isPlaying ? R.drawable.mobile_ic_pause : R.drawable.mobile_ic_play;
         mMiniPlay.setImageResource(icon);
         mPlayerPlay.setImageResource(icon);
+        mFullPlay.setImageResource(icon);
+        mFullTitle.setText(artist != null ? title + " · " + artist : title);
         updateProgress();
     }
 
@@ -1175,12 +1325,17 @@ public class MusicHomeActivity extends MotherActivity {
         mPlayerTime.setText(formatTime(position));
         mPlayerDuration.setText(duration > 0 ? formatTime(duration) : "");
         mPlayerSeek.setProgress((int) (fraction * 1000));
+        if (mFullscreen) {
+            mFullTime.setText(formatTime(position));
+            mFullDuration.setText(duration > 0 ? formatTime(duration) : "");
+            mFullSeek.setProgress((int) (fraction * 1000));
+        }
     }
 
     private final Runnable mTicker = new Runnable() {
         @Override
         public void run() {
-            if (mMini.getVisibility() == View.VISIBLE || mPlayer.getVisibility() == View.VISIBLE) {
+            if (mMini.getVisibility() == View.VISIBLE || mPlayer.getVisibility() == View.VISIBLE || mFullscreen) {
                 updateProgress();
             }
             mHandler.postDelayed(this, 500);
