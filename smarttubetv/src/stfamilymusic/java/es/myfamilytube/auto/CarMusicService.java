@@ -274,6 +274,31 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         }
     };
 
+    // ---------------------------------------------------------------- Radio Radar Auto
+
+    private static long sLastRadarWake;
+
+    /**
+     * Android Auto connected with this app: the radio app (Radio Radar Auto) is asked to switch on
+     * its speed camera detector. It normally starts when Android Auto opens the radio, which
+     * doesn't happen when the car uses this app. Nothing happens if the radio isn't installed.
+     */
+    private void wakeRadarDetector() {
+        long now = android.os.SystemClock.elapsedRealtime();
+        if (sLastRadarWake != 0 && now - sLastRadarWake < 2 * 60 * 1000L) {
+            return;
+        }
+        sLastRadarWake = now;
+        try {
+            Intent intent = new Intent("es.radioauto.action.START_RADAR")
+                    .setPackage("es.radioauto")
+                    .addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
+            sendBroadcast(intent);
+        } catch (RuntimeException e) {
+            // the radio isn't installed
+        }
+    }
+
     /** The phone player opened a video: the car stops (both share the engine). */
     public static void onPhonePlayerOpened() {
         CarMusicService service = sInstance;
@@ -346,6 +371,9 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
     @Nullable
     @Override
     public BrowserRoot onGetRoot(@NonNull String clientPackageName, int clientUid, @Nullable Bundle rootHints) {
+        if (clientPackageName.startsWith("com.google.android.projection.gearhead")) {
+            wakeRadarDetector(); // Android Auto: the radio app's speed camera alerts too
+        }
         Bundle extras = new Bundle();
         extras.putBoolean(STYLE_SUPPORTED, true);
         extras.putBoolean(SEARCH_SUPPORTED, true);
