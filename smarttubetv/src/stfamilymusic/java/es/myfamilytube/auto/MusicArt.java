@@ -343,6 +343,28 @@ public final class MusicArt {
         return info;
     }
 
+    private static final Pattern ANY_BRACKETS = Pattern.compile("[\\(\\[【][^\\)\\]】]*[\\)\\]】]");
+    private static final Pattern VERSION_WORDS = Pattern.compile(
+            "\\b(remix|rmx|mix|edit|version|versi[oó]n|cover|live|en vivo|en directo|directo|ac[uú]stic[oa]|acoustic|unplugged|karaoke"
+                    + "|instrumental|lyrics?|letra|sped up|slowed|reverb|nightcore|remaster(ed|izado)?|extended|radio edit"
+                    + "|8d|audio|oficial|official|video|v[ií]deo|videoclip|visuali[sz]er|feat|ft)\\b.*$",
+            Pattern.CASE_INSENSITIVE);
+
+    /**
+     * The song itself, whoever sings it and whatever the version: «Nochentera (Remix)»,
+     * «Nochentera - En directo» and «Nochentera» give the same key. To tell versions apart.
+     */
+    public static String songKey(String title, String author) {
+        String track = guess(title, author).track;
+        if (track == null) {
+            return "";
+        }
+        String plain = ANY_BRACKETS.matcher(track).replaceAll(" ");
+        String cut = VERSION_WORDS.matcher(plain).replaceAll(" ");
+        String key = normalize(cut);
+        return key.isEmpty() ? normalize(plain) : key;
+    }
+
     public static String cleanAuthor(String author) {
         if (author == null) {
             return null;

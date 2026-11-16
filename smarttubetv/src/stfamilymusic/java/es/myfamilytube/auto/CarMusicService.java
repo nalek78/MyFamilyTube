@@ -81,6 +81,10 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
     /** From the phone: a list was created here (it is music); extra: its name. */
     public static final String ACTION_LIST_CREATED = "es.myfamilymusic.LIST_CREATED";
     public static final String EXTRA_NAME = "name";
+    /** From the phone: a song out of what was listened to / never recommended again; extra: its id. */
+    public static final String ACTION_FORGET_SONG = "es.myfamilymusic.FORGET_SONG";
+    public static final String ACTION_HIDE_SONG = "es.myfamilymusic.HIDE_SONG";
+    public static final String EXTRA_VIDEO = "video";
     /** Car button: the song playing goes to «Mis favoritas» (the list is created the first time). */
     private static final String ACTION_SAVE_SONG = "es.myfamilymusic.SAVE_SONG";
     static final String FAVOURITES = "Mis favoritas";
@@ -742,7 +746,7 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
             sources.add(asRows(mixObserve(seed.videoId)));
         }
         collectVideos(sources, 12_000, lists -> {
-            List<Video> picked = roundRobin(lists, 20, 20, video -> playableSong(video) && !taste.knows(video.videoId));
+            List<Video> picked = roundRobin(lists, 20, 20, video -> playableSong(video) && !taste.knows(video.videoId) && !taste.isHidden(video.videoId));
             done.onItems(videoItems(listKey, picked, "Recomendadas para ti"));
         });
     }
@@ -759,7 +763,8 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
             for (int i = 0; i < lists.size(); i++) {
                 List<Video> songs = new ArrayList<>();
                 for (Video video : lists.get(i)) {
-                    if (playableSong(video) && fromArtist(video, artists.get(i)) && MusicLists.looksLikeSong(this, video)) {
+                    if (playableSong(video) && !taste().isHidden(video.videoId) && fromArtist(video, artists.get(i))
+                            && MusicLists.looksLikeSong(this, video)) {
                         songs.add(video);
                     }
                 }
@@ -841,6 +846,34 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
 
     private void savingFailed(Throwable error) {
         es.myfamilytube.FamilyDiagnostics.instance(this).log("Música: no se pudo guardar en " + FAVOURITES + ": " + error);
+    }
+
+    /**
+     * From the phone (long press on a song). forget: out of what was listened to (recents,
+     * favourites, the tabs). hide («No me interesa»): also never recommended again.
+     */
+    private void removeSong(String videoId, boolean hide) {
+        if (TextUtils.isEmpty(videoId)) {
+            return;
+        }
+        MusicTaste taste = taste();
+        if (hide) {
+            taste.hide(videoId);
+            for (int i = mQueue.size() - 1; i > mIndex; i--) { // not coming up next either
+                if (videoId.equals(mQueue.get(i).videoId)) {
+                    mQueue.remove(i);
+                }
+            }
+            updateSessionQueue();
+        } else {
+            taste.forget(videoId);
+        }
+        List<String> stale = new ArrayList<>(mChildren.keySet());
+        mChildren.clear();
+        mChildrenTime.clear();
+        for (String id : stale) {
+            notifyChildrenChanged(id);
+        }
     }
 
     /** Lists were created, renamed, deleted or changed: they are loaded again. */
@@ -1645,19 +1678,48 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         if (items == null) {
             return 0;
         }
+        MusicTaste taste = taste();
+        // The songs already in the queue (the last 40): no other versions of them
+        List<String> keys = new ArrayList<>();
+        for (int i = Math.max(0, mQueue.size() - 40); i < mQueue.size(); i++) {
+            Video queued = mQueue.get(i);
+            keys.add(MusicArt.songKey(queued.getTitle(), queued.getAuthor()));
+        }
         for (com.liskovsoft.mediaserviceinterfaces.data.MediaItem item : items) {
             if (added >= MAX_SIMILAR) {
                 break;
             }
             Video video = item != null ? Video.from(item) : null;
             if (video == null || video.videoId == null || video.isLive || video.isShorts || containsVideo(video.videoId)
-                    || video.getDurationMs() > MAX_SONG_MS || !ContentGate.allows(video)) {
+                    || video.getDurationMs() > MAX_SONG_MS || !ContentGate.allows(video) || taste.isHidden(video.videoId)) {
                 continue;
             }
+            if (isVersionOf(video, keys)) {
+                continue; // another version (remix, live, cover…) of a song already in the queue
+            }
+            keys.add(MusicArt.songKey(video.getTitle(), video.getAuthor()));
             mQueue.add(video);
             added++;
         }
         return added;
+    }
+
+    /** The same song as one of these, in another version: same name, or its title carries that name. */
+    private static boolean isVersionOf(Video video, List<String> keys) {
+        String key = MusicArt.songKey(video.getTitle(), video.getAuthor());
+        String title = " " + MusicArt.normalize(video.getTitle()) + " ";
+        for (String other : keys) {
+            if (other.isEmpty()) {
+                continue;
+            }
+            if (other.equals(key)) {
+                return true;
+            }
+            if (other.length() >= 5 && title.contains(" " + other + " ")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void extended(int added) {
@@ -2064,6 +2126,8 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
                 listsChanged();
             } else if (ACTION_LISTS_CHANGED.equals(action)) {
                 listsChanged();
+            } else if (ACTION_FORGET_SONG.equals(action) || ACTION_HIDE_SONG.equals(action)) {
+                removeSong(extras != null ? extras.getString(EXTRA_VIDEO) : null, ACTION_HIDE_SONG.equals(action));
             } else if (ACTION_SAVE_SONG.equals(action)) {
                 saveToFavourites();
             }

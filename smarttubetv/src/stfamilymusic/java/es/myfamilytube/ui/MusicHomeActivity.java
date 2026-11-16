@@ -722,18 +722,25 @@ public class MusicHomeActivity extends MotherActivity {
             int at = id.indexOf('@');
             String videoId = id.substring(2, at > 0 ? at : id.length());
             String openList = mSubscribed != null && mSubscribed.startsWith("pl:") ? mSubscribed.substring(3) : null;
-            String[] options = openList != null
-                    ? new String[]{"Añadir a una lista…", "Quitar de esta lista"}
-                    : new String[]{"Añadir a una lista…"};
+            String listKey = at > 0 ? id.substring(at + 1) : "";
+            boolean listened = listKey.endsWith("#recent") || listKey.endsWith("#fav"); // from what you listened to
+            List<String> options = new ArrayList<>();
+            List<Runnable> actions = new ArrayList<>();
+            options.add("Añadir a una lista…");
+            actions.add(() -> listsMenu().addSong(videoId, name));
+            if (openList != null) {
+                options.add("Quitar de esta lista");
+                actions.add(() -> listsMenu().removeSong(openList, videoId, name, mStack.get(mStack.size() - 1).title));
+            }
+            if (listened) {
+                options.add("Quitar de lo escuchado");
+                actions.add(() -> sendSongAction(CarMusicService.ACTION_FORGET_SONG, videoId, "Quitada de lo escuchado"));
+            }
+            options.add("No me interesa (no recomendar)");
+            actions.add(() -> sendSongAction(CarMusicService.ACTION_HIDE_SONG, videoId, "No te la volveré a recomendar"));
             new AlertDialog.Builder(this)
                     .setTitle(name)
-                    .setItems(options, (dialog, which) -> {
-                        if (which == 0) {
-                            listsMenu().addSong(videoId, name);
-                        } else {
-                            listsMenu().removeSong(openList, videoId, name, mStack.get(mStack.size() - 1).title);
-                        }
-                    })
+                    .setItems(options.toArray(new String[0]), (dialog, which) -> actions.get(which).run())
                     .show();
             return true;
         }
@@ -762,6 +769,16 @@ public class MusicHomeActivity extends MotherActivity {
                 })
                 .show();
         return true;
+    }
+
+    private void sendSongAction(String action, String videoId, String done) {
+        if (mController == null) {
+            return;
+        }
+        Bundle extras = new Bundle();
+        extras.putString(CarMusicService.EXTRA_VIDEO, videoId);
+        mController.getTransportControls().sendCustomAction(action, extras);
+        Toast.makeText(this, done, Toast.LENGTH_SHORT).show();
     }
 
     /** «+» in the player: the song playing goes to lists. */

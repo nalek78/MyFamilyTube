@@ -179,6 +179,51 @@ final class MusicTaste {
         return worst;
     }
 
+    // ---------------------------------------------------------------- taken out by the user
+
+    private java.util.Set<String> mHidden;
+    private static final int MAX_HIDDEN = 2000;
+
+    private java.util.Set<String> hidden() {
+        if (mHidden == null) {
+            mHidden = new java.util.LinkedHashSet<>();
+            try {
+                JSONArray array = new JSONArray(prefs().getString(mProfileId + ":hidden", "[]"));
+                for (int i = 0; i < array.length(); i++) {
+                    mHidden.add(array.getString(i));
+                }
+            } catch (Exception e) {
+                // start again
+            }
+        }
+        return mHidden;
+    }
+
+    /** Out of what was listened to: recents, favourites and what the tabs are worked out from. */
+    synchronized void forget(String videoId) {
+        if (videoId != null && mSongs.remove(videoId) != null) {
+            save();
+        }
+    }
+
+    /** «No me interesa»: never recommended again (and out of what was listened to). */
+    synchronized void hide(String videoId) {
+        if (videoId == null) {
+            return;
+        }
+        java.util.Set<String> hidden = hidden();
+        hidden.add(videoId);
+        while (hidden.size() > MAX_HIDDEN) {
+            hidden.remove(hidden.iterator().next());
+        }
+        prefs().edit().putString(mProfileId + ":hidden", new JSONArray(hidden).toString()).apply();
+        forget(videoId);
+    }
+
+    synchronized boolean isHidden(String videoId) {
+        return videoId != null && hidden().contains(videoId);
+    }
+
     /** Already listened to (it is not «new» for this profile). */
     synchronized boolean knows(String videoId) {
         return mSongs.containsKey(videoId);
