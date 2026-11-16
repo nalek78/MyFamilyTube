@@ -121,24 +121,16 @@ final class CarSongCache {
         if (info == null || info.isUnplayable() || info.isLive()) {
             return;
         }
-        MediaFormat audio = pickAudio(info.getAdaptiveFormats());
-        if (audio == null || TextUtils.isEmpty(audio.getUrl())) {
-            // YouTube now often gives the sound only through SABR (no link): the regular file
-            // (picture and sound together, medium quality) still has one. Only its sound is played.
-            audio = CastBridge.pickRegular(info.getUrlFormats());
-            if (audio == null) {
-                return;
-            }
-        }
-        long length = parseLong(audio.getClen());
-        if (length <= 0) {
-            length = CastBridge.probeLength(audio.getUrl());
-        }
-        if (length <= 0 || length > MAX_SONG_BYTES) {
+        // checked with YouTube first: the sound with a link, the VR app's link or the regular file
+        SongSource audio = SongSource.find(videoId, false, text -> { });
+        if (audio == null) {
             return;
         }
-        String mime = audio.getMimeType() != null ? audio.getMimeType() : "";
-        String extension = mime.contains("webm") ? "webm" : mime.startsWith("video/") ? "mp4" : "m4a";
+        long length = audio.length;
+        if (length > MAX_SONG_BYTES) {
+            return;
+        }
+        String extension = audio.isWebm() ? "webm" : audio.hasPicture() ? "mp4" : "m4a";
         File part = new File(mDir, videoId + "." + extension + ".part");
         File done = new File(mDir, videoId + "." + extension);
         try (OutputStream out = new FileOutputStream(part)) {
@@ -148,10 +140,10 @@ final class CarSongCache {
                     throw new InterruptedException("no longer needed");
                 }
                 long end = Math.min(length, start + CHUNK) - 1;
-                HttpURLConnection connection = (HttpURLConnection) new URL(audio.getUrl()).openConnection();
+                HttpURLConnection connection = (HttpURLConnection) new URL(audio.url).openConnection();
                 connection.setConnectTimeout(15_000);
                 connection.setReadTimeout(20_000);
-                connection.setRequestProperty("User-Agent", DefaultHeaders.APP_USER_AGENT);
+                connection.setRequestProperty("User-Agent", audio.userAgent);
                 connection.setRequestProperty("Range", "bytes=" + start + "-" + end);
                 try (InputStream in = connection.getInputStream()) {
                     int read;

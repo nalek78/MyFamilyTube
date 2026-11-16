@@ -1,11 +1,6 @@
 package es.myfamilytube.auto;
 
-import android.text.TextUtils;
 
-import com.liskovsoft.googlecommon.common.helpers.DefaultHeaders;
-import com.liskovsoft.mediaserviceinterfaces.data.MediaFormat;
-import com.liskovsoft.mediaserviceinterfaces.data.MediaItemFormatInfo;
-import com.liskovsoft.youtubeapi.service.YouTubeServiceManager;
 
 import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
@@ -20,7 +15,6 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URL;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -52,7 +46,7 @@ final class CastBridge {
     }
 
     private final ExecutorService mPool = Executors.newCachedThreadPool();
-    private final Map<String, MediaFormat> mFormats = new ConcurrentHashMap<>();
+    private final Map<String, SongSource> mFormats = new ConcurrentHashMap<>();
     private ServerSocket mServer;
 
     /** Gets the song ready (slow: YouTube is asked) and gives its address for the Chromecast. */
@@ -61,15 +55,15 @@ final class CastBridge {
             String url = null;
             String mime = null;
             try {
-                MediaFormat format = format(videoId);
+                SongSource source = source(videoId);
                 String address = wifiAddress();
-                if (format != null && address != null) {
+                if (source != null && address != null) {
                     start();
                     url = "http://" + address + ":" + mServer.getLocalPort() + "/song/" + videoId;
-                    mime = baseMime(format);
-                    mLog.log("Cast: canción lista en " + url + " (" + format.getMimeType() + ", " + length(format) / 1024 + " KB)");
+                    mime = source.baseMime();
+                    mLog.log("Cast: canción lista en " + url + " (" + source.length / 1024 + " KB)");
                 } else {
-                    mLog.log("Cast: no se puede enviar · formato " + (format != null ? "sí" : "NO") + " · Wi‑Fi " + (address != null ? address : "NO"));
+                    mLog.log("Cast: no se puede enviar · sonido " + (source != null ? "sí" : "NO") + " · Wi‑Fi " + (address != null ? address : "NO"));
                 }
             } catch (Exception e) {
                 mLog.log("Cast: error al preparar la canción: " + e);
@@ -137,169 +131,18 @@ final class CastBridge {
         }
     }
 
-    /** The sound to send: AAC (all Cast devices play it), the original language, best quality. */
-    private MediaFormat format(String videoId) throws Exception {
-        MediaFormat known = mFormats.get(videoId);
+    /** The sound to send (AAC, every Cast device plays it), checked with YouTube before using it. */
+    private SongSource source(String videoId) {
+        SongSource known = mFormats.get(videoId);
         if (known != null) {
             return known;
         }
-        MediaItemFormatInfo info = YouTubeServiceManager.instance().getMediaItemService().getFormatInfo(videoId);
-        if (info == null || info.isUnplayable() || info.isLive()) {
-            mLog.log("Cast: YouTube no da la canción · " + (info == null ? "sin respuesta"
-                    : info.isLive() ? "es un directo" : "no se puede reproducir: " + info.getPlayabilityReason()));
-            return null;
+        SongSource source = SongSource.find(videoId, true, text -> mLog.log("Cast: " + text));
+        if (source != null) {
+            mLog.log("Cast: sonido por " + source.how + " (" + source.mimeType + ")");
+            mFormats.put(videoId, source);
         }
-        // 1) only the sound, with its own link (best quality)
-        MediaFormat format = pick(info.getAdaptiveFormats());
-        // 2) YouTube now often gives the sound only through SABR (no link): the regular file
-        //    with picture and sound together (medium quality), which still has a link
-        if (format == null) {
-            format = pickRegular(info.getUrlFormats());
-            if (format != null) {
-                mLog.log("Cast: sin enlace al sonido solo (SABR); se envía el vídeo normal " + format.getMimeType());
-            }
-        }
-        if (format == null) {
-            mLog.log("Cast: ningún formato con enlace · " + describe(info));
-            return null;
-        }
-        if (length(format) <= 0) {
-            long probed = probeLength(format.getUrl());
-            if (probed <= 0) {
-                mLog.log("Cast: no se pudo saber el tamaño del fichero de YouTube");
-                return null;
-            }
-            mLengths.put(format.getUrl(), probed);
-        }
-        mFormats.put(videoId, format);
-        return format;
-    }
-
-    private final Map<String, Long> mLengths = new ConcurrentHashMap<>();
-
-    /** For «Diagnóstico»: what YouTube sent. */
-    private static String describe(MediaItemFormatInfo info) {
-        int adaptive = 0;
-        int adaptiveWithUrl = 0;
-        int sabr = 0;
-        if (info.getAdaptiveFormats() != null) {
-            for (MediaFormat format : info.getAdaptiveFormats()) {
-                adaptive++;
-                if (format != null && !TextUtils.isEmpty(format.getUrl())) {
-                    adaptiveWithUrl++;
-                }
-                if (format != null && format.getFormatType() == MediaFormat.FORMAT_TYPE_SABR) {
-                    sabr++;
-                }
-            }
-        }
-        int regular = info.getUrlFormats() != null ? info.getUrlFormats().size() : 0;
-        return "adaptativos " + adaptive + " (con enlace " + adaptiveWithUrl + ", SABR " + sabr + ") · normales " + regular
-                + " · HLS " + (TextUtils.isEmpty(info.getHlsManifestUrl()) ? "no" : "sí");
-    }
-
-    /** The regular file (picture and sound together): mp4 first, the best one. */
-    static MediaFormat pickRegular(List<MediaFormat> formats) {
-        if (formats == null) {
-            return null;
-        }
-        MediaFormat best = null;
-        long bestScore = -1;
-        for (MediaFormat format : formats) {
-            if (format == null || TextUtils.isEmpty(format.getUrl()) || format.getMimeType() == null) {
-                continue;
-            }
-            boolean mp4 = format.getMimeType().contains("mp4");
-            long score = (mp4 ? 1_000_000_000L : 0) + parse(format.getBitrate());
-            if (score > bestScore) {
-                best = format;
-                bestScore = score;
-            }
-        }
-        return best;
-    }
-
-    /** The file's size, asking YouTube for its first byte (Content-Range: bytes 0-0/TOTAL). */
-    static long probeLength(String url) {
-        try {
-            HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
-            connection.setConnectTimeout(10_000);
-            connection.setReadTimeout(10_000);
-            connection.setRequestProperty("User-Agent", DefaultHeaders.APP_USER_AGENT);
-            connection.setRequestProperty("Range", "bytes=0-0");
-            try {
-                String range = connection.getHeaderField("Content-Range");
-                if (range != null && range.contains("/")) {
-                    return parse(range.substring(range.lastIndexOf('/') + 1).trim());
-                }
-                return connection.getResponseCode() == 200 ? connection.getContentLength() : 0;
-            } finally {
-                connection.disconnect();
-            }
-        } catch (Exception e) {
-            return 0;
-        }
-    }
-
-    private static MediaFormat pick(List<MediaFormat> formats) {
-        if (formats == null) {
-            return null;
-        }
-        boolean hasOriginal = false;
-        for (MediaFormat format : formats) {
-            if (isAudio(format) && format.getLanguage() != null && format.getLanguage().contains("original")) {
-                hasOriginal = true;
-            }
-        }
-        MediaFormat best = null;
-        long bestScore = -1;
-        for (MediaFormat format : formats) {
-            if (!isAudio(format) || clen(format) <= 0) {
-                continue;
-            }
-            if (hasOriginal && (format.getLanguage() == null || !format.getLanguage().contains("original"))) {
-                continue;
-            }
-            boolean aac = format.getMimeType().contains("mp4");
-            long score = (aac ? 1_000_000_000L : 0) + parse(format.getBitrate());
-            if (score > bestScore) {
-                best = format;
-                bestScore = score;
-            }
-        }
-        return best;
-    }
-
-    private static boolean isAudio(MediaFormat format) {
-        return format != null && format.getMimeType() != null && format.getMimeType().startsWith("audio/")
-                && !TextUtils.isEmpty(format.getUrl()) && !format.isDrc();
-    }
-
-    private long length(MediaFormat format) {
-        long clen = parse(format.getClen());
-        if (clen > 0) {
-            return clen;
-        }
-        Long probed = format.getUrl() != null ? mLengths.get(format.getUrl()) : null;
-        return probed != null ? probed : 0;
-    }
-
-    private static long clen(MediaFormat format) {
-        return parse(format.getClen());
-    }
-
-    private static long parse(String value) {
-        try {
-            return value != null ? Long.parseLong(value) : 0;
-        } catch (NumberFormatException e) {
-            return 0;
-        }
-    }
-
-    private static String baseMime(MediaFormat format) {
-        String mime = format.getMimeType();
-        int semicolon = mime.indexOf(';');
-        return (semicolon > 0 ? mime.substring(0, semicolon) : mime).trim();
+        return source;
     }
 
     // ---------------------------------------------------------------- answering the Chromecast
@@ -340,12 +183,12 @@ final class CastBridge {
             if (query >= 0) {
                 videoId = videoId.substring(0, query);
             }
-            MediaFormat format = format(videoId);
-            if (format == null) {
+            SongSource source = source(videoId);
+            if (source == null) {
                 answer(out, "404 Not Found", null, 0, null, null);
                 return;
             }
-            long total = length(format);
+            long total = source.length;
             long start = 0;
             long end = total - 1;
             boolean partial = false;
@@ -371,10 +214,10 @@ final class CastBridge {
                 answer(out, "416 Range Not Satisfiable", null, 0, null, "bytes */" + total);
                 return;
             }
-            answer(out, partial ? "206 Partial Content" : "200 OK", baseMime(format), end - start + 1, null,
+            answer(out, partial ? "206 Partial Content" : "200 OK", source.baseMime(), end - start + 1, null,
                     partial ? "bytes " + start + "-" + end + "/" + total : null);
             if (!head) {
-                copy(videoId, format, start, end, out);
+                copy(videoId, source, start, end, out);
             }
         } catch (Exception e) {
             // the Chromecast closed the connection (a jump, or another song)
@@ -399,27 +242,27 @@ final class CastBridge {
     }
 
     /** From YouTube to the Chromecast, 1 MB at a time (YouTube's link is asked again if it expired). */
-    private void copy(String videoId, MediaFormat format, long start, long end, OutputStream out) throws Exception {
+    private void copy(String videoId, SongSource source, long start, long end, OutputStream out) throws Exception {
         byte[] buffer = new byte[64 * 1024];
         long position = start;
         boolean retried = false;
         while (position <= end) {
             long chunkEnd = Math.min(end, position + CHUNK - 1);
-            HttpURLConnection connection = (HttpURLConnection) new URL(format.getUrl()).openConnection();
+            HttpURLConnection connection = (HttpURLConnection) new URL(source.url).openConnection();
             connection.setConnectTimeout(15_000);
             connection.setReadTimeout(20_000);
-            connection.setRequestProperty("User-Agent", DefaultHeaders.APP_USER_AGENT);
+            connection.setRequestProperty("User-Agent", source.userAgent);
             connection.setRequestProperty("Range", "bytes=" + position + "-" + chunkEnd);
             try {
                 int code = connection.getResponseCode();
                 if ((code == 403 || code == 410) && !retried) {
                     retried = true; // the link expired: a new one
                     mFormats.remove(videoId);
-                    MediaFormat fresh = format(videoId);
+                    SongSource fresh = source(videoId);
                     if (fresh == null) {
                         return;
                     }
-                    format = fresh;
+                    source = fresh;
                     continue;
                 }
                 if (code != 200 && code != 206) {
