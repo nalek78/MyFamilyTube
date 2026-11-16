@@ -123,13 +123,22 @@ final class CarSongCache {
         }
         MediaFormat audio = pickAudio(info.getAdaptiveFormats());
         if (audio == null || TextUtils.isEmpty(audio.getUrl())) {
-            return;
+            // YouTube now often gives the sound only through SABR (no link): the regular file
+            // (picture and sound together, medium quality) still has one. Only its sound is played.
+            audio = CastBridge.pickRegular(info.getUrlFormats());
+            if (audio == null) {
+                return;
+            }
         }
         long length = parseLong(audio.getClen());
+        if (length <= 0) {
+            length = CastBridge.probeLength(audio.getUrl());
+        }
         if (length <= 0 || length > MAX_SONG_BYTES) {
             return;
         }
-        String extension = audio.getMimeType() != null && audio.getMimeType().contains("webm") ? "webm" : "m4a";
+        String mime = audio.getMimeType() != null ? audio.getMimeType() : "";
+        String extension = mime.contains("webm") ? "webm" : mime.startsWith("video/") ? "mp4" : "m4a";
         File part = new File(mDir, videoId + "." + extension + ".part");
         File done = new File(mDir, videoId + "." + extension);
         try (OutputStream out = new FileOutputStream(part)) {

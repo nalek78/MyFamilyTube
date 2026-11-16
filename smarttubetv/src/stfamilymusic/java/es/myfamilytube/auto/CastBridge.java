@@ -199,7 +199,7 @@ final class CastBridge {
     }
 
     /** The regular file (picture and sound together): mp4 first, the best one. */
-    private static MediaFormat pickRegular(List<MediaFormat> formats) {
+    static MediaFormat pickRegular(List<MediaFormat> formats) {
         if (formats == null) {
             return null;
         }
@@ -220,7 +220,7 @@ final class CastBridge {
     }
 
     /** The file's size, asking YouTube for its first byte (Content-Range: bytes 0-0/TOTAL). */
-    private static long probeLength(String url) {
+    static long probeLength(String url) {
         try {
             HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
             connection.setConnectTimeout(10_000);
