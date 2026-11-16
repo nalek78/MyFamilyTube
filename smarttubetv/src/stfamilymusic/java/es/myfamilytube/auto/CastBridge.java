@@ -145,13 +145,100 @@ final class CastBridge {
         }
         MediaItemFormatInfo info = YouTubeServiceManager.instance().getMediaItemService().getFormatInfo(videoId);
         if (info == null || info.isUnplayable() || info.isLive()) {
+            mLog.log("Cast: YouTube no da la canción · " + (info == null ? "sin respuesta"
+                    : info.isLive() ? "es un directo" : "no se puede reproducir: " + info.getPlayabilityReason()));
             return null;
         }
+        // 1) only the sound, with its own link (best quality)
         MediaFormat format = pick(info.getAdaptiveFormats());
-        if (format != null) {
-            mFormats.put(videoId, format);
+        // 2) YouTube now often gives the sound only through SABR (no link): the regular file
+        //    with picture and sound together (medium quality), which still has a link
+        if (format == null) {
+            format = pickRegular(info.getUrlFormats());
+            if (format != null) {
+                mLog.log("Cast: sin enlace al sonido solo (SABR); se envía el vídeo normal " + format.getMimeType());
+            }
         }
+        if (format == null) {
+            mLog.log("Cast: ningún formato con enlace · " + describe(info));
+            return null;
+        }
+        if (length(format) <= 0) {
+            long probed = probeLength(format.getUrl());
+            if (probed <= 0) {
+                mLog.log("Cast: no se pudo saber el tamaño del fichero de YouTube");
+                return null;
+            }
+            mLengths.put(format.getUrl(), probed);
+        }
+        mFormats.put(videoId, format);
         return format;
+    }
+
+    private final Map<String, Long> mLengths = new ConcurrentHashMap<>();
+
+    /** For «Diagnóstico»: what YouTube sent. */
+    private static String describe(MediaItemFormatInfo info) {
+        int adaptive = 0;
+        int adaptiveWithUrl = 0;
+        int sabr = 0;
+        if (info.getAdaptiveFormats() != null) {
+            for (MediaFormat format : info.getAdaptiveFormats()) {
+                adaptive++;
+                if (format != null && !TextUtils.isEmpty(format.getUrl())) {
+                    adaptiveWithUrl++;
+                }
+                if (format != null && format.getFormatType() == MediaFormat.FORMAT_TYPE_SABR) {
+                    sabr++;
+                }
+            }
+        }
+        int regular = info.getUrlFormats() != null ? info.getUrlFormats().size() : 0;
+        return "adaptativos " + adaptive + " (con enlace " + adaptiveWithUrl + ", SABR " + sabr + ") · normales " + regular
+                + " · HLS " + (TextUtils.isEmpty(info.getHlsManifestUrl()) ? "no" : "sí");
+    }
+
+    /** The regular file (picture and sound together): mp4 first, the best one. */
+    private static MediaFormat pickRegular(List<MediaFormat> formats) {
+        if (formats == null) {
+            return null;
+        }
+        MediaFormat best = null;
+        long bestScore = -1;
+        for (MediaFormat format : formats) {
+            if (format == null || TextUtils.isEmpty(format.getUrl()) || format.getMimeType() == null) {
+                continue;
+            }
+            boolean mp4 = format.getMimeType().contains("mp4");
+            long score = (mp4 ? 1_000_000_000L : 0) + parse(format.getBitrate());
+            if (score > bestScore) {
+                best = format;
+                bestScore = score;
+            }
+        }
+        return best;
+    }
+
+    /** The file's size, asking YouTube for its first byte (Content-Range: bytes 0-0/TOTAL). */
+    private static long probeLength(String url) {
+        try {
+            HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
+            connection.setConnectTimeout(10_000);
+            connection.setReadTimeout(10_000);
+            connection.setRequestProperty("User-Agent", DefaultHeaders.APP_USER_AGENT);
+            connection.setRequestProperty("Range", "bytes=0-0");
+            try {
+                String range = connection.getHeaderField("Content-Range");
+                if (range != null && range.contains("/")) {
+                    return parse(range.substring(range.lastIndexOf('/') + 1).trim());
+                }
+                return connection.getResponseCode() == 200 ? connection.getContentLength() : 0;
+            } finally {
+                connection.disconnect();
+            }
+        } catch (Exception e) {
+            return 0;
+        }
     }
 
     private static MediaFormat pick(List<MediaFormat> formats) {
@@ -167,7 +254,7 @@ final class CastBridge {
         MediaFormat best = null;
         long bestScore = -1;
         for (MediaFormat format : formats) {
-            if (!isAudio(format) || length(format) <= 0) {
+            if (!isAudio(format) || clen(format) <= 0) {
                 continue;
             }
             if (hasOriginal && (format.getLanguage() == null || !format.getLanguage().contains("original"))) {
@@ -188,7 +275,16 @@ final class CastBridge {
                 && !TextUtils.isEmpty(format.getUrl()) && !format.isDrc();
     }
 
-    private static long length(MediaFormat format) {
+    private long length(MediaFormat format) {
+        long clen = parse(format.getClen());
+        if (clen > 0) {
+            return clen;
+        }
+        Long probed = format.getUrl() != null ? mLengths.get(format.getUrl()) : null;
+        return probed != null ? probed : 0;
+    }
+
+    private static long clen(MediaFormat format) {
         return parse(format.getClen());
     }
 
