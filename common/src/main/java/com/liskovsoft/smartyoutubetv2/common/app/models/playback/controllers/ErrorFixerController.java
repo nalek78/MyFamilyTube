@@ -3,6 +3,7 @@ package com.liskovsoft.smartyoutubetv2.common.app.models.playback.controllers;
 import android.annotation.SuppressLint;
 
 import com.google.android.exoplayer2.source.sabr.parser.exceptions.SabrBackoffError;
+import com.google.android.exoplayer2.source.sabr.parser.exceptions.SabrPoTokenError;
 import com.google.android.exoplayer2.source.sabr.parser.exceptions.SabrReloadPlayerError;
 import com.liskovsoft.sharedutils.helpers.Helpers;
 import com.liskovsoft.sharedutils.helpers.MessageHelpers;
@@ -24,7 +25,7 @@ import java.util.List;
 public class ErrorFixerController extends BasePlayerController implements OnLongBuffering {
     private static final String TAG = ErrorFixerController.class.getSimpleName();
     private static final long STREAM_END_THRESHOLD_MS = 180_000;
-    private static final int MAX_SABR_ERROR_FIX_ATTEMPTS = 3;
+    private static final int MAX_SABR_ERROR_FIX_ATTEMPTS = 1;
     private final BufferingDetector mBufferingDetector = new BufferingDetector(this);
     private VideoLoaderController mVideoLoaderController;
     private String mSabrErrorFixVideoId;
@@ -61,7 +62,8 @@ public class ErrorFixerController extends BasePlayerController implements OnLong
             boolean isCustomEngineEnabled = getPlayerTweaksData().getPlayerDataSource() == requiredEngine;
             boolean isCustomDnsEnabled = getPlayerTweaksData().getPreferredDnsType() == customDns;
             boolean isCustomDnsActive = isCustomEngineEnabled && isCustomDnsEnabled;
-            if (!isCustomDnsActive && !getPlayerTweaksData().isNetworkErrorFixingDisabled()) {
+            if (getPlayer().getPositionMs() == 0 && !isCustomDnsActive && !getPlayerTweaksData().isNetworkErrorFixingDisabled()) {
+                // Exclude possible PoToken errors. Upon resume there's no 60 sec PoToken attestation window, so a resumed video fails instantly.
                 // Wrong DNS resolving could cause hanging at start
                 // Do switch to only engine that respects custom DNS settings
                 MessageHelpers.showLongMessage(getContext(), "Fixing incorrect DNS resolution. App restart needed...");
@@ -297,7 +299,9 @@ public class ErrorFixerController extends BasePlayerController implements OnLong
             getPlayerData().setFormat(FormatItem.AUDIO_HQ_MP4A);
             restartEngine = false;
         } else if (type == PlayerEventListener.ERROR_TYPE_UNEXPECTED) {
-            if (error instanceof NullPointerException) {
+            if (error instanceof SabrPoTokenError) {
+                YouTubeServiceManager.instance().switchNextClient();
+            } else if (error instanceof NullPointerException) {
                 // SABR extractor throws NPE on subtitle error
                 // NOTE: the engine should be restarted
                 disableSubtitles();

@@ -197,16 +197,15 @@ To enable global voice search, an additional app must be installed alongside Sma
 
 Major contributors to this project:
 
-- [@pixkk](https://github.com/pixkk): SABR streaming, Innertube internals
+- [@pixkk](https://github.com/pixkk): SABR streaming, TV PoToken/Challenge generation 
 - [@Jupiops](https://github.com/Jupiops): SABR CDN support
 
 ## Donation
 
 If you want to support my developments you are welcome to buy me a cup of coffee :)
 
-- [**Patreon (Visa, Mastercard, PayPal)**](https://www.patreon.com/smarttube)  
+- [**Patreon (free)**](https://www.patreon.com/smarttube)  
 - **PayPal**: firsth<!-- abc@def -->ash@gmai<!-- @abc.com -->l.com  
-<!-- > [**Buy me a coffee**](https://www.buymeacoffee.com/stube) -->  
 - **BTC**: 1JAT5VVWarVBkpVbNDn8UA8HXNdrukuBSx  
 - **LTC**: ltc1qgc24eq9jl9cq78qnd5jpqhemkajg9vudwyd8pw  
 - **ETH**: 0xe455E21a085ae195a097cd4F456051A9916A5064  
@@ -227,8 +226,7 @@ You can report in our Telegram group or via [issue tracker on Github](https://gi
 
 - **Telegram group (international)**: [@SmartTubeEN](http://t.me/SmartTubeEN)  
 - **Discord group (international)**: [SmartTube Official](https://discord.gg/Wt8HDDej5z)  
-- **Telegram group (RU/UA)**: [@SmartTubeUA](http://t.me/SmartTubeUA)  
-- **Email**: firsth<!-- abc@def -->ash@gmai<!-- @abc.com -->l.com
+- **Telegram group (RU/UA)**: [@SmartTubeUA](http://t.me/SmartTubeUA)
 
 The international group is in **English only**. But don't worry if your English is not perfect, we have a friendly international community.
 
@@ -240,7 +238,7 @@ SmartTube is developed single-handedly; there is no larger team or company behin
 
 ## Build
     
-**NOTE: OpenJDK 14 or older (!) is required. Newer JDK could cause app crash!**  
+**NOTE: OpenJDK 17 is used by the CI build (see `.github/workflows/CI.yml`). The old requirement of OpenJDK 14 or older no longer applies.**  
 To build and install debug version, run these commands:
 
 ```

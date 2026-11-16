@@ -325,6 +325,13 @@ public class GeneralSettingsPresenter extends BasePresenter<Void> {
     private void appendKeyRemappingCategory(AppDialogPresenter settingsPresenter) {
         List<OptionItem> options = new ArrayList<>();
 
+        options.add(UiOptionItem.from(getContext().getString(R.string.player_quick_skip_chapters),
+                option -> {
+                    mPlayerTweaksData.setQuickSkipChaptersEnabled(option.isSelected());
+                    mGeneralData.setDpadUpDownAction(GeneralData.ACTION_UNDEFINED);
+                },
+                mPlayerTweaksData.isQuickSkipChaptersEnabled()));
+
         options.add(UiOptionItem.from("OK -> " + getContext().getString(R.string.player_toggle_speed),
                 option -> mPlayerData.setOKButtonBehavior(option.isSelected() ? PlayerData.OK_TOGGLE_SPEED : PlayerData.OK_ONLY_UI),
                 mPlayerData.getOKButtonBehavior() == PlayerData.OK_TOGGLE_SPEED));
@@ -645,6 +652,8 @@ public class GeneralSettingsPresenter extends BasePresenter<Void> {
 
             appendDNSCategory(settingsPresenter);
 
+            appendNetworkEngineCategory(settingsPresenter);
+
             settingsPresenter.showDialog(title);
         }));
     }
@@ -720,6 +729,11 @@ public class GeneralSettingsPresenter extends BasePresenter<Void> {
                 mPlayerTweaksData.getPreferredDnsType() == PlayerTweaksData.DNS_TYPE_GOOGLE));
 
         settingsPresenter.appendRadioCategory(getContext().getString(R.string.preferred_dns), options);
+    }
+
+    private void appendNetworkEngineCategory(AppDialogPresenter settingsPresenter) {
+        OptionCategory category = AppDialogUtil.createNetworkEngineCategory(getContext());
+        settingsPresenter.appendCategory(category);
     }
 
     private void enableChildMode(boolean enable) {
