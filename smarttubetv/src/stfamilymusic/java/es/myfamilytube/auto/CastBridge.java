@@ -40,6 +40,17 @@ final class CastBridge {
         void onReady(String url, String mimeType);
     }
 
+    /** Notes for the app's «Diagnóstico» (there is no other way to see what happened on a phone). */
+    interface Log {
+        void log(String text);
+    }
+
+    private Log mLog = text -> { };
+
+    void setLog(Log log) {
+        mLog = log;
+    }
+
     private final ExecutorService mPool = Executors.newCachedThreadPool();
     private final Map<String, MediaFormat> mFormats = new ConcurrentHashMap<>();
     private ServerSocket mServer;
@@ -56,8 +67,12 @@ final class CastBridge {
                     start();
                     url = "http://" + address + ":" + mServer.getLocalPort() + "/song/" + videoId;
                     mime = baseMime(format);
+                    mLog.log("Cast: canción lista en " + url + " (" + format.getMimeType() + ", " + length(format) / 1024 + " KB)");
+                } else {
+                    mLog.log("Cast: no se puede enviar · formato " + (format != null ? "sí" : "NO") + " · Wi‑Fi " + (address != null ? address : "NO"));
                 }
             } catch (Exception e) {
+                mLog.log("Cast: error al preparar la canción: " + e);
                 url = null;
             }
             ready.onReady(url, mime);
@@ -211,6 +226,14 @@ final class CastBridge {
             }
             String[] parts = requestLine.split(" ");
             OutputStream out = client.getOutputStream();
+            mLog.log("Cast: petición de " + client.getInetAddress().getHostAddress() + " · " + requestLine + (range != null ? " · " + range : ""));
+            if ("OPTIONS".equals(parts[0])) {
+                out.write(("HTTP/1.1 204 No Content\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: GET, HEAD, OPTIONS\r\n"
+                        + "Access-Control-Allow-Headers: Range, Content-Type\r\nAccess-Control-Max-Age: 86400\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
+                        .getBytes("US-ASCII"));
+                out.flush();
+                return;
+            }
             if (parts.length < 2 || !parts[1].startsWith("/song/")) {
                 answer(out, "404 Not Found", null, 0, null, null);
                 return;
@@ -270,6 +293,7 @@ final class CastBridge {
         header.append("Content-Length: ").append(length).append("\r\n");
         header.append("Accept-Ranges: bytes\r\n");
         header.append("Access-Control-Allow-Origin: *\r\n");
+        header.append("Access-Control-Expose-Headers: Content-Length, Content-Range, Accept-Ranges\r\n");
         if (contentRange != null) {
             header.append("Content-Range: ").append(contentRange).append("\r\n");
         }
@@ -303,6 +327,7 @@ final class CastBridge {
                     continue;
                 }
                 if (code != 200 && code != 206) {
+                    mLog.log("Cast: YouTube respondió " + code + " al pedir el sonido");
                     return;
                 }
                 try (InputStream in = connection.getInputStream()) {

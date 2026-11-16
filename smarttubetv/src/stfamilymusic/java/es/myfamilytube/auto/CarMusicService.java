@@ -184,6 +184,7 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
 
     private CastController mCast;
     private final CastBridge mBridge = new CastBridge();
+    private int mCastErrors;
     private androidx.media.VolumeProviderCompat mCastVolume;
     private static final int CAST_VOLUME_STEPS = 20;
 
@@ -271,10 +272,21 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
 
         @Override
         public void onRemoteFinished(boolean error) {
-            if (error) {
-                es.myfamilytube.FamilyDiagnostics.instance(CarMusicService.this).log("Chromecast: no se pudo reproducir una canción");
+            if (error && ++mCastErrors >= 2) {
+                // Not this song's fault: say so instead of skipping through the whole list in silence
+                mCastErrors = 0;
+                showError("El dispositivo no ha podido reproducir la música. Mira «Diagnóstico» en el menú ⋮");
+                return;
+            }
+            if (!error) {
+                mCastErrors = 0;
             }
             onFinishRequested(); // the next one (also on the Chromecast)
+        }
+
+        @Override
+        public void onNote(String text) {
+            es.myfamilytube.FamilyDiagnostics.instance(CarMusicService.this).log(text);
         }
     };
 
@@ -316,6 +328,7 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         super.onCreate();
         sInstance = this;
         mPlayer = new CarPlayer(this, this);
+        mBridge.setLog(text -> es.myfamilytube.FamilyDiagnostics.instance(this).log(text));
         mCast = CastController.create(this, mCastListener);
         mPlayer.setRemote(mCast);
         mCache = new CarSongCache(this);

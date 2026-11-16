@@ -6,6 +6,7 @@ import com.google.android.gms.cast.CastMediaControlIntent;
 import com.google.android.gms.cast.framework.CastOptions;
 import com.google.android.gms.cast.framework.OptionsProvider;
 import com.google.android.gms.cast.framework.SessionProvider;
+import com.google.android.gms.cast.framework.media.CastMediaOptions;
 
 import java.util.List;
 
@@ -19,7 +20,12 @@ public class CastOptionsProvider implements OptionsProvider {
         return new CastOptions.Builder()
                 .setReceiverApplicationId(CastMediaControlIntent.DEFAULT_MEDIA_RECEIVER_APPLICATION_ID)
                 .setStopReceiverApplicationWhenEndingSession(true)
-                .setCastMediaOptions(null) // no Cast notification or media session: the app has its own
+                // Media control stays on (it is what plays the songs), but without Cast's own
+                // notification and media session: the app has its own
+                .setCastMediaOptions(new CastMediaOptions.Builder()
+                        .setNotificationOptions(null)
+                        .setMediaSessionEnabled(false)
+                        .build())
                 .build();
     }
 

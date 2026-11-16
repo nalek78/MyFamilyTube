@@ -29,6 +29,9 @@ final class CastController {
 
         /** The song finished on the Chromecast (or couldn't be played: error). */
         void onRemoteFinished(boolean error);
+
+        /** Something worth writing in «Diagnóstico». */
+        void onNote(String text);
     }
 
     private final CastContext mContext;
@@ -111,7 +114,13 @@ final class CastController {
                 .setMediaInfo(info)
                 .setAutoplay(play)
                 .setCurrentTime(Math.max(0, startMs))
-                .build());
+                .build())
+                .setResultCallback(result -> {
+                    if (result != null && result.getStatus() != null && !result.getStatus().isSuccess()) {
+                        mListener.onNote("Cast: el aparato rechazó la canción · código " + result.getStatus().getStatusCode()
+                                + (result.getStatus().getStatusMessage() != null ? " · " + result.getStatus().getStatusMessage() : ""));
+                    }
+                });
     }
 
     void play() {
@@ -189,6 +198,7 @@ final class CastController {
         if (mClient != null) {
             mClient.registerCallback(mClientCallback);
         }
+        mListener.onNote("Cast: conectado con " + deviceName() + (mClient != null ? "" : " · SIN control de medios"));
     }
 
     private void detach() {
@@ -221,6 +231,7 @@ final class CastController {
                     return;
                 }
                 if (reason == MediaStatus.IDLE_REASON_ERROR) {
+                    mListener.onNote("Cast: el aparato no pudo reproducir la canción (error al cargarla o formato)");
                     mFinishedSent = true;
                     mListener.onRemoteFinished(true);
                     return;
@@ -278,6 +289,7 @@ final class CastController {
 
         @Override
         public void onSessionStartFailed(CastSession session, int error) {
+            mListener.onNote("Cast: no se pudo conectar con el aparato · código " + error);
         }
 
         @Override
