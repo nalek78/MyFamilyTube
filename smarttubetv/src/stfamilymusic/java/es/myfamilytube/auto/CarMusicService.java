@@ -1437,6 +1437,11 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
             start = Video.from(videoId);
             queue = new ArrayList<>();
             queue.add(start);
+        } else if (listKey.startsWith(SEARCH)) {
+            // A song picked from a search: the other results are mostly versions of the same song,
+            // so only that one is queued and similar songs (not versions) follow it
+            queue = new ArrayList<>();
+            queue.add(start);
         }
         playQueue(queue, start);
     }
