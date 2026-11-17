@@ -328,6 +328,7 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         super.onCreate();
         sInstance = this;
         mPlayer = new CarPlayer(this, this);
+        mBridge.setContext(this);
         mBridge.setLog(text -> es.myfamilytube.FamilyDiagnostics.instance(this).log(text));
         mCast = CastController.create(this, mCastListener);
         mPlayer.setRemote(mCast);

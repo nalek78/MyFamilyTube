@@ -48,6 +48,29 @@ final class CastBridge {
     private final ExecutorService mPool = Executors.newCachedThreadPool();
     private final Map<String, SongSource> mFormats = new ConcurrentHashMap<>();
     private ServerSocket mServer;
+    private final java.util.Set<String> mNoLink = java.util.Collections.newSetFromMap(new ConcurrentHashMap<>());
+    private android.content.Context mContext;
+    private SongCapture mCapture;
+
+    void setContext(android.content.Context context) {
+        mContext = context.getApplicationContext();
+    }
+
+    /** The song played by the phone's own player into a file (when YouTube gives no link). */
+    private synchronized SongCapture capture(String videoId) {
+        if (mCapture != null && mCapture.videoId.equals(videoId)) {
+            return mCapture;
+        }
+        if (mCapture != null) {
+            mCapture.release();
+            mCapture = null;
+        }
+        if (mContext == null) {
+            return null;
+        }
+        mCapture = new SongCapture(mContext, videoId, new java.io.File(mContext.getCacheDir(), "cast"), text -> mLog.log("Cast: " + text));
+        return mCapture;
+    }
 
     /** Gets the song ready (slow: YouTube is asked) and gives its address for the Chromecast. */
     void prepare(String videoId, Ready ready) {
@@ -57,7 +80,18 @@ final class CastBridge {
             try {
                 SongSource source = source(videoId);
                 String address = wifiAddress();
-                if (source != null && address != null) {
+                if (source == null && address != null) {
+                    SongCapture capture = capture(videoId);
+                    long length = capture != null ? capture.waitLength(40_000) : 0;
+                    if (length > 0) {
+                        start();
+                        url = "http://" + address + ":" + mServer.getLocalPort() + "/song/" + videoId;
+                        mime = "audio/wav";
+                        mLog.log("Cast: canción lista (captura) en " + url + " (" + length / 1024 + " KB)");
+                    } else {
+                        mLog.log("Cast: tampoco se pudo con el reproductor del móvil");
+                    }
+                } else if (source != null && address != null) {
                     start();
                     url = "http://" + address + ":" + mServer.getLocalPort() + "/song/" + videoId;
                     mime = source.baseMime();
@@ -83,6 +117,11 @@ final class CastBridge {
             mServer = null;
         }
         mFormats.clear();
+        mNoLink.clear();
+        if (mCapture != null) {
+            mCapture.release();
+            mCapture = null;
+        }
     }
 
     private synchronized void start() throws IOException {
@@ -137,10 +176,15 @@ final class CastBridge {
         if (known != null) {
             return known;
         }
+        if (mNoLink.contains(videoId)) {
+            return null;
+        }
         SongSource source = SongSource.find(videoId, true, text -> mLog.log("Cast: " + text));
         if (source != null) {
             mLog.log("Cast: sonido por " + source.how + " (" + source.mimeType + ")");
             mFormats.put(videoId, source);
+        } else {
+            mNoLink.add(videoId);
         }
         return source;
     }
@@ -184,11 +228,12 @@ final class CastBridge {
                 videoId = videoId.substring(0, query);
             }
             SongSource source = source(videoId);
-            if (source == null) {
+            SongCapture capture = source == null ? capture(videoId) : null;
+            long total = source != null ? source.length : capture != null ? capture.waitLength(40_000) : 0;
+            if (total <= 0) {
                 answer(out, "404 Not Found", null, 0, null, null);
                 return;
             }
-            long total = source.length;
             long start = 0;
             long end = total - 1;
             boolean partial = false;
@@ -214,10 +259,24 @@ final class CastBridge {
                 answer(out, "416 Range Not Satisfiable", null, 0, null, "bytes */" + total);
                 return;
             }
-            answer(out, partial ? "206 Partial Content" : "200 OK", source.baseMime(), end - start + 1, null,
+            answer(out, partial ? "206 Partial Content" : "200 OK", source != null ? source.baseMime() : "audio/wav", end - start + 1, null,
                     partial ? "bytes " + start + "-" + end + "/" + total : null);
             if (!head) {
-                copy(videoId, source, start, end, out);
+                if (source != null) {
+                    copy(videoId, source, start, end, out);
+                } else {
+                    byte[] buffer = new byte[64 * 1024];
+                    long position = start;
+                    while (position <= end) {
+                        int read = capture.read(position, buffer, (int) Math.min(buffer.length, end - position + 1));
+                        if (read < 0) {
+                            break;
+                        }
+                        out.write(buffer, 0, read);
+                        position += read;
+                    }
+                    out.flush();
+                }
             }
         } catch (Exception e) {
             // the Chromecast closed the connection (a jump, or another song)
