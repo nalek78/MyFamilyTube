@@ -57,6 +57,7 @@ final class CarPlayer implements PlaybackView, BasePresenter.Headless {
             if (playbackState == Player.STATE_READY) {
                 setVolume(1.0f); // in case the engine didn't: the song's own level
             }
+            noteState("por internet", playbackState);
             mListener.onStateChanged();
         }
 
@@ -67,6 +68,46 @@ final class CarPlayer implements PlaybackView, BasePresenter.Headless {
             mHandler.post(CarPlayer.this::applyVideoMode);
         }
     };
+
+
+    // ---------------------------------------------------------------- notes for «Diagnóstico» when the sound stutters
+
+    private long mBufferingSince;
+    private int mUnderruns;
+    private long mUnderrunNoteAt;
+
+    private void note(String text) {
+        es.myfamilytube.FamilyDiagnostics.instance(mContext).log(text);
+    }
+
+    private void noteState(String who, int state) {
+        if (state == Player.STATE_BUFFERING) {
+            if (mBufferingSince == 0) {
+                mBufferingSince = android.os.SystemClock.elapsedRealtime();
+            }
+        } else if (mBufferingSince != 0) {
+            long waited = android.os.SystemClock.elapsedRealtime() - mBufferingSince;
+            mBufferingSince = 0;
+            if (state == Player.STATE_READY && waited > 300) {
+                note("Sonido: parado " + waited + " ms esperando datos (" + who + ")");
+            }
+        }
+    }
+
+    /** The phone didn't give the sound card data in time (busy phone, not the connection). */
+    private final com.google.android.exoplayer2.analytics.AnalyticsListener mUnderrunListener =
+            new com.google.android.exoplayer2.analytics.AnalyticsListener() {
+                @Override
+                public void onAudioUnderrun(EventTime eventTime, int bufferSize, long bufferSizeMs, long elapsedSinceLastFeedMs) {
+                    mUnderruns++;
+                    long now = android.os.SystemClock.elapsedRealtime();
+                    if (now - mUnderrunNoteAt > 10_000) {
+                        mUnderrunNoteAt = now;
+                        note("Sonido: cortes del móvil al dar el sonido (" + mUnderruns + " en total, último hueco "
+                                + elapsedSinceLastFeedMs + " ms)");
+                    }
+                }
+            };
 
     // ---------------------------------------------------------------- the video, on the phone
 
@@ -256,6 +297,7 @@ final class CarPlayer implements PlaybackView, BasePresenter.Headless {
     private final Player.EventListener mLocalListener = new Player.EventListener() {
         @Override
         public void onPlayerStateChanged(boolean playWhenReady, int playbackState) {
+            noteState("guardada", playbackState);
             mListener.onStateChanged();
             if (playbackState == Player.STATE_ENDED) {
                 mHandler.post(mListener::onFinishRequested);
@@ -281,7 +323,9 @@ final class CarPlayer implements PlaybackView, BasePresenter.Headless {
                     .setContentType(C.CONTENT_TYPE_MUSIC)
                     .build(), true);
             mLocal.addListener(mLocalListener);
+            mLocal.addAnalyticsListener(mUnderrunListener);
         }
+        note("Sonido: canción guardada en el móvil (" + file.getName() + ")");
         mLocalVideo = video;
         com.google.android.exoplayer2.source.MediaSource source =
                 new com.google.android.exoplayer2.source.ExtractorMediaSource.Factory(
@@ -427,6 +471,7 @@ final class CarPlayer implements PlaybackView, BasePresenter.Headless {
         // Only the sound: much less data (the phone can ask for the picture: «Vídeo»)
         mController.selectFormat(FormatItem.NO_VIDEO);
         mPlayer.addListener(mStateListener);
+        mPlayer.addAnalyticsListener(mUnderrunListener);
         mPlayer.addVideoListener(mVideoListener);
         if (mVideoView != null) {
             mPlayer.setVideoTextureView(mVideoView);
