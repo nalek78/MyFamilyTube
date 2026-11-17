@@ -49,13 +49,44 @@ final class SongCapture {
     private volatile boolean mFailed;
     private long mDurationUs;
 
-    SongCapture(Context context, String videoId, File dir, CastBridge.Log log) {
+    SongCapture(Context context, String videoId, File file, CastBridge.Log log) {
         this.videoId = videoId;
         mLog = log;
         //noinspection ResultOfMethodCallIgnored
-        dir.mkdirs();
-        mFile = new File(dir, "cast_" + videoId + ".wav");
+        file.getParentFile().mkdirs();
+        mFile = file;
         start(context.getApplicationContext());
+    }
+
+    boolean failed() {
+        return mFailed;
+    }
+
+    /** Waits until the whole song is in the file. false: it failed or took too long. */
+    boolean waitDone(long timeoutMs) {
+        long until = System.currentTimeMillis() + timeoutMs;
+        synchronized (mLock) {
+            while (!mDone && !mFailed && System.currentTimeMillis() < until) {
+                try {
+                    mLock.wait(500);
+                } catch (InterruptedException e) {
+                    return false;
+                }
+            }
+        }
+        return mDone;
+    }
+
+    /** Once finished: the header says the real size (for playing the file later). */
+    void fixHeader() throws Exception {
+        try (RandomAccessFile file = new RandomAccessFile(mFile, "rw")) {
+            ByteBuffer size = ByteBuffer.allocate(4).order(java.nio.ByteOrder.LITTLE_ENDIAN);
+            file.seek(4);
+            file.write(size.putInt(0, (int) (36 + mWritten)).array());
+            file.seek(40);
+            file.write(size.putInt(0, (int) mWritten).array());
+            file.setLength(HEADER + mWritten);
+        }
     }
 
     /** Whole size of the WAV (header + sound), waiting until it is known. 0: it failed. */
@@ -188,10 +219,14 @@ final class SongCapture {
             mLock.notifyAll();
         }
         closeFile();
-        HandlerThread thread = mThread;
-        if (thread != null && mPlayer != null) {
+        if (mPlayer != null) {
             mPlayer.release();
             mPlayer = null;
+        }
+        HandlerThread thread = mThread;
+        if (thread != null) {
+            thread.quitSafely();
+            mThread = null;
         }
     }
 

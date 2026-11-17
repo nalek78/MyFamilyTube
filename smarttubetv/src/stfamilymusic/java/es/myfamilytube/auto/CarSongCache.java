@@ -32,12 +32,15 @@ final class CarSongCache {
     private static final int CHUNK = 1024 * 1024; // YouTube serves sound faster in pieces
 
     private final File mDir;
+    private final Context mContext;
+    private static final int MAX_CAPTURE_SECONDS = 10 * 60; // uncompressed: about 10 MB per minute
     private final ExecutorService mExecutor = Executors.newSingleThreadExecutor();
     /** Songs that should be on the phone right now (the others are deleted). */
     private volatile Set<String> mWanted = new HashSet<>();
     private final Set<String> mQueued = new HashSet<>();
 
     CarSongCache(Context context) {
+        mContext = context.getApplicationContext();
         mDir = new File(context.getCacheDir(), "car_songs");
         //noinspection ResultOfMethodCallIgnored
         mDir.mkdirs();
@@ -115,6 +118,39 @@ final class CarSongCache {
         }
     }
 
+    /**
+     * No link to the sound (SABR): the phone's own player goes through the song without playing
+     * it aloud and its sound is saved (WAV, played later as any other saved song).
+     */
+    private void capture(String videoId, MediaItemFormatInfo info) throws Exception {
+        long seconds;
+        try {
+            seconds = Long.parseLong(info.getLengthSeconds());
+        } catch (Exception e) {
+            seconds = 0;
+        }
+        if (seconds <= 0 || seconds > MAX_CAPTURE_SECONDS) {
+            return;
+        }
+        File part = new File(mDir, videoId + ".wav.part");
+        SongCapture capture = new SongCapture(mContext, videoId, part, text -> { });
+        long until = System.currentTimeMillis() + 5 * 60_000;
+        boolean done = false;
+        while (mWanted.contains(videoId) && System.currentTimeMillis() < until) {
+            done = capture.waitDone(5_000);
+            if (done || capture.failed()) {
+                break;
+            }
+        }
+        if (!done || !mWanted.contains(videoId)) {
+            capture.release(); // no longer needed, failed or too slow
+            return;
+        }
+        capture.fixHeader();
+        //noinspection ResultOfMethodCallIgnored
+        part.renameTo(new File(mDir, videoId + ".wav"));
+    }
+
     private void download(String videoId) throws Exception {
         MediaItemFormatInfo info = YouTubeServiceManager.instance().getMediaItemService().getFormatInfo(videoId);
         CarLoudness.record(videoId, info, mDir); // to play it at the same level as the others
@@ -124,6 +160,7 @@ final class CarSongCache {
         // checked with YouTube first: the sound with a link, the VR app's link or the regular file
         SongSource audio = SongSource.find(videoId, false, text -> { });
         if (audio == null) {
+            capture(videoId, info);
             return;
         }
         long length = audio.length;

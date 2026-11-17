@@ -68,7 +68,7 @@ final class CastBridge {
         if (mContext == null) {
             return null;
         }
-        mCapture = new SongCapture(mContext, videoId, new java.io.File(mContext.getCacheDir(), "cast"), text -> mLog.log("Cast: " + text));
+        mCapture = new SongCapture(mContext, videoId, new java.io.File(new java.io.File(mContext.getCacheDir(), "cast"), videoId + ".wav"), text -> mLog.log("Cast: " + text));
         return mCapture;
     }
 
