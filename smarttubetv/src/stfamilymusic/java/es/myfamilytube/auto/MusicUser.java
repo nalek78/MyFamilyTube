@@ -38,6 +38,10 @@ public final class MusicUser {
         if (!user.id.equals(profiles.getCurrent().id)) {
             profiles.setCurrent(user);
         }
+        if (!prefs.getBoolean("joined_old", false)) { // what the old profiles listened to, back
+            MusicTaste.joinOldProfiles(context, user.id);
+            prefs.edit().putBoolean("joined_old", true).apply();
+        }
         return user;
     }
 }

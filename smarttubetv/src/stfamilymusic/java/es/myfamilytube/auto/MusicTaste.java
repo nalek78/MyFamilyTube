@@ -77,6 +77,62 @@ final class MusicTaste {
         return taste;
     }
 
+    /**
+     * The profiles were removed (1.0.18): what each of them listened to (and «No me interesa»)
+     * is joined into the only person's, once. The old entries are kept as they were.
+     */
+    static synchronized void joinOldProfiles(Context context, String userId) {
+        SharedPreferences prefs = context.getApplicationContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        Map<String, JSONObject> songs = new LinkedHashMap<>();
+        java.util.Set<String> hidden = new java.util.LinkedHashSet<>();
+        for (Map.Entry<String, ?> entry : prefs.getAll().entrySet()) {
+            String key = entry.getKey();
+            if (!(entry.getValue() instanceof String)) {
+                continue;
+            }
+            try {
+                JSONArray array = new JSONArray((String) entry.getValue());
+                if (key.endsWith(":hidden")) {
+                    for (int i = 0; i < array.length(); i++) {
+                        hidden.add(array.getString(i));
+                    }
+                    continue;
+                }
+                if (key.contains(":")) {
+                    continue;
+                }
+                for (int i = 0; i < array.length(); i++) {
+                    JSONObject song = array.getJSONObject(i);
+                    String id = song.optString("id");
+                    JSONObject known = songs.get(id);
+                    if (known == null) {
+                        songs.put(id, song);
+                    } else {
+                        JSONObject newer = song.optLong("last") > known.optLong("last") ? song : known;
+                        newer.put("n", known.optInt("n", 1) + song.optInt("n", 1));
+                        songs.put(id, newer);
+                    }
+                }
+            } catch (Exception e) {
+                // not a list of songs
+            }
+        }
+        List<JSONObject> all = new ArrayList<>(songs.values());
+        java.util.Collections.sort(all, (a, b) -> Long.compare(b.optLong("last"), a.optLong("last")));
+        JSONArray joined = new JSONArray();
+        for (JSONObject song : all) {
+            if (joined.length() >= MAX_SONGS) {
+                break;
+            }
+            if (!hidden.contains(song.optString("id"))) {
+                joined.put(song);
+            }
+        }
+        prefs.edit().putString(userId, joined.toString())
+                .putString(userId + ":hidden", new JSONArray(hidden).toString()).apply();
+        sInstances.remove(userId);
+    }
+
     private SharedPreferences prefs() {
         return mContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
     }
