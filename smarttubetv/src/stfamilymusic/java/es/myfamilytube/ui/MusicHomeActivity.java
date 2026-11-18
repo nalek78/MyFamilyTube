@@ -70,7 +70,8 @@ public class MusicHomeActivity extends MotherActivity {
     private static final int BG = 0xFF101114;
 
     private final Handler mHandler = new Handler(Looper.getMainLooper());
-    private FamilyProfilesOverlay mProfiles;
+    /** Accounts there were before «Añadir cuenta», to spot the new one when sign-in returns. */
+    private java.util.Set<String> mAccountsBeforeSignIn;
     private MediaBrowserCompat mBrowser;
     private MediaControllerCompat mController;
 
@@ -177,13 +178,13 @@ public class MusicHomeActivity extends MotherActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        es.myfamilytube.auto.MusicUser.ensure(this); // one person, no profiles
         setContentView(R.layout.music_home);
         findViews();
 
         ViewGroup root = findViewById(R.id.music_root);
         keepClearOfCameraAndBars(root);
-        mProfiles = new FamilyProfilesOverlay(this, root, profile -> showProfile());
-        mAvatar.setOnClickListener(v -> mProfiles.show());
+        mAvatar.setOnClickListener(v -> chooseAccount());
         findViewById(R.id.music_more).setOnClickListener(v -> showMoreMenu());
         mBack.setOnClickListener(v -> onBackPressed());
         findViewById(R.id.music_search).setOnClickListener(v -> openSearch());
@@ -244,12 +245,9 @@ public class MusicHomeActivity extends MotherActivity {
         super.onResume();
         View root = findViewById(R.id.music_root);
         root.post(root::requestApplyInsets); // full screen is applied again when coming back
-        mProfiles.onResumed(); // back from adding a Google account?
+        onSignInReturned(); // back from adding a Google account?
         showProfile();
         updateHeader();
-        if (FamilyProfiles.instance(this).shouldAskWhoIsWatching() && !mProfiles.isShowing()) {
-            mProfiles.showMandatory();
-        }
         mHandler.postDelayed(() -> MobileUpdates.checkOnce(this), 2000);
         mHandler.post(mTicker);
         mResumed = true;
@@ -280,9 +278,6 @@ public class MusicHomeActivity extends MotherActivity {
 
     @Override
     public void onBackPressed() {
-        if (mProfiles.onBack()) {
-            return;
-        }
         if (mFullscreen) {
             exitFullscreen();
             return;
@@ -398,9 +393,67 @@ public class MusicHomeActivity extends MotherActivity {
         FamilyAvatars.apply(mAvatar, profile, false, 0);
     }
 
+    // ---------------------------------------------------------------- the Google account (optional)
+
+    /** No account, one of the accounts signed in on this phone, or sign in a new one. */
+    private void chooseAccount() {
+        List<com.liskovsoft.mediaserviceinterfaces.oauth.Account> accounts = FamilyAccounts.list();
+        String current = FamilyAccounts.currentKey();
+        String[] options = new String[accounts.size() + 2];
+        options[0] = (TextUtils.isEmpty(current) ? "✓ " : "") + "Sin cuenta (solo listas del móvil)";
+        for (int i = 0; i < accounts.size(); i++) {
+            String key = FamilyAccounts.keyOf(accounts.get(i));
+            options[i + 1] = (key.equals(current) ? "✓ " : "") + FamilyAccounts.labelOf(accounts.get(i));
+        }
+        options[options.length - 1] = "Añadir una cuenta de Google…";
+        new AlertDialog.Builder(this)
+                .setTitle("Cuenta de Google (opcional)")
+                .setItems(options, (dialog, which) -> {
+                    if (which == 0) {
+                        useAccount("");
+                    } else if (which <= accounts.size()) {
+                        useAccount(FamilyAccounts.keyOf(accounts.get(which - 1)));
+                    } else {
+                        mAccountsBeforeSignIn = FamilyAccounts.keys();
+                        FamilyAccounts.signInPending = true;
+                        com.liskovsoft.smartyoutubetv2.common.app.presenters.SignInPresenter.instance(this).start();
+                    }
+                })
+                .show();
+    }
+
+    private void useAccount(String key) {
+        FamilyProfile user = FamilyProfiles.instance(this).getCurrent();
+        user.accountKey = key;
+        FamilyProfiles.instance(this).update(user); // the account is applied and everything reloads
+        FamilyAccounts.applyFor(this, user);
+        Toast.makeText(this, TextUtils.isEmpty(key) ? "Sin cuenta de Google" : "Con la cuenta " + FamilyAccounts.labelOfKey(key),
+                Toast.LENGTH_SHORT).show();
+    }
+
+    private void onSignInReturned() {
+        if (mAccountsBeforeSignIn == null) {
+            return;
+        }
+        java.util.Set<String> before = mAccountsBeforeSignIn;
+        mAccountsBeforeSignIn = null;
+        FamilyAccounts.signInPending = false;
+        String added = null;
+        for (String key : FamilyAccounts.keys()) {
+            if (!before.contains(key)) {
+                added = key;
+            }
+        }
+        if (added != null) {
+            useAccount(added);
+        } else {
+            FamilyAccounts.applyFor(this, FamilyProfiles.instance(this).getCurrent());
+        }
+    }
+
     private void showMoreMenu() {
-        FamilyProfile profile = FamilyProfiles.instance(this).getCurrent();
-        String account = !TextUtils.isEmpty(FamilyAccounts.currentKey()) ? "con su cuenta de Google" : "sin cuenta de Google";
+        String account = !TextUtils.isEmpty(FamilyAccounts.currentKey())
+                ? "con la cuenta " + FamilyAccounts.labelOfKey(FamilyAccounts.currentKey()) : "sin cuenta de Google";
         String version = "";
         try {
             version = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
@@ -409,12 +462,12 @@ public class MusicHomeActivity extends MotherActivity {
         }
         new AlertDialog.Builder(this)
                 .setTitle(getString(R.string.app_name) + " " + version)
-                .setMessage("Escucha: " + profile.name + (profile.isKid ? " (infantil)" : ", " + account)
+                .setMessage("Escuchas " + account + ". Tus listas del móvil no necesitan cuenta."
                         + "\n\nLas pestañas se eligen según lo que escuchas: tus artistas, estilos y álbumes favoritos."
                         + "\n\nEn el coche: conecta el móvil y abre " + getString(R.string.app_name)
                         + " en Android Auto. Las canciones siguientes se guardan solas en el móvil para que no se corte sin cobertura."
                         + "\n\nDatos y carátulas de los discos: MusicBrainz, Cover Art Archive e iTunes (uso personal; las portadas son de sus propietarios).")
-                .setPositiveButton("Cambiar perfil", (dialog, which) -> mProfiles.show())
+                .setPositiveButton("Cuenta de Google", (dialog, which) -> chooseAccount())
                 .setNeutralButton("Diagnóstico", (dialog, which) -> FamilyDiagnosticsDialog.show(this))
                 .setNegativeButton("Cerrar", null)
                 .show();
@@ -752,13 +805,15 @@ public class MusicHomeActivity extends MotherActivity {
         if (id.startsWith("v:")) {
             int at = id.indexOf('@');
             String videoId = id.substring(2, at > 0 ? at : id.length());
-            String openList = mSubscribed != null && mSubscribed.startsWith("pl:") ? mSubscribed.substring(3) : null;
+            String openList = mSubscribed == null ? null : mSubscribed.startsWith("pl:") ? mSubscribed.substring(3)
+                    : mSubscribed.startsWith(MusicListsMenu.LOCAL) ? mSubscribed : null;
             String listKey = at > 0 ? id.substring(at + 1) : "";
             boolean listened = listKey.endsWith("#recent") || listKey.endsWith("#fav"); // from what you listened to
             List<String> options = new ArrayList<>();
             List<Runnable> actions = new ArrayList<>();
             options.add("Añadir a una lista…");
-            actions.add(() -> listsMenu().addSong(videoId, name));
+            CharSequence artist = item.getDescription().getSubtitle();
+            actions.add(() -> listsMenu().addSong(videoId, name, artist));
             if (openList != null) {
                 options.add("Quitar de esta lista");
                 actions.add(() -> listsMenu().removeSong(openList, videoId, name, mStack.get(mStack.size() - 1).title));
@@ -772,6 +827,23 @@ public class MusicHomeActivity extends MotherActivity {
             new AlertDialog.Builder(this)
                     .setTitle(name)
                     .setItems(options.toArray(new String[0]), (dialog, which) -> actions.get(which).run())
+                    .show();
+            return true;
+        }
+        if (id.startsWith(MusicListsMenu.LOCAL)) { // a list on the phone
+            new AlertDialog.Builder(this)
+                    .setTitle(name)
+                    .setItems(new String[] {"Cambiar nombre", "Borrar lista"}, (dialog, which) -> {
+                        if (which == 0) {
+                            listsMenu().rename(id, name.toString());
+                        } else {
+                            listsMenu().delete(id, name.toString(), () -> {
+                                if (id.equals(mSubscribed)) {
+                                    onBackPressed();
+                                }
+                            });
+                        }
+                    })
                     .show();
             return true;
         }
@@ -823,7 +895,8 @@ public class MusicHomeActivity extends MotherActivity {
             Toast.makeText(this, "Los perfiles infantiles no tienen listas", Toast.LENGTH_SHORT).show();
             return;
         }
-        listsMenu().addSong(videoId, metadata.getString(MediaMetadataCompat.METADATA_KEY_TITLE));
+        listsMenu().addSong(videoId, metadata.getString(MediaMetadataCompat.METADATA_KEY_TITLE),
+                metadata.getString(MediaMetadataCompat.METADATA_KEY_ARTIST));
     }
 
     private String currentPlaceTitle() {

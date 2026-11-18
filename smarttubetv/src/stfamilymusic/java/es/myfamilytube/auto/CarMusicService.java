@@ -64,6 +64,8 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
     private static final String TAB_RECENT = "tab:recent";
     private static final String TAB_CHANNELS = "tab:channels";
     private static final String PLAYLIST = "pl:";
+    /** A list kept only on the phone (LocalLists). */
+    private static final String LOCAL_LIST = "ll:";
     private static final String CHANNEL = "ch:";
     private static final String VIDEO = "v:";
     private static final String SEARCH = "search:";
@@ -336,6 +338,7 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
     public void onCreate() {
         super.onCreate();
         sInstance = this;
+        MusicUser.ensure(this); // one person, no profiles
         mPlayer = new CarPlayer(this, this);
         mBridge.setContext(this);
         mBridge.setLog(text -> es.myfamilytube.FamilyDiagnostics.instance(this).log(text));
@@ -564,8 +567,11 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
             grid = mixObserve(parentId.substring(MIX.length()));
         } else if (TAB_HOME.equals(parentId)) {
             rows = kid ? content.getKidsHomeObserve() : content.getMusicObserve();
+        } else if (parentId.startsWith(LOCAL_LIST)) {
+            done.onItems(videoItems(parentId, LocalLists.videos(this, parentId.substring(LOCAL_LIST.length())), null));
+            return;
         } else if (TAB_LISTS.equals(parentId) && !kid) {
-            musicPlaylists(false, null, MAX_ITEMS, done); // only the lists that are music
+            allLists(null, MAX_ITEMS, done); // the phone's lists, and the account's that are music
             return;
         } else if (HIDDEN_LISTS.equals(parentId) && !kid) {
             musicPlaylists(true, null, MAX_ITEMS, done);
@@ -724,6 +730,36 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
                 && video.getDurationMs() <= MAX_SONG_MS && ContentGate.allows(video);
     }
 
+    private boolean hasAccount() {
+        return !TextUtils.isEmpty(es.myfamilytube.profiles.FamilyAccounts.currentKey());
+    }
+
+    /** The lists on the phone first; then, with a Google account, its lists that are music. */
+    private void allLists(String groupTitle, int max, Done done) {
+        List<MediaItem> local = new ArrayList<>();
+        for (LocalLists.Entry entry : LocalLists.all(this)) {
+            if (local.size() >= max) {
+                break;
+            }
+            Uri icon = entry.firstVideo != null
+                    ? CarArtProvider.uriFor(this, "https://i.ytimg.com/vi/" + entry.firstVideo + "/hqdefault.jpg")
+                    : Uri.parse("android.resource://" + getPackageName() + "/" + R.drawable.mobile_ic_library);
+            local.add(browsable(LOCAL_LIST + entry.id, entry.name,
+                    entry.size == 1 ? "1 canción · en el móvil" : entry.size + " canciones · en el móvil",
+                    icon, groupTitle, STYLE_LIST));
+        }
+        if (!hasAccount() || local.size() >= max) {
+            done.onItems(local);
+            return;
+        }
+        int left = max - local.size();
+        musicPlaylists(false, groupTitle, left, items -> {
+            List<MediaItem> all = new ArrayList<>(local);
+            all.addAll(items);
+            done.onItems(all);
+        });
+    }
+
     /**
      * The profile's YouTube lists that are music (hiddenOnly: the others). Lists not known yet are
      * looked at first (their first videos), at most 10 s.
@@ -864,37 +900,21 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
     private final java.util.Set<String> mSavedIds = new java.util.HashSet<>();
 
     /** The song playing goes to «Mis favoritas» on YouTube (created the first time). From the car. */
+    /** «Guardar» in the car: into «Mis favoritas», a list on the phone (no account needed). */
     private void saveToFavourites() {
         Video video = mPlayer.isActive() ? mPlayer.current() : null;
         if (video == null || video.videoId == null || mSavedIds.contains(video.videoId)) {
             return;
         }
-        String videoId = video.videoId;
-        String profileId = profile().id;
-        com.liskovsoft.mediaserviceinterfaces.MediaItemService items = YouTubeServiceManager.instance().getMediaItemService();
-        Runnable saved = () -> {
-            mSavedIds.add(videoId);
+        String id = LocalLists.idOf(this, FAVOURITES);
+        if (id == null) {
+            id = LocalLists.create(this, FAVOURITES);
+        }
+        if (id != null && LocalLists.add(this, id, video.videoId, video.getTitle(), video.getAuthor(), video.getCardImageUrl())) {
+            mSavedIds.add(video.videoId);
             updateState();
             listsChanged();
-        };
-        mActions.add(items.getPlaylistsInfoObserve(videoId).subscribe(infos -> mHandler.post(() -> {
-            if (infos != null) {
-                for (com.liskovsoft.mediaserviceinterfaces.data.PlaylistInfo info : infos) {
-                    if (info != null && FAVOURITES.equalsIgnoreCase(info.getTitle())) {
-                        if (info.isSelected()) {
-                            saved.run();
-                        } else {
-                            mActions.add(items.addToPlaylistObserve(info.getPlaylistId(), videoId).subscribe(
-                                    ignored -> { }, error -> mHandler.post(() -> savingFailed(error)), () -> mHandler.post(saved)));
-                        }
-                        return;
-                    }
-                }
-            }
-            MusicLists.rememberCreated(this, profileId, FAVOURITES);
-            mActions.add(items.createPlaylistObserve(FAVOURITES, videoId).subscribe(
-                    ignored -> { }, error -> mHandler.post(() -> savingFailed(error)), () -> mHandler.post(saved)));
-        }), error -> mHandler.post(() -> savingFailed(error))));
+        }
     }
 
     private void savingFailed(Throwable error) {
@@ -933,7 +953,7 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
     private void listsChanged() {
         List<String> stale = new ArrayList<>();
         for (String id : mChildren.keySet()) {
-            if (id.startsWith(PLAYLIST)) {
+            if (id.startsWith(PLAYLIST) || id.startsWith(LOCAL_LIST)) {
                 stale.add(id);
             }
         }
@@ -1113,7 +1133,7 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         }
         parts.add(Part.local(artists));
 
-        parts.add(Part.custom(done -> musicPlaylists(false, "Tus listas", MAX_PER_SHELF, done)));
+        parts.add(Part.custom(done -> allLists("Tus listas", MAX_PER_SHELF, done)));
         parts.add(Part.rows(null, content().getMusicObserve(), MAX_ITEMS));
         return parts;
     }
@@ -2132,8 +2152,10 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
                     mShuffle ? R.drawable.music_ic_shuffle_on : R.drawable.music_ic_shuffle).build());
         }
         Video playingNow = active ? mPlayer.current() : null;
-        if (playingNow != null && playingNow.videoId != null && !profile().isKid && !TextUtils.isEmpty(FamilyAccounts.currentKey())) {
-            boolean saved = mSavedIds.contains(playingNow.videoId);
+        if (playingNow != null && playingNow.videoId != null && !profile().isKid) {
+            String favourites = LocalLists.idOf(this, FAVOURITES);
+            boolean saved = mSavedIds.contains(playingNow.videoId)
+                    || (favourites != null && LocalLists.contains(this, favourites, playingNow.videoId));
             builder.addCustomAction(new PlaybackStateCompat.CustomAction.Builder(ACTION_SAVE_SONG,
                     saved ? "Guardada en " + FAVOURITES : "Guardar en " + FAVOURITES,
                     saved ? R.drawable.music_ic_saved : R.drawable.music_ic_add).build());
