@@ -111,6 +111,8 @@ public class MusicHomeActivity extends MotherActivity {
     private TextView mModeVideo;
     /** «Vídeo» chosen; the picture plays only while the full player is on screen. */
     private boolean mVideoWanted;
+    private boolean mVideoOn; // the picture is on screen
+    private boolean mPlayingNow;
     private boolean mResumed;
     private boolean mPlayerClosing;
     private float mVideoAspect = 16f / 9f;
@@ -950,6 +952,15 @@ public class MusicHomeActivity extends MotherActivity {
 
     // ---------------------------------------------------------------- «Canción | Vídeo»
 
+    /** While the video plays the screen doesn't dim or switch off (like YouTube). */
+    private void keepScreenOn() {
+        if (mVideoOn && mPlayingNow) {
+            getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        } else {
+            getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        }
+    }
+
     private void setVideoWanted(boolean video) {
         mVideoWanted = video;
         applyVideo();
@@ -964,6 +975,8 @@ public class MusicHomeActivity extends MotherActivity {
         mModeVideo.setActivated(mVideoWanted);
         boolean on = mVideoWanted && mResumed && !mPlayerClosing && CarMusicService.castDeviceName() == null
                 && (mFullscreen || mPlayer.getVisibility() == View.VISIBLE);
+        mVideoOn = on;
+        keepScreenOn();
         mVideoBox.setVisibility(on && !mFullscreen ? View.VISIBLE : View.GONE);
         mPlayerArt.setVisibility(on && !mFullscreen ? View.INVISIBLE : View.VISIBLE);
         if (on) {
@@ -1266,6 +1279,8 @@ public class MusicHomeActivity extends MotherActivity {
         }
         boolean isPlaying = state != null && (state.getState() == PlaybackStateCompat.STATE_PLAYING
                 || state.getState() == PlaybackStateCompat.STATE_BUFFERING);
+        mPlayingNow = isPlaying;
+        keepScreenOn();
         int icon = isPlaying ? R.drawable.mobile_ic_pause : R.drawable.mobile_ic_play;
         mMiniPlay.setImageResource(icon);
         mPlayerPlay.setImageResource(icon);

@@ -138,6 +138,8 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
     }
 
     private long mPendingSeekMs = -1;
+    /** Play or pause wanted once the engine has loaded the song (it starts it on its own). */
+    private Boolean mPendingPlay;
 
     /** The phone's full player: where to draw the picture (null when it isn't shown). */
     public static void setVideoView(android.view.TextureView view, VideoSize size) {
@@ -176,6 +178,7 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
             mPlayer.play(video);
             mPlayer.setPlayWhenReady(playing);
             mPendingSeekMs = position;
+            mPendingPlay = playing;
             updateState();
         }
     }
@@ -261,6 +264,7 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
                 mPlayer.play(current);
                 mPlayer.setPlayWhenReady(false);
                 mPendingSeekMs = positionMs;
+                mPendingPlay = false; // the engine would start it when loaded
             }
             updateState();
         }
@@ -1515,6 +1519,7 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         }
         mError = null;
         mPendingSeekMs = -1;
+        mPendingPlay = null;
         if (mCast != null && mCast.isCasting()) {
             // Sending to the Chromecast: the song plays there
             castSong(video, 0, true);
@@ -1910,6 +1915,14 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
             mPendingSeekMs = -1;
             mPlayer.uiSeek(position); // went on from the saved copy: same point of the song
         }
+        if (mPendingPlay != null && !mPlayer.isLocal() && !mPlayer.isRemote() && mPlayer.uiState() == com.google.android.exoplayer2.Player.STATE_READY) {
+            boolean play = mPendingPlay;
+            mPendingPlay = null;
+            if (mPlayer.getPlayWhenReady() != play) {
+                mPlayer.setPlayWhenReady(play); // what the screen shows is what is heard
+                return;
+            }
+        }
         updateState();
     }
 
@@ -2140,6 +2153,7 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
     private final class SessionCallback extends MediaSessionCompat.Callback {
         @Override
         public void onPlay() {
+            mPendingPlay = null;
             if (mPlayer.isActive() && mPlayer.uiHasMedia()) {
                 mError = null;
                 mPlayer.uiSetPlayWhenReady(true);
@@ -2150,6 +2164,7 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
 
         @Override
         public void onPause() {
+            mPendingPlay = null;
             if (mPlayer.isActive()) {
                 mPlayer.uiSetPlayWhenReady(false);
             }
