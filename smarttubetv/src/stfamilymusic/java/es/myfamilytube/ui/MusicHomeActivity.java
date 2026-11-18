@@ -429,6 +429,9 @@ public class MusicHomeActivity extends MotherActivity {
         FamilyAccounts.applyFor(this, user);
         Toast.makeText(this, TextUtils.isEmpty(key) ? "Sin cuenta de Google" : "Con la cuenta " + FamilyAccounts.labelOfKey(key),
                 Toast.LENGTH_SHORT).show();
+        if (TextUtils.isEmpty(key)) {
+            mHandler.postDelayed(this::askTastesFirstTime, 800);
+        }
     }
 
     private void onSignInReturned() {
@@ -451,6 +454,66 @@ public class MusicHomeActivity extends MotherActivity {
         }
     }
 
+    // ---------------------------------------------------------------- what you like (to recommend from the first day)
+
+    /** The first time without a Google account: which styles and artists you like. */
+    private void askTastesFirstTime() {
+        if (isFinishing() || es.myfamilytube.auto.MusicPrefs.asked(this) || !TextUtils.isEmpty(FamilyAccounts.currentKey())) {
+            return;
+        }
+        es.myfamilytube.auto.MusicPrefs.setAsked(this);
+        askTastes();
+    }
+
+    private void askTastes() {
+        String[] styles = es.myfamilytube.auto.MusicPrefs.STYLES;
+        List<String> chosen = new ArrayList<>(es.myfamilytube.auto.MusicPrefs.styles(this));
+        boolean[] checked = new boolean[styles.length];
+        for (int i = 0; i < styles.length; i++) {
+            checked[i] = chosen.contains(styles[i]);
+        }
+        new AlertDialog.Builder(this)
+                .setTitle("¿Qué música te gusta?")
+                .setMultiChoiceItems(styles, checked, (d, which, on) -> checked[which] = on)
+                .setPositiveButton("Siguiente", (d, w) -> {
+                    List<String> picked = new ArrayList<>();
+                    for (int i = 0; i < styles.length; i++) {
+                        if (checked[i]) {
+                            picked.add(styles[i]);
+                        }
+                    }
+                    askArtists(picked);
+                })
+                .setNegativeButton("Ahora no", null)
+                .show();
+    }
+
+    private void askArtists(List<String> styles) {
+        EditText field = new EditText(this);
+        field.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_FLAG_CAP_WORDS
+                | android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE);
+        field.setHint("Por ejemplo: Rosalía, Coldplay, Melendi");
+        field.setText(TextUtils.join(", ", es.myfamilytube.auto.MusicPrefs.artists(this)));
+        android.widget.FrameLayout box = new android.widget.FrameLayout(this);
+        int padding = (int) (20 * getResources().getDisplayMetrics().density);
+        box.setPadding(padding, padding / 2, padding, 0);
+        box.addView(field);
+        new AlertDialog.Builder(this)
+                .setTitle("¿Algún artista o grupo favorito?")
+                .setMessage("Separados por comas. Puedes dejarlo vacío.")
+                .setView(box)
+                .setPositiveButton("Listo", (d, w) -> {
+                    es.myfamilytube.auto.MusicPrefs.save(this, styles,
+                            es.myfamilytube.auto.MusicPrefs.parseArtists(field.getText().toString()));
+                    if (mController != null) {
+                        mController.getTransportControls().sendCustomAction(CarMusicService.ACTION_PREFS_CHANGED, null);
+                    }
+                    Toast.makeText(this, "Hecho. «Para ti» se irá ajustando a lo que escuches.", Toast.LENGTH_LONG).show();
+                })
+                .setNegativeButton("Atrás", (d, w) -> askTastes())
+                .show();
+    }
+
     private void showMoreMenu() {
         String account = !TextUtils.isEmpty(FamilyAccounts.currentKey())
                 ? "con la cuenta " + FamilyAccounts.labelOfKey(FamilyAccounts.currentKey()) : "sin cuenta de Google";
@@ -469,7 +532,7 @@ public class MusicHomeActivity extends MotherActivity {
                         + "\n\nDatos y carátulas de los discos: MusicBrainz, Cover Art Archive e iTunes (uso personal; las portadas son de sus propietarios).")
                 .setPositiveButton("Cuenta de Google", (dialog, which) -> chooseAccount())
                 .setNeutralButton("Diagnóstico", (dialog, which) -> FamilyDiagnosticsDialog.show(this))
-                .setNegativeButton("Cerrar", null)
+                .setNegativeButton("Tus gustos", (dialog, which) -> askTastes())
                 .show();
     }
 
@@ -488,6 +551,7 @@ public class MusicHomeActivity extends MotherActivity {
                 // without controls the lists still work
             }
             mBrowser.subscribe(ROOT, mRootCallback);
+            mHandler.postDelayed(() -> askTastesFirstTime(), 1500);
         }
 
         @Override

@@ -84,6 +84,8 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
     public static final String EXTRA_PLAYLIST = "playlist";
     /** From the phone: lists were created or changed on YouTube (load them again). */
     public static final String ACTION_LISTS_CHANGED = "es.myfamilymusic.LISTS_CHANGED";
+    /** The phone: you changed the styles and artists you like. */
+    public static final String ACTION_PREFS_CHANGED = "es.myfamilymusic.PREFS_CHANGED";
     /** From the phone: a list was created here (it is music); extra: its name. */
     public static final String ACTION_LIST_CREATED = "es.myfamilymusic.LIST_CREATED";
     public static final String EXTRA_NAME = "name";
@@ -834,8 +836,24 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         for (MusicTaste.Song seed : seeds) {
             sources.add(asRows(mixObserve(seed.videoId)));
         }
+        // Still little listened to: also what you said you like (artists and styles)
+        if (taste.recent(40).size() < 20) {
+            for (String artist : MusicPrefs.artists(this)) {
+                if (sources.size() >= 6) {
+                    break;
+                }
+                sources.add(content().getSearchObserve(artist, SearchOptions.TYPE_VIDEO));
+            }
+            for (String style : MusicPrefs.styles(this)) {
+                if (sources.size() >= 8) {
+                    break;
+                }
+                sources.add(content().getSearchObserve(style + " música", SearchOptions.TYPE_VIDEO));
+            }
+        }
         collectVideos(sources, 12_000, lists -> {
-            List<Video> picked = roundRobin(lists, 20, 20, video -> playableSong(video) && !taste.knows(video.videoId) && !taste.isHidden(video.videoId));
+            List<Video> picked = roundRobin(lists, 20, 20, video -> playableSong(video) && !taste.knows(video.videoId)
+                    && !taste.isHidden(video.videoId) && SearchRank.looksLikeMusic(video));
             done.onItems(videoItems(listKey, picked, "Recomendadas para ti"));
         });
     }
@@ -1102,11 +1120,17 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         MusicTaste taste = taste();
         List<Part> parts = new ArrayList<>();
         parts.add(Part.local(localSongs(TAB_FOR_YOU + "#recent", taste.recent(15), "Escuchado recientemente")));
-        if (!taste.isEmpty()) {
+        List<String> likedArtists = MusicPrefs.artists(this);
+        if (!taste.isEmpty() || !MusicPrefs.isEmpty(this)) {
             parts.add(Part.custom(done -> recommended(TAB_FOR_YOU + "#rec", done)));
             List<String> favourite = new ArrayList<>();
             for (MusicTaste.Entry artist : taste.topArtists(6)) {
                 favourite.add(artist.name);
+            }
+            for (String artist : likedArtists) {
+                if (favourite.size() < 6 && !favourite.contains(artist)) {
+                    favourite.add(artist);
+                }
             }
             parts.add(Part.custom(done -> news(TAB_FOR_YOU + "#new", favourite, 3, 18, "Novedades de tus artistas", done)));
         }
@@ -1124,12 +1148,28 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
             styles.add(browsable(GENRE + Uri.encode(genre.name), genre.name, songsText(genre.songs.size()),
                     CarArtProvider.uriForSong(this, toVideo(genre.songs.get(0))), "Tus estilos", STYLE_LIST));
         }
+        for (String style : MusicPrefs.styles(this)) { // what you said you like
+            if (styles.size() >= 8) {
+                break;
+            }
+            if (taste.songsOf(MusicTaste.KIND_GENRE, style).isEmpty()) {
+                styles.add(browsable(GENRE + Uri.encode(style), style, "Te gusta", null, "Tus estilos", STYLE_LIST));
+            }
+        }
         parts.add(Part.local(styles));
 
         List<MediaItem> artists = new ArrayList<>();
         for (MusicTaste.Entry artist : taste.topArtists(10)) {
             artists.add(browsable(ARTIST + Uri.encode(artist.name), artist.name, "Artista",
                     CarArtProvider.uriForSong(this, toVideo(artist.songs.get(0))), "Tus artistas", STYLE_LIST));
+        }
+        for (String artist : likedArtists) {
+            if (artists.size() >= 12) {
+                break;
+            }
+            if (taste.songsOf(MusicTaste.KIND_ARTIST, artist).isEmpty()) {
+                artists.add(browsable(ARTIST + Uri.encode(artist), artist, "Te gusta", null, "Tus artistas", STYLE_LIST));
+            }
         }
         parts.add(Part.local(artists));
 
@@ -1688,7 +1728,37 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         String channelId = video.channelId;
         String image = video.getCardImageUrl();
         MusicTaste taste = taste();
-        mWorker.execute(() -> taste.record(videoId, title, author, channelId, image, MusicArt.lookup(this, videoId, title, author)));
+        mWorker.execute(() -> {
+            taste.record(videoId, title, author, channelId, image, MusicArt.lookup(this, videoId, title, author));
+            mHandler.post(this::tasteChanged);
+        });
+    }
+
+    private int mHeardSinceRefresh;
+
+    /** Every few songs heard, «Para ti» and the tabs are made again with what you listen to now. */
+    private void tasteChanged() {
+        if (++mHeardSinceRefresh < 3) {
+            return;
+        }
+        mHeardSinceRefresh = 0;
+        refreshSuggestions();
+    }
+
+    private void refreshSuggestions() {
+        List<String> stale = new ArrayList<>();
+        for (String id : mChildren.keySet()) {
+            if (id.equals(ROOT) || id.startsWith(TAB_FOR_YOU)) {
+                stale.add(id);
+            }
+        }
+        for (String id : stale) {
+            mChildren.remove(id);
+            mChildrenTime.remove(id);
+        }
+        mTabs = null;
+        notifyChildrenChanged(ROOT);
+        notifyChildrenChanged(TAB_FOR_YOU);
     }
 
     /** The queue, for the car's «A continuación» and the phone. */
@@ -2393,6 +2463,8 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
                 saveToFavourites();
             } else if (ACTION_SHUFFLE.equals(action)) {
                 setShuffle(!mShuffle);
+            } else if (ACTION_PREFS_CHANGED.equals(action)) {
+                refreshSuggestions();
             }
         }
 
