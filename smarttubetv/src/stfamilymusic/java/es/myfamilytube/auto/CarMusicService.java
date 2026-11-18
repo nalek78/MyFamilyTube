@@ -67,6 +67,10 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
     private static final String CHANNEL = "ch:";
     private static final String VIDEO = "v:";
     private static final String SEARCH = "search:";
+    private static final String SEARCH_ARTIST = "searchArtist:";
+    private static final String SEARCH_ALBUM = "searchAlbum:";
+    /** What to search for (extra of a search): "song" (default), "artist" or "album". */
+    public static final String EXTRA_SEARCH_KIND = "es.myfamilymusic.SEARCH_KIND";
     private static final String ARTIST = "art:";
     private static final String GENRE = "gen:";
     private static final String ALBUM = "alb:";
@@ -430,7 +434,23 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
     @Override
     public void onSearch(@NonNull String query, Bundle extras, @NonNull Result<List<MediaItem>> result) {
         result.detach();
-        load(SEARCH + query, result::sendResult);
+        String kind = extras != null ? extras.getString(EXTRA_SEARCH_KIND) : null;
+        if ("artist".equals(kind)) {
+            load(SEARCH_ARTIST + query, result::sendResult);
+        } else if ("album".equals(kind)) {
+            load(SEARCH_ALBUM + query, result::sendResult);
+        } else if (kind == null) {
+            // Android Auto: the songs, and at the top a way to look for artists or albums instead
+            load(SEARCH + query, items -> {
+                List<MediaItem> all = new ArrayList<>();
+                all.add(browsable(SEARCH_ARTIST + query, "Artistas: «" + query + "»", null, null, "Buscar también", STYLE_LIST));
+                all.add(browsable(SEARCH_ALBUM + query, "Álbumes: «" + query + "»", null, null, "Buscar también", STYLE_LIST));
+                all.addAll(items);
+                result.sendResult(all);
+            });
+        } else {
+            load(SEARCH + query, result::sendResult);
+        }
     }
 
     private MusicTaste taste() {
@@ -565,9 +585,21 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
             }
         } else if (parentId.startsWith(CHANNEL)) {
             rows = content.getChannelObserve(parentId.substring(CHANNEL.length()));
+        } else if (parentId.startsWith(SEARCH_ARTIST) || parentId.startsWith(SEARCH_ALBUM)) {
+            boolean artists = parentId.startsWith(SEARCH_ARTIST);
+            String query = parentId.substring((artists ? SEARCH_ARTIST : SEARCH_ALBUM).length());
+            Done searchOnce = once(done);
+            mActions.add(content.getSearchObserve(artists ? query : query + " álbum",
+                    artists ? SearchOptions.TYPE_CHANNEL : SearchOptions.TYPE_PLAYLIST).subscribe(
+                    groups -> mHandler.post(() -> searchOnce.onItems(folderResults(groups, artists))),
+                    error -> mHandler.post(() -> searchOnce.onItems(new ArrayList<>())),
+                    () -> mHandler.post(() -> searchOnce.onItems(new ArrayList<>()))));
+            mHandler.postDelayed(() -> searchOnce.onItems(new ArrayList<>()), 20_000);
+            return;
         } else if (parentId.startsWith(SEARCH)) {
             Done searchOnce = once(done);
-            mActions.add(content.getSearchObserve(parentId.substring(SEARCH.length())).subscribe(
+            // only videos: artists and albums have their own search
+            mActions.add(content.getSearchObserve(parentId.substring(SEARCH.length()), SearchOptions.TYPE_VIDEO).subscribe(
                     groups -> mHandler.post(() -> searchOnce.onItems(safeSearch(parentId, groups))),
                     error -> mHandler.post(() -> searchOnce.onItems(new ArrayList<>())),
                     () -> mHandler.post(() -> searchOnce.onItems(new ArrayList<>()))));
@@ -1341,6 +1373,43 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
 
     private static final long SHORT_MS = 60_000;
 
+    /**
+     * Artists (channels) or albums (lists) found. The artists' own music channels («- Topic»,
+     * VEVO) and YouTube Music's albums (lists OLAK5uy_…) first.
+     */
+    private List<MediaItem> folderResults(List<MediaGroup> groups, boolean artists) {
+        List<MediaItem> best = new ArrayList<>();
+        List<MediaItem> rest = new ArrayList<>();
+        try {
+            java.util.Set<String> seen = new java.util.HashSet<>();
+            FamilyProfile profile = profile();
+            for (Video video : videosOf(groups)) {
+                if (best.size() + rest.size() >= MAX_ITEMS) {
+                    break;
+                }
+                if (artists) {
+                    if (video.channelId == null || video.hasVideo() || video.hasPlaylist() || !seen.add(video.channelId)
+                            || (profile.isKid && !profile.isChannelApproved(video.channelId))) {
+                        continue;
+                    }
+                    String author = video.getAuthor() != null ? video.getAuthor() : video.getTitle();
+                    boolean music = author != null && (author.endsWith(" - Topic") || author.toUpperCase(java.util.Locale.ROOT).contains("VEVO"));
+                    (music ? best : rest).add(folder(CHANNEL + video.channelId, video, music ? "Artistas" : "Otros canales"));
+                } else {
+                    if (!video.hasPlaylist() || !seen.add(video.playlistId)) {
+                        continue;
+                    }
+                    boolean album = video.playlistId.startsWith("OLAK5uy_");
+                    (album ? best : rest).add(folder(PLAYLIST + video.playlistId, video, album ? "Álbumes" : "Otras listas"));
+                }
+            }
+        } catch (RuntimeException e) {
+            es.myfamilytube.FamilyDiagnostics.instance(this).log("Música: error al preparar la búsqueda: " + e);
+        }
+        best.addAll(rest);
+        return best;
+    }
+
     private List<MediaItem> safeSearch(String parentId, List<MediaGroup> groups) {
         try {
             return searchResults(parentId, groups);
@@ -1370,7 +1439,7 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
                     continue;
                 }
                 long duration = video.getDurationMs();
-                if (video.isShorts || (duration > 0 && duration < SHORT_MS)) {
+                if (video.isShorts || (duration > 0 && duration < SHORT_MS) || duration > MAX_SONG_MS || !SearchRank.looksLikeMusic(video)) {
                     others.add(video);
                 } else {
                     songs.add(video);

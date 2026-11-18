@@ -140,6 +140,8 @@ public class MusicHomeActivity extends MotherActivity {
     private final List<Place> mStack = new ArrayList<>();
     private String mSubscribed;
     private boolean mSearching;
+    private String mSearchKind = "song";
+    private String mLastQuery;
     private String mArtUri;
     private Object mArtSource;
     /** New covers found: draw the lists and the player again (once, not for each cover). */
@@ -493,6 +495,29 @@ public class MusicHomeActivity extends MotherActivity {
         }
     }
 
+    /** While searching, the chips choose what to look for: songs, artists or albums. */
+    private void drawSearchChips() {
+        mTabs.removeAllViews();
+        LayoutInflater inflater = LayoutInflater.from(this);
+        String[][] kinds = {{"song", "Canciones"}, {"artist", "Artistas"}, {"album", "Álbumes"}};
+        for (String[] kind : kinds) {
+            TextView chip = (TextView) inflater.inflate(R.layout.music_tab, mTabs, false);
+            chip.setText(kind[1]);
+            chip.setActivated(kind[0].equals(mSearchKind));
+            chip.setOnClickListener(v -> {
+                if (!kind[0].equals(mSearchKind)) {
+                    mSearchKind = kind[0];
+                    if (mLastQuery != null) {
+                        search(mLastQuery);
+                    } else {
+                        drawSearchChips();
+                    }
+                }
+            });
+            mTabs.addView(chip);
+        }
+    }
+
     private void openTab(MediaItem tab) {
         mStack.clear();
         mStack.add(new Place(tab.getMediaId(), tab.getDescription().getTitle(), null, null));
@@ -507,7 +532,10 @@ public class MusicHomeActivity extends MotherActivity {
         if (mSubscribed != null) {
             mBrowser.unsubscribe(mSubscribed);
         }
-        mSearching = false;
+        if (mSearching) {
+            mSearching = false;
+            drawTabs();
+        }
         mSubscribed = mediaId;
         updateHeader();
         mAdapter.setItems(new ArrayList<>());
@@ -520,7 +548,7 @@ public class MusicHomeActivity extends MotherActivity {
         boolean inside = mStack.size() > 1;
         mBack.setVisibility(inside ? View.VISIBLE : View.GONE);
         mAvatar.setVisibility(inside ? View.GONE : View.VISIBLE);
-        mTabsScroll.setVisibility(inside || mSearching ? View.GONE : View.VISIBLE);
+        mTabsScroll.setVisibility(mSearching || !inside ? View.VISIBLE : View.GONE);
         mTitle.setTextSize(inside ? 19 : 23);
         mTitle.setText(inside ? mStack.get(mStack.size() - 1).title : greeting());
     }
@@ -821,7 +849,10 @@ public class MusicHomeActivity extends MotherActivity {
         hideKeyboard();
         mSearchBar.setVisibility(View.GONE);
         mTop.setVisibility(View.VISIBLE);
-        mSearching = false;
+        if (mSearching) {
+            mSearching = false;
+            drawTabs();
+        }
         if (!mStack.isEmpty()) {
             load(mStack.get(mStack.size() - 1).mediaId);
         }
@@ -845,11 +876,15 @@ public class MusicHomeActivity extends MotherActivity {
             mSubscribed = null;
         }
         mSearching = true;
+        mLastQuery = query.trim();
+        drawSearchChips();
         updateHeader();
         mAdapter.setItems(new ArrayList<>());
         mEmpty.setVisibility(View.GONE);
         mProgress.setVisibility(View.VISIBLE);
-        mBrowser.search(query.trim(), null, new MediaBrowserCompat.SearchCallback() {
+        Bundle searchExtras = new Bundle();
+        searchExtras.putString(es.myfamilytube.auto.CarMusicService.EXTRA_SEARCH_KIND, mSearchKind);
+        mBrowser.search(query.trim(), searchExtras, new MediaBrowserCompat.SearchCallback() {
             @Override
             public void onSearchResult(@NonNull String q, Bundle extras, @NonNull List<MediaItem> items) {
                 if (mSearching) {

@@ -26,7 +26,20 @@ final class SearchRank {
             "(?:hace\\s+)?(\\d+)\\s*(segundo|second|minuto|minute|hora|hour|d[ií]a|day|semana|week|mes|month|a[nñ]o|year)",
             Pattern.CASE_INSENSITIVE);
 
+    /** What clearly isn't a song: reactions, interviews, tutorials, trailers, news… */
+    private static final Pattern NOT_MUSIC = Pattern.compile(
+            "\\b(reacci[oó]n|reacciona|reaction|reacting|entrevista|interview|tutorial|c[oó]mo tocar|how to|gameplay|trailer|tr[aá]iler|"
+                    + "podcast|vlog|unboxing|review|rese[nñ]a|noticias|news|documental|documentary|explicaci[oó]n|explained|"
+                    + "an[aá]lisis|analysis|behind the scenes|detr[aá]s de c[aá]maras|making of|teaser|broma|prank|challenge|reto|"
+                    + "capitulo|cap[ií]tulo|episodio|episode|programa completo|full episode|stream|directo de twitch|minecraft|fortnite)\\b",
+            Pattern.CASE_INSENSITIVE);
+
     private SearchRank() {
+    }
+
+    static boolean looksLikeMusic(Video video) {
+        String title = video.getTitle() != null ? video.getTitle() : "";
+        return !NOT_MUSIC.matcher(title).find();
     }
 
     static List<Video> sort(List<Video> videos) {
