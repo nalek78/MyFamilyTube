@@ -1379,7 +1379,7 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
             }
         }
         List<MediaItem> items = new ArrayList<>();
-        items.addAll(searchSongs(parentId + "#songs", songs, "Canciones"));
+        items.addAll(searchSongs(parentId + "#songs", SearchRank.sort(songs), "Canciones"));
         items.addAll(folders);
         items.addAll(searchSongs(parentId + "#others", others, "Otros resultados"));
         return items;
