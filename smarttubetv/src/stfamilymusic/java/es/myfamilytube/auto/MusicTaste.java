@@ -225,6 +225,18 @@ final class MusicTaste {
     }
 
     /** Already listened to (it is not «new» for this profile). */
+    /** Song names (MusicArt.songKey) heard since that moment, and their videos. */
+    synchronized java.util.Set<String> heardSince(long since) {
+        java.util.Set<String> heard = new java.util.HashSet<>();
+        for (Song song : mSongs.values()) {
+            if (song.last >= since) {
+                heard.add(song.videoId);
+                heard.add(MusicArt.songKey(song.title, song.author));
+            }
+        }
+        return heard;
+    }
+
     synchronized boolean knows(String videoId) {
         return mSongs.containsKey(videoId);
     }

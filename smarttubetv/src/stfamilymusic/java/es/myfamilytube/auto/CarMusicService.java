@@ -1632,7 +1632,13 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         if (mExtending || mQueue.isEmpty()) {
             return;
         }
-        Video last = mQueue.get(mQueue.size() - 1);
+        // Like YouTube Music's radio: not always the mix of the very last song (it ends up going
+        // round the same songs), but of one of the last few, for more variety
+        int from = Math.max(0, mQueue.size() - 3);
+        Video last = mQueue.get(from + mRandom.nextInt(mQueue.size() - from));
+        if (last.videoId == null) {
+            last = mQueue.get(mQueue.size() - 1);
+        }
         if (last.videoId == null) {
             return;
         }
@@ -1692,35 +1698,89 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
                 })));
     }
 
+    private final java.util.Random mRandom = new java.util.Random();
+    private static final long HEARD_RECENTLY_MS = 12L * 60 * 60 * 1000; // not again so soon
+    private static final long HEARD_VERY_RECENTLY_MS = 2L * 60 * 60 * 1000;
+
+    /**
+     * Adds songs from YouTube's mix, choosing them the way YouTube Music's radio does: no song
+     * heard in the last hours (nor another version of it, nor one already in the queue), and the
+     * artists spread out (not the same one twice in a row, at most two in each batch).
+     */
     private int addSimilar(List<com.liskovsoft.mediaserviceinterfaces.data.MediaItem> items) {
-        int added = 0;
         if (items == null) {
             return 0;
         }
+        int added = addSimilar(items, HEARD_RECENTLY_MS);
+        if (added == 0) {
+            added = addSimilar(items, HEARD_VERY_RECENTLY_MS); // better than stopping the music
+        }
+        return added;
+    }
+
+    private int addSimilar(List<com.liskovsoft.mediaserviceinterfaces.data.MediaItem> items, long heardWindow) {
         MusicTaste taste = taste();
+        java.util.Set<String> heard = taste.heardSince(System.currentTimeMillis() - heardWindow);
         // The songs already in the queue (the last 40): no other versions of them
         List<String> keys = new ArrayList<>();
         for (int i = Math.max(0, mQueue.size() - 40); i < mQueue.size(); i++) {
             Video queued = mQueue.get(i);
             keys.add(MusicArt.songKey(queued.getTitle(), queued.getAuthor()));
         }
+        List<Video> candidates = new ArrayList<>();
         for (com.liskovsoft.mediaserviceinterfaces.data.MediaItem item : items) {
-            if (added >= MAX_SIMILAR) {
-                break;
-            }
             Video video = item != null ? Video.from(item) : null;
             if (video == null || video.videoId == null || video.isLive || video.isShorts || containsVideo(video.videoId)
                     || video.getDurationMs() > MAX_SONG_MS || !ContentGate.allows(video) || taste.isHidden(video.videoId)) {
                 continue;
             }
+            String key = MusicArt.songKey(video.getTitle(), video.getAuthor());
+            if (heard.contains(video.videoId) || heard.contains(key)) {
+                continue; // heard a moment ago
+            }
             if (isVersionOf(video, keys)) {
                 continue; // another version (remix, live, cover…) of a song already in the queue
             }
-            keys.add(MusicArt.songKey(video.getTitle(), video.getAuthor()));
-            mQueue.add(video);
-            added++;
+            keys.add(key);
+            candidates.add(video);
+        }
+        // The artists spread out
+        java.util.Map<String, Integer> perArtist = new java.util.HashMap<>();
+        List<String> lastArtists = new ArrayList<>();
+        for (int i = Math.max(0, mQueue.size() - 2); i < mQueue.size(); i++) {
+            lastArtists.add(artistOf(mQueue.get(i)));
+        }
+        int added = 0;
+        boolean progress = true;
+        while (added < MAX_SIMILAR && progress && !candidates.isEmpty()) {
+            progress = false;
+            for (java.util.Iterator<Video> it = candidates.iterator(); it.hasNext() && added < MAX_SIMILAR; ) {
+                Video video = it.next();
+                String artist = artistOf(video);
+                int count = perArtist.containsKey(artist) ? perArtist.get(artist) : 0;
+                if (count >= 2 || lastArtists.contains(artist)) {
+                    continue;
+                }
+                it.remove();
+                mQueue.add(video);
+                perArtist.put(artist, count + 1);
+                lastArtists.add(artist);
+                if (lastArtists.size() > 2) {
+                    lastArtists.remove(0);
+                }
+                added++;
+                progress = true;
+                break; // back to the start: the best placed of YouTube's mix first
+            }
         }
         return added;
+    }
+
+    /** Who sings it (guessed from the title and channel), to spread the artists out. */
+    private static String artistOf(Video video) {
+        MusicArt.Info info = MusicArt.guess(video.getTitle(), video.getAuthor());
+        String artist = info != null && !TextUtils.isEmpty(info.artist) ? info.artist : video.getAuthor();
+        return artist != null ? MusicArt.normalize(artist) : "";
     }
 
     /** The same song as one of these, in another version: same name, or its title carries that name. */
