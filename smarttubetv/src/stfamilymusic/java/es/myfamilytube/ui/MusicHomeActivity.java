@@ -111,6 +111,7 @@ public class MusicHomeActivity extends MotherActivity {
     private TextView mModeVideo;
     /** «Vídeo» chosen; the picture plays only while the full player is on screen. */
     private boolean mVideoWanted;
+    private android.widget.ImageView mPlayerShuffle;
     private boolean mVideoOn; // the picture is on screen
     private boolean mPlayingNow;
     private boolean mResumed;
@@ -908,6 +909,14 @@ public class MusicHomeActivity extends MotherActivity {
         });
         findViewById(R.id.music_queue_close).setOnClickListener(v -> mQueue.setVisibility(View.GONE));
         mPlayerPlay.setOnClickListener(v -> togglePlay());
+        mPlayerShuffle = findViewById(R.id.music_player_shuffle);
+        mPlayerShuffle.setOnClickListener(v -> {
+            if (mController != null) {
+                boolean on = mController.getShuffleMode() == PlaybackStateCompat.SHUFFLE_MODE_ALL;
+                mController.getTransportControls().setShuffleMode(on ? PlaybackStateCompat.SHUFFLE_MODE_NONE
+                        : PlaybackStateCompat.SHUFFLE_MODE_ALL);
+            }
+        });
         findViewById(R.id.music_player_next).setOnClickListener(v -> skipToNext());
         findViewById(R.id.music_player_prev).setOnClickListener(v -> {
             if (mController != null) {
@@ -1221,6 +1230,11 @@ public class MusicHomeActivity extends MotherActivity {
         public void onQueueChanged(List<MediaSessionCompat.QueueItem> queue) {
             showQueue();
         }
+
+        @Override
+        public void onShuffleModeChanged(int shuffleMode) {
+            showPlayback();
+        }
     };
 
     private void showPlayback() {
@@ -1280,6 +1294,12 @@ public class MusicHomeActivity extends MotherActivity {
         boolean isPlaying = state != null && (state.getState() == PlaybackStateCompat.STATE_PLAYING
                 || state.getState() == PlaybackStateCompat.STATE_BUFFERING);
         mPlayingNow = isPlaying;
+        if (mPlayerShuffle != null) {
+            boolean shuffle = mController.getShuffleMode() == PlaybackStateCompat.SHUFFLE_MODE_ALL;
+            mPlayerShuffle.setImageResource(shuffle ? R.drawable.music_ic_shuffle_on : R.drawable.music_ic_shuffle);
+            mPlayerShuffle.setAlpha(shuffle ? 1f : 0.7f);
+            mPlayerShuffle.setContentDescription(shuffle ? "Aleatorio: sí" : "Aleatorio: no");
+        }
         keepScreenOn();
         int icon = isPlaying ? R.drawable.mobile_ic_pause : R.drawable.mobile_ic_play;
         mMiniPlay.setImageResource(icon);

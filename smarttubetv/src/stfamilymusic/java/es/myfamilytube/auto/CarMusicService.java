@@ -87,6 +87,7 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
     public static final String EXTRA_VIDEO = "video";
     /** Car button: the song playing goes to «Mis favoritas» (the list is created the first time). */
     private static final String ACTION_SAVE_SONG = "es.myfamilymusic.SAVE_SONG";
+    private static final String ACTION_SHUFFLE = "es.myfamilymusic.SHUFFLE";
     static final String FAVOURITES = "Mis favoritas";
 
     private static final String STYLE_SUPPORTED = "android.media.browse.CONTENT_STYLE_SUPPORTED";
@@ -340,6 +341,8 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         mPlayer.setSongDir(mCache.dir());
         mSession = new MediaSessionCompat(this, "MyFamilyTubeCar");
         mSession.setCallback(new SessionCallback());
+        mShuffle = getSharedPreferences("music_player", MODE_PRIVATE).getBoolean("shuffle", false);
+        mSession.setShuffleMode(mShuffle ? PlaybackStateCompat.SHUFFLE_MODE_ALL : PlaybackStateCompat.SHUFFLE_MODE_NONE);
         Intent open = getPackageManager().getLaunchIntentForPackage(getPackageName());
         if (open != null) {
             int flags = PendingIntent.FLAG_UPDATE_CURRENT | (Build.VERSION.SDK_INT >= 23 ? PendingIntent.FLAG_IMMUTABLE : 0);
@@ -1482,6 +1485,17 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         }
         mQueue.clear();
         mQueue.addAll(queue);
+        mOriginalOrder = null;
+        if (mShuffle && mQueue.size() > 1) {
+            // the chosen song first, the rest of the list in any order
+            mOriginalOrder = new ArrayList<>(mQueue);
+            int at = mQueue.indexOf(start);
+            Video first = at >= 0 ? mQueue.remove(at) : null;
+            java.util.Collections.shuffle(mQueue, mRandom);
+            if (first != null) {
+                mQueue.add(0, first);
+            }
+        }
         mQueueGeneration++;
         mExtending = false;
         mWaitingForMore = false;
@@ -1589,6 +1603,62 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
     }
 
     /** The queue, for the car's «A continuación» and the phone. */
+    // ---------------------------------------------------------------- in order or shuffled
+
+    private boolean mShuffle;
+    /** The list in its own order while it is shuffled (to go back to it). */
+    private List<Video> mOriginalOrder;
+
+    /**
+     * Shuffle on: what is left of the list after the current song, in any order. Off: the rest of
+     * the list again in its order, from the current song (like YouTube Music).
+     */
+    private void setShuffle(boolean on) {
+        if (on == mShuffle) {
+            return;
+        }
+        mShuffle = on;
+        getSharedPreferences("music_player", MODE_PRIVATE).edit().putBoolean("shuffle", on).apply();
+        mSession.setShuffleMode(on ? PlaybackStateCompat.SHUFFLE_MODE_ALL : PlaybackStateCompat.SHUFFLE_MODE_NONE);
+        int from = mIndex + 1;
+        if (from < 0 || from > mQueue.size()) {
+            from = 0;
+        }
+        List<Video> rest = new ArrayList<>(mQueue.subList(from, mQueue.size()));
+        if (on) {
+            mOriginalOrder = new ArrayList<>(mQueue);
+            java.util.Collections.shuffle(rest, mRandom);
+        } else if (mOriginalOrder != null) {
+            List<Video> ordered = new ArrayList<>();
+            Video current = mIndex >= 0 && mIndex < mQueue.size() ? mQueue.get(mIndex) : null;
+            int at = current != null ? mOriginalOrder.indexOf(current) : -1;
+            for (int i = at + 1; i < mOriginalOrder.size(); i++) {
+                if (rest.contains(mOriginalOrder.get(i))) {
+                    ordered.add(mOriginalOrder.get(i));
+                }
+            }
+            for (int i = 0; i <= at; i++) { // songs of the list before this one that haven't played yet
+                if (rest.contains(mOriginalOrder.get(i)) && !ordered.contains(mOriginalOrder.get(i))) {
+                    ordered.add(mOriginalOrder.get(i));
+                }
+            }
+            for (Video video : rest) { // similar songs added later
+                if (!ordered.contains(video)) {
+                    ordered.add(video);
+                }
+            }
+            rest = ordered;
+            mOriginalOrder = null;
+        }
+        while (mQueue.size() > from) {
+            mQueue.remove(mQueue.size() - 1);
+        }
+        mQueue.addAll(rest);
+        updateSessionQueue();
+        updateCache();
+        updateState();
+    }
+
     private void updateSessionQueue() {
         List<MediaSessionCompat.QueueItem> items = new ArrayList<>();
         int from = Math.max(0, mIndex - 5);
@@ -1977,7 +2047,8 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
                 | PlaybackStateCompat.ACTION_PLAY_PAUSE | PlaybackStateCompat.ACTION_STOP
                 | PlaybackStateCompat.ACTION_SKIP_TO_NEXT | PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS
                 | PlaybackStateCompat.ACTION_SEEK_TO | PlaybackStateCompat.ACTION_PLAY_FROM_MEDIA_ID
-                | PlaybackStateCompat.ACTION_PLAY_FROM_SEARCH | PlaybackStateCompat.ACTION_SKIP_TO_QUEUE_ITEM;
+                | PlaybackStateCompat.ACTION_PLAY_FROM_SEARCH | PlaybackStateCompat.ACTION_SKIP_TO_QUEUE_ITEM
+                | PlaybackStateCompat.ACTION_SET_SHUFFLE_MODE;
         PlaybackStateCompat.Builder builder = new PlaybackStateCompat.Builder()
                 .setActions(actions)
                 .setState(state, active ? mPlayer.uiPosition() : 0, playing ? 1.0f : 0f)
@@ -1985,6 +2056,11 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
                 .setActiveQueueItemId(mIndex >= 0 ? mIndex : MediaSessionCompat.QueueItem.UNKNOWN_ID);
         if (mError != null) {
             builder.setErrorMessage(PlaybackStateCompat.ERROR_CODE_APP_ERROR, mError);
+        }
+        if (active) { // Android Auto shows it next to the controls
+            builder.addCustomAction(new PlaybackStateCompat.CustomAction.Builder(ACTION_SHUFFLE,
+                    mShuffle ? "Aleatorio: sí" : "Aleatorio: no",
+                    mShuffle ? R.drawable.music_ic_shuffle_on : R.drawable.music_ic_shuffle).build());
         }
         Video playingNow = active ? mPlayer.current() : null;
         if (playingNow != null && playingNow.videoId != null && !profile().isKid && !TextUtils.isEmpty(FamilyAccounts.currentKey())) {
@@ -2224,7 +2300,14 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
                 removeSong(extras != null ? extras.getString(EXTRA_VIDEO) : null, ACTION_HIDE_SONG.equals(action));
             } else if (ACTION_SAVE_SONG.equals(action)) {
                 saveToFavourites();
+            } else if (ACTION_SHUFFLE.equals(action)) {
+                setShuffle(!mShuffle);
             }
+        }
+
+        @Override
+        public void onSetShuffleMode(int shuffleMode) {
+            setShuffle(shuffleMode == PlaybackStateCompat.SHUFFLE_MODE_ALL || shuffleMode == PlaybackStateCompat.SHUFFLE_MODE_GROUP);
         }
 
         @Override
