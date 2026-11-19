@@ -232,6 +232,7 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
     private final CastController.Listener mCastListener = new CastController.Listener() {
         @Override
         public void onCastStarted(String deviceName) {
+            MusicStats.castStarted(CarMusicService.this);
             // What was playing on the phone goes on on the Chromecast, at the same point
             Video current = mPlayer.isActive() ? mPlayer.current() : null;
             long position = current != null ? mPlayer.uiPosition() : 0;
@@ -312,12 +313,25 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
      * its speed camera detector. It normally starts when Android Auto opens the radio, which
      * doesn't happen when the car uses this app. Nothing happens if the radio isn't installed.
      */
+    /** Anonymous statistics: a minute of music, and where it was heard. */
+    private final Runnable mStatsTicker = new Runnable() {
+        @Override
+        public void run() {
+            boolean casting = mCast != null && mCast.isCasting();
+            if (mPlayer.isActive() && mPlayer.uiIsPlaying()) {
+                MusicStats.minutePlayed(CarMusicService.this, casting, MusicStats.inCar(CarMusicService.this), mPlayer.isVideoMode());
+            }
+            mHandler.postDelayed(this, 60_000);
+        }
+    };
+
     private void wakeRadarDetector() {
         long now = android.os.SystemClock.elapsedRealtime();
         if (sLastRadarWake != 0 && now - sLastRadarWake < 2 * 60 * 1000L) {
             return;
         }
         sLastRadarWake = now;
+        MusicStats.autoConnected(this);
         try {
             Intent intent = new Intent("es.radioauto.action.START_RADAR")
                     .setPackage("es.radioauto")
@@ -347,6 +361,7 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         mCast = CastController.create(this, mCastListener);
         mPlayer.setRemote(mCast);
         mCache = new CarSongCache(this);
+        mHandler.postDelayed(mStatsTicker, 60_000);
         mPlayer.setSongDir(mCache.dir());
         mSession = new MediaSessionCompat(this, "MyFamilyTubeCar");
         mSession.setCallback(new SessionCallback());
@@ -439,6 +454,7 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
     @Override
     public void onSearch(@NonNull String query, Bundle extras, @NonNull Result<List<MediaItem>> result) {
         result.detach();
+        MusicStats.searched(this);
         String kind = extras != null ? extras.getString(EXTRA_SEARCH_KIND) : null;
         if ("artist".equals(kind)) {
             load(SEARCH_ARTIST + query, result::sendResult);
@@ -1730,6 +1746,7 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         MusicTaste taste = taste();
         mWorker.execute(() -> {
             taste.record(videoId, title, author, channelId, image, MusicArt.lookup(this, videoId, title, author));
+            MusicStats.songHeard(this);
             mHandler.post(this::tasteChanged);
         });
     }

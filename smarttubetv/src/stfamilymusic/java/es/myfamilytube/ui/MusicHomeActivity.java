@@ -249,6 +249,7 @@ public class MusicHomeActivity extends MotherActivity {
         showProfile();
         updateHeader();
         mHandler.postDelayed(() -> MobileUpdates.checkOnce(this), 2000);
+        es.myfamilytube.auto.MusicStats.appOpened(this);
         mHandler.post(mTicker);
         mResumed = true;
         showCastState();
