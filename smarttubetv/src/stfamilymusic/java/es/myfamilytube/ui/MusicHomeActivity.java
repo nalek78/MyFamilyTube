@@ -515,6 +515,23 @@ public class MusicHomeActivity extends MotherActivity {
                 .show();
     }
 
+    /** Shown in the app's information (⋮): what the anonymous statistics are. */
+    private static final String PRIVACY_POLICY = "\n\n— POLÍTICA DE PRIVACIDAD —"
+            + "\n\nPara saber cómo se usa la app y mejorarla, una vez al día como mucho se envían estadísticas de uso. "
+            + "Son datos ANÓNIMOS y NO PERSONALES: no permiten saber quién eres."
+            + "\n\nSe envía solo:"
+            + "\n• un número elegido al azar al instalar la app, que no está ligado a tu nombre, a tu cuenta ni a ningún identificador del móvil;"
+            + "\n• la marca y el modelo del móvil, la versión de Android, la versión de la app y el idioma;"
+            + "\n• cuántos días se usa la app, cuántas veces se abre, cuántas canciones se escuchan y cuántas búsquedas se hacen;"
+            + "\n• cuántos minutos de música se escuchan en el móvil, en Android Auto, en un Chromecast y en modo vídeo;"
+            + "\n• si hay una cuenta de Google conectada (sí o no, nunca cuál), cuántas listas hay en el móvil y si se han indicado gustos."
+            + "\n\nNUNCA se envía: tu nombre, tu correo ni tu cuenta de Google; tu ubicación; tu número de teléfono ni identificadores del móvil; "
+            + "qué canciones, artistas o búsquedas escuchas o haces; ni el contenido de tus listas."
+            + "\n\nLos datos viajan cifrados (HTTPS) y firmados, y se guardan en una hoja privada del responsable de la app, "
+            + "que solo los usa para ver estadísticas de conjunto. No se venden ni se comparten con nadie."
+            + "\n\nTus gustos, lo escuchado y tus listas se quedan en tu móvil. Si conectas una cuenta de Google, "
+            + "la app habla directamente con YouTube con esa cuenta, como lo haría la app de YouTube.";
+
     private void showMoreMenu() {
         String account = !TextUtils.isEmpty(FamilyAccounts.currentKey())
                 ? "con la cuenta " + FamilyAccounts.labelOfKey(FamilyAccounts.currentKey()) : "sin cuenta de Google";
@@ -530,7 +547,8 @@ public class MusicHomeActivity extends MotherActivity {
                         + "\n\nLas pestañas se eligen según lo que escuchas: tus artistas, estilos y álbumes favoritos."
                         + "\n\nEn el coche: conecta el móvil y abre " + getString(R.string.app_name)
                         + " en Android Auto. Las canciones siguientes se guardan solas en el móvil para que no se corte sin cobertura."
-                        + "\n\nDatos y carátulas de los discos: MusicBrainz, Cover Art Archive e iTunes (uso personal; las portadas son de sus propietarios).")
+                        + "\n\nDatos y carátulas de los discos: MusicBrainz, Cover Art Archive e iTunes (uso personal; las portadas son de sus propietarios)."
+                        + PRIVACY_POLICY)
                 .setPositiveButton("Cuenta de Google", (dialog, which) -> chooseAccount())
                 .setNeutralButton("Diagnóstico", (dialog, which) -> FamilyDiagnosticsDialog.show(this))
                 .setNegativeButton("Tus gustos", (dialog, which) -> askTastes())
