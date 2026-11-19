@@ -216,6 +216,9 @@ android {
             def musicVersion = familyVersion('musica')
             versionCode musicVersion
             versionName "1.0." + musicVersion
+            // anonymous statistics (GitHub secrets MUSIC_STATS_URL and MUSIC_STATS_KEY; empty: nothing sent)
+            buildConfigField "String", "MUSIC_STATS_URL", "\"" + (System.getenv("MUSIC_STATS_URL") ?: "") + "\""
+            buildConfigField "String", "MUSIC_STATS_KEY", "\"" + (System.getenv("MUSIC_STATS_KEY") ?: "") + "\""
         }
     }
 

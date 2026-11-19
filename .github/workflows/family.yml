@@ -30,7 +30,15 @@ jobs:
         env:
           KEYSTORE_B64: ${{ secrets.FAMILY_KEYSTORE_B64 }}
           KEYSTORE_PASSWORD: ${{ secrets.FAMILY_KEYSTORE_PASSWORD }}
+          STATS_URL: ${{ secrets.MUSIC_STATS_URL }}
+          STATS_KEY: ${{ secrets.MUSIC_STATS_KEY }}
         run: |
+          # My Family Music's anonymous statistics: where to send them and the key to sign them
+          # (optional: without them the app sends nothing)
+          {
+            echo "MUSIC_STATS_URL=$STATS_URL"
+            echo "MUSIC_STATS_KEY=$STATS_KEY"
+          } >> "$GITHUB_ENV"
           if [ -z "$KEYSTORE_B64" ] || [ -z "$KEYSTORE_PASSWORD" ]; then
             echo "::error::Faltan los secretos FAMILY_KEYSTORE_B64 y FAMILY_KEYSTORE_PASSWORD"
             exit 1

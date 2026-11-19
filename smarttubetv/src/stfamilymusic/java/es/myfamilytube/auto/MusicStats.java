@@ -27,8 +27,10 @@ import java.util.UUID;
  * Chromecast, searches). Never names, accounts, places nor which songs are heard.
  */
 public final class MusicStats {
-    /** The Apps Script web app that receives the statistics (empty: nothing is sent). */
-    static final String ENDPOINT = "";
+    /** The Apps Script web app that receives the statistics (empty: nothing is sent). From a GitHub secret. */
+    static final String ENDPOINT = com.liskovsoft.smartyoutubetv2.tv.BuildConfig.MUSIC_STATS_URL;
+    /** Each report is signed with it (HMAC-SHA256), and the script drops what isn't signed. */
+    private static final String KEY = com.liskovsoft.smartyoutubetv2.tv.BuildConfig.MUSIC_STATS_KEY;
 
     private static final String PREFS = "music_stats";
     private static final long SEND_EVERY_MS = 20L * 60 * 60 * 1000;
@@ -92,7 +94,7 @@ public final class MusicStats {
     }
 
     static synchronized void sendIfDue(Context context) {
-        if (TextUtils.isEmpty(ENDPOINT)) {
+        if (TextUtils.isEmpty(ENDPOINT) || TextUtils.isEmpty(KEY)) {
             return;
         }
         SharedPreferences prefs = prefs(context);
@@ -174,7 +176,15 @@ public final class MusicStats {
 
     private static boolean post(JSONObject report) {
         try {
-            HttpURLConnection connection = (HttpURLConnection) new URL(ENDPOINT).openConnection();
+            byte[] body = report.toString().getBytes("UTF-8");
+            javax.crypto.Mac mac = javax.crypto.Mac.getInstance("HmacSHA256");
+            mac.init(new javax.crypto.spec.SecretKeySpec(KEY.getBytes("UTF-8"), "HmacSHA256"));
+            StringBuilder signature = new StringBuilder();
+            for (byte b : mac.doFinal(body)) {
+                signature.append(String.format(Locale.US, "%02x", b));
+            }
+            HttpURLConnection connection = (HttpURLConnection) new URL(ENDPOINT
+                    + (ENDPOINT.contains("?") ? "&" : "?") + "sig=" + signature).openConnection();
             connection.setConnectTimeout(15_000);
             connection.setReadTimeout(20_000);
             connection.setDoOutput(true);
@@ -182,7 +192,7 @@ public final class MusicStats {
             connection.setRequestMethod("POST");
             connection.setRequestProperty("Content-Type", "text/plain; charset=utf-8");
             try (OutputStream out = connection.getOutputStream()) {
-                out.write(report.toString().getBytes("UTF-8"));
+                out.write(body);
             }
             int code = connection.getResponseCode();
             connection.disconnect();
