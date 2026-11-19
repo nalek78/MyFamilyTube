@@ -75,21 +75,28 @@ public final class LocalLists {
             }
             JSONArray songs = list.optJSONArray("songs");
             String first = songs != null && songs.length() > 0 ? songs.optJSONObject(0).optString("v") : null;
-            result.add(new Entry(list.optString("id"), list.optString("name"), songs != null ? songs.length() : 0, first));
+            result.add(new Entry(list.optString("id"), shown(list.optString("name")), songs != null ? songs.length() : 0, first));
         }
         return result;
     }
 
     public static synchronized String name(Context context, String id) {
         JSONObject list = find(read(context), id);
-        return list != null ? list.optString("name") : null;
+        return list != null ? shown(list.optString("name")) : null;
     }
 
-    /** The list with that name (ignoring case), or null. */
+    /** «Mis favoritas» (made by the car's «Guardar») is shown in the app's language. */
+    private static String shown(String name) {
+        return CarMusicService.FAVOURITES.equals(name) ? L.t(name) : name;
+    }
+
+    /** The list with that name as it is kept (ignoring case), or null. */
     public static synchronized String idOf(Context context, String name) {
-        for (Entry entry : all(context)) {
-            if (entry.name.equalsIgnoreCase(name)) {
-                return entry.id;
+        JSONArray lists = read(context);
+        for (int i = 0; i < lists.length(); i++) {
+            JSONObject list = lists.optJSONObject(i);
+            if (list != null && list.optString("name").equalsIgnoreCase(name)) {
+                return list.optString("id");
             }
         }
         return null;
@@ -112,6 +119,9 @@ public final class LocalLists {
         JSONObject list = find(lists, id);
         if (list != null) {
             try {
+                if (CarMusicService.FAVOURITES.equals(list.optString("name")) && L.t(CarMusicService.FAVOURITES).equals(name)) {
+                    return; // the same name, only translated
+                }
                 list.put("name", name);
             } catch (Exception e) {
                 return;

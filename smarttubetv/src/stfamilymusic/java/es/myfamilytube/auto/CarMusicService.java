@@ -2247,7 +2247,7 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
             boolean saved = mSavedIds.contains(playingNow.videoId)
                     || (favourites != null && LocalLists.contains(this, favourites, playingNow.videoId));
             builder.addCustomAction(new PlaybackStateCompat.CustomAction.Builder(ACTION_SAVE_SONG,
-                    saved ? L.t("Guardada en ") + FAVOURITES : L.t("Guardar en ") + FAVOURITES,
+                    saved ? L.t("Guardada en ") + L.t(FAVOURITES) : L.t("Guardar en ") + L.t(FAVOURITES),
                     saved ? R.drawable.music_ic_saved : R.drawable.music_ic_add).build());
         }
         mSession.setPlaybackState(builder.build());

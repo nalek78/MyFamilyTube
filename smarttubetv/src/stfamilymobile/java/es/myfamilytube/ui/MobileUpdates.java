@@ -59,7 +59,7 @@ public final class MobileUpdates implements AppUpdateCheckerListener {
         if (postponed) {
             return;
         }
-        StringBuilder message = new StringBuilder("Hay una versión nueva de " + mActivity.getString(R.string.app_name) + " (" + versionName + ").");
+        StringBuilder message = new StringBuilder(es.myfamilytube.FamilyTexts.t("Hay una versión nueva de ") + mActivity.getString(R.string.app_name) + " (" + versionName + ").");
         if (changelog != null && !changelog.isEmpty()) {
             message.append("\n");
             for (String change : changelog) {
@@ -67,16 +67,16 @@ public final class MobileUpdates implements AppUpdateCheckerListener {
             }
         }
         new AlertDialog.Builder(mActivity)
-                .setTitle("Actualización disponible")
+                .setTitle(es.myfamilytube.FamilyTexts.t("Actualización disponible"))
                 .setMessage(message)
-                .setPositiveButton("Actualizar", (dialog, which) -> {
+                .setPositiveButton(es.myfamilytube.FamilyTexts.t("Actualizar"), (dialog, which) -> {
                     try {
                         mChecker.installUpdate();
                     } catch (RuntimeException e) {
                         // the installer couldn't open
                     }
                 })
-                .setNegativeButton("Más tarde", (dialog, which) -> prefs.edit()
+                .setNegativeButton(es.myfamilytube.FamilyTexts.t("Más tarde"), (dialog, which) -> prefs.edit()
                         .putString(KEY_LATER_VERSION, versionName)
                         .putLong(KEY_LATER_TIME, System.currentTimeMillis())
                         .apply())

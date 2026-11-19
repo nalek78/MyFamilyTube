@@ -38,6 +38,17 @@ public final class L {
         }
         sLoaded = true;
         load(context.getApplicationContext(), prefs(context).getString("lang", "es"));
+        es.myfamilytube.FamilyTexts.setTranslator(new es.myfamilytube.FamilyTexts.Translator() {
+            @Override
+            public String text(String spanish) {
+                return t(spanish);
+            }
+
+            @Override
+            public void views(View root) {
+                translate(root);
+            }
+        });
     }
 
     private static SharedPreferences prefs(Context context) {

@@ -40,6 +40,7 @@ public class MobileSignInActivity extends MotherActivity implements SignInView {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.mobile_sign_in);
+        es.myfamilytube.FamilyTexts.translate(findViewById(android.R.id.content));
         mButton = findViewById(R.id.mobile_sign_in_button);
         mStatus = findViewById(R.id.mobile_sign_in_status);
         mCode = findViewById(R.id.mobile_sign_in_code);
@@ -67,7 +68,7 @@ public class MobileSignInActivity extends MotherActivity implements SignInView {
     protected void onResume() {
         super.onResume();
         if (mOpened) {
-            mStatus.setText("Comprobando… Si ya has pulsado «Permitir» en Google, la cuenta se añadirá en unos segundos.");
+            mStatus.setText(es.myfamilytube.FamilyTexts.t("Comprobando… Si ya has pulsado «Permitir» en Google, la cuenta se añadirá en unos segundos."));
         }
     }
 
@@ -96,7 +97,7 @@ public class MobileSignInActivity extends MotherActivity implements SignInView {
                 startActivity(view);
                 mOpened = true;
             } catch (ActivityNotFoundException e2) {
-                Toast.makeText(this, "No hay ningún navegador instalado", Toast.LENGTH_LONG).show();
+                Toast.makeText(this, es.myfamilytube.FamilyTexts.t("No hay ningún navegador instalado"), Toast.LENGTH_LONG).show();
             }
         }
     }
@@ -109,7 +110,7 @@ public class MobileSignInActivity extends MotherActivity implements SignInView {
         if (clipboard != null) {
             clipboard.setPrimaryClip(ClipData.newPlainText("Código", mUserCode));
             if (tell) {
-                Toast.makeText(this, "Código copiado", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, es.myfamilytube.FamilyTexts.t("Código copiado"), Toast.LENGTH_SHORT).show();
             }
         }
     }
@@ -130,7 +131,7 @@ public class MobileSignInActivity extends MotherActivity implements SignInView {
             if (TextUtils.isEmpty(signInUrl)) {
                 // The engine sends the error text instead of a code
                 mProgress.setVisibility(View.GONE);
-                mStatus.setText("No se pudo preparar el inicio de sesión: " + userCode + "\nVuelve atrás y prueba otra vez.");
+                mStatus.setText(es.myfamilytube.FamilyTexts.t("No se pudo preparar el inicio de sesión: ") + userCode + es.myfamilytube.FamilyTexts.t("\nVuelve atrás y prueba otra vez."));
                 return;
             }
             mUserCode = userCode;
@@ -139,7 +140,7 @@ public class MobileSignInActivity extends MotherActivity implements SignInView {
             mCode.setText(userCode);
             mButton.setEnabled(true);
             mButton.setAlpha(1f);
-            mStatus.setText(mOpened ? "Esperando a que confirmes en Google…" : "Listo. Pulsa el botón para continuar.");
+            mStatus.setText(mOpened ? es.myfamilytube.FamilyTexts.t("Esperando a que confirmes en Google…") : es.myfamilytube.FamilyTexts.t("Listo. Pulsa el botón para continuar."));
         });
     }
 
@@ -147,7 +148,7 @@ public class MobileSignInActivity extends MotherActivity implements SignInView {
     public void close() {
         runOnUiThread(() -> {
             if (!isFinishing()) {
-                Toast.makeText(this, "Cuenta de Google añadida", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, es.myfamilytube.FamilyTexts.t("Cuenta de Google añadida"), Toast.LENGTH_SHORT).show();
                 finish();
             }
         });
