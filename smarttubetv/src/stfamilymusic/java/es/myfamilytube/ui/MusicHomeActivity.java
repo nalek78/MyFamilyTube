@@ -51,6 +51,7 @@ import java.util.List;
 import java.util.Locale;
 
 import es.myfamilytube.auto.CarMusicService;
+import es.myfamilytube.auto.L;
 import es.myfamilytube.profiles.FamilyAccounts;
 import es.myfamilytube.profiles.FamilyProfile;
 import es.myfamilytube.profiles.FamilyProfiles;
@@ -179,7 +180,9 @@ public class MusicHomeActivity extends MotherActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         es.myfamilytube.auto.MusicUser.ensure(this); // one person, no profiles
+        L.init(this);
         setContentView(R.layout.music_home);
+        L.translate(findViewById(android.R.id.content)); // the layout's texts in the chosen language
         findViews();
 
         ViewGroup root = findViewById(R.id.music_root);
@@ -401,14 +404,14 @@ public class MusicHomeActivity extends MotherActivity {
         List<com.liskovsoft.mediaserviceinterfaces.oauth.Account> accounts = FamilyAccounts.list();
         String current = FamilyAccounts.currentKey();
         String[] options = new String[accounts.size() + 2];
-        options[0] = (TextUtils.isEmpty(current) ? "✓ " : "") + "Sin cuenta (solo listas del móvil)";
+        options[0] = (TextUtils.isEmpty(current) ? "✓ " : "") + L.t("Sin cuenta (solo listas del móvil)");
         for (int i = 0; i < accounts.size(); i++) {
             String key = FamilyAccounts.keyOf(accounts.get(i));
             options[i + 1] = (key.equals(current) ? "✓ " : "") + FamilyAccounts.labelOf(accounts.get(i));
         }
-        options[options.length - 1] = "Añadir una cuenta de Google…";
+        options[options.length - 1] = L.t("Añadir una cuenta de Google…");
         new AlertDialog.Builder(this)
-                .setTitle("Cuenta de Google (opcional)")
+                .setTitle(L.t("Cuenta de Google (opcional)"))
                 .setItems(options, (dialog, which) -> {
                     if (which == 0) {
                         useAccount("");
@@ -428,7 +431,7 @@ public class MusicHomeActivity extends MotherActivity {
         user.accountKey = key;
         FamilyProfiles.instance(this).update(user); // the account is applied and everything reloads
         FamilyAccounts.applyFor(this, user);
-        Toast.makeText(this, TextUtils.isEmpty(key) ? "Sin cuenta de Google" : "Con la cuenta " + FamilyAccounts.labelOfKey(key),
+        Toast.makeText(this, TextUtils.isEmpty(key) ? L.t("Sin cuenta de Google") : L.t("Con la cuenta ") + FamilyAccounts.labelOfKey(key),
                 Toast.LENGTH_SHORT).show();
         if (TextUtils.isEmpty(key)) {
             mHandler.postDelayed(this::askTastesFirstTime, 800);
@@ -468,15 +471,19 @@ public class MusicHomeActivity extends MotherActivity {
 
     private void askTastes() {
         String[] styles = es.myfamilytube.auto.MusicPrefs.STYLES;
+        String[] shown = new String[styles.length];
+        for (int i = 0; i < styles.length; i++) {
+            shown[i] = L.t(styles[i]);
+        }
         List<String> chosen = new ArrayList<>(es.myfamilytube.auto.MusicPrefs.styles(this));
         boolean[] checked = new boolean[styles.length];
         for (int i = 0; i < styles.length; i++) {
             checked[i] = chosen.contains(styles[i]);
         }
         new AlertDialog.Builder(this)
-                .setTitle("¿Qué música te gusta?")
-                .setMultiChoiceItems(styles, checked, (d, which, on) -> checked[which] = on)
-                .setPositiveButton("Siguiente", (d, w) -> {
+                .setTitle(L.t("¿Qué música te gusta?"))
+                .setMultiChoiceItems(shown, checked, (d, which, on) -> checked[which] = on)
+                .setPositiveButton(L.t("Siguiente"), (d, w) -> {
                     List<String> picked = new ArrayList<>();
                     for (int i = 0; i < styles.length; i++) {
                         if (checked[i]) {
@@ -485,7 +492,7 @@ public class MusicHomeActivity extends MotherActivity {
                     }
                     askArtists(picked);
                 })
-                .setNegativeButton("Ahora no", null)
+                .setNegativeButton(L.t("Ahora no"), null)
                 .show();
     }
 
@@ -493,48 +500,105 @@ public class MusicHomeActivity extends MotherActivity {
         EditText field = new EditText(this);
         field.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_FLAG_CAP_WORDS
                 | android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE);
-        field.setHint("Por ejemplo: Rosalía, Coldplay, Melendi");
+        field.setHint(L.t("Por ejemplo: Rosalía, Coldplay, Melendi"));
         field.setText(TextUtils.join(", ", es.myfamilytube.auto.MusicPrefs.artists(this)));
         android.widget.FrameLayout box = new android.widget.FrameLayout(this);
         int padding = (int) (20 * getResources().getDisplayMetrics().density);
         box.setPadding(padding, padding / 2, padding, 0);
         box.addView(field);
         new AlertDialog.Builder(this)
-                .setTitle("¿Algún artista o grupo favorito?")
-                .setMessage("Separados por comas. Puedes dejarlo vacío.")
+                .setTitle(L.t("¿Algún artista o grupo favorito?"))
+                .setMessage(L.t("Separados por comas. Puedes dejarlo vacío."))
                 .setView(box)
-                .setPositiveButton("Listo", (d, w) -> {
+                .setPositiveButton(L.t("Listo"), (d, w) -> {
                     es.myfamilytube.auto.MusicPrefs.save(this, styles,
                             es.myfamilytube.auto.MusicPrefs.parseArtists(field.getText().toString()));
                     if (mController != null) {
                         mController.getTransportControls().sendCustomAction(CarMusicService.ACTION_PREFS_CHANGED, null);
                     }
-                    Toast.makeText(this, "Hecho. «Para ti» se irá ajustando a lo que escuches.", Toast.LENGTH_LONG).show();
+                    Toast.makeText(this, L.t("Hecho. «Para ti» se irá ajustando a lo que escuches."), Toast.LENGTH_LONG).show();
                 })
-                .setNegativeButton("Atrás", (d, w) -> askTastes())
+                .setNegativeButton(L.t("Atrás"), (d, w) -> askTastes())
                 .show();
     }
 
     /** Shown in the app's information (⋮): what the anonymous statistics are. */
     private static final String PRIVACY_POLICY = "\n\n— POLÍTICA DE PRIVACIDAD —"
-            + "\n\nPara saber cómo se usa la app y mejorarla, una vez al día como mucho se envían estadísticas de uso. "
-            + "Son datos ANÓNIMOS y NO PERSONALES: no permiten saber quién eres."
-            + "\n\nSe envía solo:"
-            + "\n• un número elegido al azar al instalar la app, que no está ligado a tu nombre, a tu cuenta ni a ningún identificador del móvil;"
-            + "\n• la marca y el modelo del móvil, la versión de Android, la versión de la app y el idioma;"
-            + "\n• cuántos días se usa la app, cuántas veces se abre, cuántas canciones se escuchan y cuántas búsquedas se hacen;"
-            + "\n• cuántos minutos de música se escuchan en el móvil, en Android Auto, en un Chromecast y en modo vídeo;"
-            + "\n• si hay una cuenta de Google conectada (sí o no, nunca cuál), cuántas listas hay en el móvil y si se han indicado gustos."
-            + "\n\nNUNCA se envía: tu nombre, tu correo ni tu cuenta de Google; tu ubicación; tu número de teléfono ni identificadores del móvil; "
-            + "qué canciones, artistas o búsquedas escuchas o haces; ni el contenido de tus listas."
-            + "\n\nLos datos viajan cifrados (HTTPS) y firmados, y se guardan en una hoja privada del responsable de la app, "
-            + "que solo los usa para ver estadísticas de conjunto. No se venden ni se comparten con nadie."
-            + "\n\nTus gustos, lo escuchado y tus listas se quedan en tu móvil. Si conectas una cuenta de Google, "
-            + "la app habla directamente con YouTube con esa cuenta, como lo haría la app de YouTube.";
+            + L.t("\n\nPara saber cómo se usa la app y mejorarla, una vez al día como mucho se envían estadísticas de uso. ")
+            + L.t("Son datos ANÓNIMOS y NO PERSONALES: no permiten saber quién eres.")
+            + L.t("\n\nSe envía solo:")
+            + L.t("\n• un número elegido al azar al instalar la app, que no está ligado a tu nombre, a tu cuenta ni a ningún identificador del móvil;")
+            + L.t("\n• la marca y el modelo del móvil, la versión de Android, la versión de la app y el idioma;")
+            + L.t("\n• cuántos días se usa la app, cuántas veces se abre, cuántas canciones se escuchan y cuántas búsquedas se hacen;")
+            + L.t("\n• cuántos minutos de música se escuchan en el móvil, en Android Auto, en un Chromecast y en modo vídeo;")
+            + L.t("\n• si hay una cuenta de Google conectada (sí o no, nunca cuál), cuántas listas hay en el móvil y si se han indicado gustos.")
+            + L.t("\n\nNUNCA se envía: tu nombre, tu correo ni tu cuenta de Google; tu ubicación; tu número de teléfono ni identificadores del móvil; ")
+            + L.t("qué canciones, artistas o búsquedas escuchas o haces; ni el contenido de tus listas.")
+            + L.t("\n\nLos datos viajan cifrados (HTTPS) y firmados, y se guardan en una hoja privada del responsable de la app, ")
+            + L.t("que solo los usa para ver estadísticas de conjunto. No se venden ni se comparten con nadie.")
+            + L.t("\n\nTus gustos, lo escuchado y tus listas se quedan en tu móvil. Si conectas una cuenta de Google, ")
+            + L.t("la app habla directamente con YouTube con esa cuenta, como lo haría la app de YouTube.");
 
+    /** ⋮: what can be changed, and the information. */
     private void showMoreMenu() {
+        String[] options = {L.t("Cuenta de Google"), L.t("Tus gustos"), L.t("Idioma") + " · " + currentLanguageName(),
+                L.t("Diagnóstico"), L.t("Información y privacidad")};
+        new AlertDialog.Builder(this)
+                .setItems(options, (dialog, which) -> {
+                    switch (which) {
+                        case 0:
+                            chooseAccount();
+                            break;
+                        case 1:
+                            askTastes();
+                            break;
+                        case 2:
+                            chooseLanguage();
+                            break;
+                        case 3:
+                            FamilyDiagnosticsDialog.show(this);
+                            break;
+                        default:
+                            showInfo();
+                    }
+                })
+                .show();
+    }
+
+    private static String currentLanguageName() {
+        for (int i = 0; i < L.CODES.length; i++) {
+            if (L.CODES[i].equals(L.lang())) {
+                return L.NAMES[i];
+            }
+        }
+        return L.NAMES[0];
+    }
+
+    private void chooseLanguage() {
+        int current = 0;
+        for (int i = 0; i < L.CODES.length; i++) {
+            if (L.CODES[i].equals(L.lang())) {
+                current = i;
+            }
+        }
+        new AlertDialog.Builder(this)
+                .setTitle(L.t("Idioma"))
+                .setSingleChoiceItems(L.NAMES, current, (dialog, which) -> {
+                    dialog.dismiss();
+                    if (!L.CODES[which].equals(L.lang())) {
+                        L.setLang(this, L.CODES[which]);
+                        if (mController != null) { // the music service (and Android Auto) too
+                            mController.getTransportControls().sendCustomAction(CarMusicService.ACTION_LANGUAGE_CHANGED, null);
+                        }
+                        recreate();
+                    }
+                })
+                .show();
+    }
+
+    private void showInfo() {
         String account = !TextUtils.isEmpty(FamilyAccounts.currentKey())
-                ? "con la cuenta " + FamilyAccounts.labelOfKey(FamilyAccounts.currentKey()) : "sin cuenta de Google";
+                ? L.t("con la cuenta ") + FamilyAccounts.labelOfKey(FamilyAccounts.currentKey()) : L.t("sin cuenta de Google");
         String version = "";
         try {
             version = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
@@ -543,15 +607,13 @@ public class MusicHomeActivity extends MotherActivity {
         }
         new AlertDialog.Builder(this)
                 .setTitle(getString(R.string.app_name) + " " + version)
-                .setMessage("Escuchas " + account + ". Tus listas del móvil no necesitan cuenta."
-                        + "\n\nLas pestañas se eligen según lo que escuchas: tus artistas, estilos y álbumes favoritos."
+                .setMessage(L.t("Escuchas ") + account + L.t(". Tus listas del móvil no necesitan cuenta.")
+                        + L.t("\n\nLas pestañas se eligen según lo que escuchas: tus artistas, estilos y álbumes favoritos.")
                         + "\n\nEn el coche: conecta el móvil y abre " + getString(R.string.app_name)
-                        + " en Android Auto. Las canciones siguientes se guardan solas en el móvil para que no se corte sin cobertura."
-                        + "\n\nDatos y carátulas de los discos: MusicBrainz, Cover Art Archive e iTunes (uso personal; las portadas son de sus propietarios)."
-                        + PRIVACY_POLICY)
-                .setPositiveButton("Cuenta de Google", (dialog, which) -> chooseAccount())
-                .setNeutralButton("Diagnóstico", (dialog, which) -> FamilyDiagnosticsDialog.show(this))
-                .setNegativeButton("Tus gustos", (dialog, which) -> askTastes())
+                        + L.t(" en Android Auto. Las canciones siguientes se guardan solas en el móvil para que no se corte sin cobertura.")
+                        + L.t("\n\nDatos y carátulas de los discos: MusicBrainz, Cover Art Archive e iTunes (uso personal; las portadas son de sus propietarios).")
+                        + L.t(PRIVACY_POLICY))
+                .setPositiveButton(L.t("Cerrar"), null)
                 .show();
     }
 
@@ -575,7 +637,7 @@ public class MusicHomeActivity extends MotherActivity {
 
         @Override
         public void onConnectionFailed() {
-            showMessage("No se ha podido abrir la música. Cierra la app y vuelve a abrirla.");
+            showMessage(L.t("No se ha podido abrir la música. Cierra la app y vuelve a abrirla."));
         }
     };
 
@@ -606,14 +668,14 @@ public class MusicHomeActivity extends MotherActivity {
         @Override
         public void onChildrenLoaded(@NonNull String parentId, @NonNull List<MediaItem> children) {
             if (parentId.equals(mSubscribed)) {
-                showItems(children, "No hay nada aquí todavía.");
+                showItems(children, L.t("No hay nada aquí todavía."));
             }
         }
 
         @Override
         public void onError(@NonNull String parentId) {
             if (parentId.equals(mSubscribed)) {
-                showItems(new ArrayList<>(), "No se ha podido cargar. Comprueba la conexión.");
+                showItems(new ArrayList<>(), L.t("No se ha podido cargar. Comprueba la conexión."));
             }
         }
     };
@@ -635,7 +697,7 @@ public class MusicHomeActivity extends MotherActivity {
     private void drawSearchChips() {
         mTabs.removeAllViews();
         LayoutInflater inflater = LayoutInflater.from(this);
-        String[][] kinds = {{"song", "Canciones"}, {"artist", "Artistas"}, {"album", "Álbumes"}};
+        String[][] kinds = {{"song", L.t("Canciones")}, {"artist", L.t("Artistas")}, {"album", L.t("Álbumes")}};
         for (String[] kind : kinds) {
             TextView chip = (TextView) inflater.inflate(R.layout.music_tab, mTabs, false);
             chip.setText(kind[1]);
@@ -692,12 +754,12 @@ public class MusicHomeActivity extends MotherActivity {
     private static String greeting() {
         int hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY);
         if (hour >= 6 && hour < 13) {
-            return "Buenos días";
+            return L.t("Buenos días");
         }
         if (hour >= 13 && hour < 21) {
-            return "Buenas tardes";
+            return L.t("Buenas tardes");
         }
-        return "Buenas noches";
+        return L.t("Buenas noches");
     }
 
     private static boolean isTab(String mediaId) {
@@ -795,15 +857,15 @@ public class MusicHomeActivity extends MotherActivity {
         if (TextUtils.isEmpty(subtitle)) {
             String id = place.mediaId;
             if (id.startsWith("art:")) {
-                subtitle = "Artista · según lo que escuchas";
+                subtitle = L.t("Artista · según lo que escuchas");
             } else if (id.startsWith("gen:")) {
-                subtitle = "Tu estilo de música";
+                subtitle = L.t("Tu estilo de música");
             } else if (id.startsWith("alb:")) {
-                subtitle = "Álbum";
+                subtitle = L.t("Álbum");
             } else if (id.startsWith("mix:")) {
-                subtitle = "Canciones parecidas";
+                subtitle = L.t("Canciones parecidas");
             } else if (id.equals(HIDDEN_LISTS)) {
-                subtitle = "No parecen de música · mantén pulsada una para mostrarla";
+                subtitle = L.t("No parecen de música · mantén pulsada una para mostrarla");
             } else {
                 subtitle = countSongs(children);
             }
@@ -818,7 +880,7 @@ public class MusicHomeActivity extends MotherActivity {
                 count++;
             }
         }
-        return count == 1 ? "1 canción" : count + " canciones";
+        return count == 1 ? L.t("1 canción") : count + L.t(" canciones");
     }
 
     private static boolean allPlayable(List<MediaItem> items) {
@@ -845,7 +907,7 @@ public class MusicHomeActivity extends MotherActivity {
                 }
             }
         }
-        Toast.makeText(this, "No hay canciones para reproducir aquí", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, L.t("No hay canciones para reproducir aquí"), Toast.LENGTH_SHORT).show();
     }
 
     private void showMessage(String text) {
@@ -894,18 +956,18 @@ public class MusicHomeActivity extends MotherActivity {
             boolean listened = listKey.endsWith("#recent") || listKey.endsWith("#fav"); // from what you listened to
             List<String> options = new ArrayList<>();
             List<Runnable> actions = new ArrayList<>();
-            options.add("Añadir a una lista…");
+            options.add(L.t("Añadir a una lista…"));
             CharSequence artist = item.getDescription().getSubtitle();
             actions.add(() -> listsMenu().addSong(videoId, name, artist));
             if (openList != null) {
-                options.add("Quitar de esta lista");
+                options.add(L.t("Quitar de esta lista"));
                 actions.add(() -> listsMenu().removeSong(openList, videoId, name, mStack.get(mStack.size() - 1).title));
             }
             if (listened) {
-                options.add("Quitar de lo escuchado");
+                options.add(L.t("Quitar de lo escuchado"));
                 actions.add(() -> sendSongAction(CarMusicService.ACTION_FORGET_SONG, videoId, "Quitada de lo escuchado"));
             }
-            options.add("No me interesa (no recomendar)");
+            options.add(L.t("No me interesa (no recomendar)"));
             actions.add(() -> sendSongAction(CarMusicService.ACTION_HIDE_SONG, videoId, "No te la volveré a recomendar"));
             new AlertDialog.Builder(this)
                     .setTitle(name)
@@ -916,7 +978,7 @@ public class MusicHomeActivity extends MotherActivity {
         if (id.startsWith(MusicListsMenu.LOCAL)) { // a list on the phone
             new AlertDialog.Builder(this)
                     .setTitle(name)
-                    .setItems(new String[] {"Cambiar nombre", "Borrar lista"}, (dialog, which) -> {
+                    .setItems(new String[] {L.t("Cambiar nombre"), L.t("Borrar lista")}, (dialog, which) -> {
                         if (which == 0) {
                             listsMenu().rename(id, name.toString());
                         } else {
@@ -935,7 +997,7 @@ public class MusicHomeActivity extends MotherActivity {
         }
         String playlistId = id.substring("pl:".length());
         boolean inHidden = HIDDEN_LISTS.equals(mSubscribed);
-        String[] options = {inHidden ? "Mostrar en la música" : "Ocultar (no es música)", "Cambiar nombre", "Borrar lista"};
+        String[] options = {inHidden ? L.t("Mostrar en la música") : L.t("Ocultar (no es música)"), L.t("Cambiar nombre"), L.t("Borrar lista")};
         new AlertDialog.Builder(this)
                 .setTitle(name)
                 .setItems(options, (dialog, which) -> {
@@ -944,8 +1006,8 @@ public class MusicHomeActivity extends MotherActivity {
                         extras.putString(CarMusicService.EXTRA_PLAYLIST, playlistId);
                         mController.getTransportControls().sendCustomAction(
                                 inHidden ? CarMusicService.ACTION_SHOW_LIST : CarMusicService.ACTION_HIDE_LIST, extras);
-                        Toast.makeText(this, inHidden ? "Vuelve a salir en «Tus listas»"
-                                : "Lista ocultada. La tienes en «Listas ocultas»", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(this, inHidden ? L.t("Vuelve a salir en «Tus listas»")
+                                : L.t("Lista ocultada. La tienes en «Listas ocultas»"), Toast.LENGTH_SHORT).show();
                     } else if (which == 1) {
                         listsMenu().rename(playlistId, name.toString());
                     } else {
@@ -975,7 +1037,7 @@ public class MusicHomeActivity extends MotherActivity {
             return;
         }
         if (FamilyProfiles.instance(this).getCurrent().isKid) {
-            Toast.makeText(this, "Los perfiles infantiles no tienen listas", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, L.t("Los perfiles infantiles no tienen listas"), Toast.LENGTH_SHORT).show();
             return;
         }
         listsMenu().addSong(videoId, metadata.getString(MediaMetadataCompat.METADATA_KEY_TITLE),
@@ -984,7 +1046,7 @@ public class MusicHomeActivity extends MotherActivity {
 
     private String currentPlaceTitle() {
         if (mSearching) {
-            return "Búsqueda";
+            return L.t("Búsqueda");
         }
         return mStack.isEmpty() ? getString(R.string.app_name) : mStack.get(mStack.size() - 1).title;
     }
@@ -1044,14 +1106,14 @@ public class MusicHomeActivity extends MotherActivity {
             @Override
             public void onSearchResult(@NonNull String q, Bundle extras, @NonNull List<MediaItem> items) {
                 if (mSearching) {
-                    showItems(items, "No se ha encontrado nada.");
+                    showItems(items, L.t("No se ha encontrado nada."));
                 }
             }
 
             @Override
             public void onError(@NonNull String q, Bundle extras) {
                 if (mSearching) {
-                    showItems(new ArrayList<>(), "No se ha podido buscar. Comprueba la conexión.");
+                    showItems(new ArrayList<>(), L.t("No se ha podido buscar. Comprueba la conexión."));
                 }
             }
         });
@@ -1065,7 +1127,7 @@ public class MusicHomeActivity extends MotherActivity {
         try {
             startActivityForResult(intent, REQUEST_VOICE);
         } catch (ActivityNotFoundException e) {
-            Toast.makeText(this, "Este móvil no tiene búsqueda por voz", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, L.t("Este móvil no tiene búsqueda por voz"), Toast.LENGTH_LONG).show();
         }
     }
 
@@ -1272,7 +1334,7 @@ public class MusicHomeActivity extends MotherActivity {
         findViewById(R.id.music_player_modes).setVisibility(casting ? View.GONE : View.VISIBLE); // only the sound there
         mPlayerSource.setVisibility(casting ? View.VISIBLE : View.GONE);
         if (casting) {
-            mPlayerSource.setText("Sonando en " + device);
+            mPlayerSource.setText(L.t("Sonando en ") + device);
         }
         if (casting != mWasCasting) {
             mWasCasting = casting;
@@ -1529,7 +1591,7 @@ public class MusicHomeActivity extends MotherActivity {
         }
         String castDevice = showCastState();
         if (castDevice != null) {
-            mMiniArtist.setText(TextUtils.isEmpty(artist) ? "En " + castDevice : artist + " · En " + castDevice);
+            mMiniArtist.setText(TextUtils.isEmpty(artist) ? L.t("En ") + castDevice : artist + L.t(" · En ") + castDevice);
         }
         String art = metadata.getString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI);
         if (art != null) {
@@ -1551,7 +1613,7 @@ public class MusicHomeActivity extends MotherActivity {
             boolean shuffle = mController.getShuffleMode() == PlaybackStateCompat.SHUFFLE_MODE_ALL;
             mPlayerShuffle.setImageResource(shuffle ? R.drawable.music_ic_shuffle_on : R.drawable.music_ic_shuffle);
             mPlayerShuffle.setAlpha(shuffle ? 1f : 0.7f);
-            mPlayerShuffle.setContentDescription(shuffle ? "Aleatorio: sí" : "Aleatorio: no");
+            mPlayerShuffle.setContentDescription(shuffle ? L.t("Aleatorio: sí") : L.t("Aleatorio: no"));
         }
         keepScreenOn();
         int icon = isPlaying ? R.drawable.mobile_ic_pause : R.drawable.mobile_ic_play;
@@ -1876,10 +1938,10 @@ public class MusicHomeActivity extends MotherActivity {
             } else {
                 if (item == NEW_LIST) {
                     TextView title = view.findViewById(R.id.music_row_title);
-                    title.setText("Nueva lista");
+                    title.setText(L.t("Nueva lista"));
                     title.setTextColor(getResources().getColor(R.color.family_text));
                     TextView subtitle = view.findViewById(R.id.music_row_subtitle);
-                    subtitle.setText("Crea una lista de canciones en tu cuenta");
+                    subtitle.setText(L.t("Crea una lista de canciones en tu cuenta"));
                     subtitle.setVisibility(View.VISIBLE);
                     view.findViewById(R.id.music_row_more).setVisibility(View.GONE);
                     ImageView art = view.findViewById(R.id.music_row_art);

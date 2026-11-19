@@ -18,6 +18,8 @@ import com.google.android.gms.cast.framework.CastSession;
 import java.util.ArrayList;
 import java.util.List;
 
+import es.myfamilytube.auto.L;
+
 /**
  * «Enviar a…»: the Chromecasts (and TVs or speakers with Chromecast) on the home Wi-Fi.
  * Choosing one starts sending; while sending, it offers to stop.
@@ -31,17 +33,17 @@ final class MusicCastDialog {
         try {
             cast = CastContext.getSharedInstance(activity.getApplicationContext());
         } catch (Throwable e) {
-            Toast.makeText(activity, "Este móvil no puede enviar a un Chromecast (faltan los servicios de Google Play)", Toast.LENGTH_LONG).show();
+            Toast.makeText(activity, L.t("Este móvil no puede enviar a un Chromecast (faltan los servicios de Google Play)"), Toast.LENGTH_LONG).show();
             return;
         }
         CastSession session = cast.getSessionManager().getCurrentCastSession();
         if (session != null && session.isConnected()) {
-            String name = session.getCastDevice() != null ? session.getCastDevice().getFriendlyName() : "el Chromecast";
+            String name = session.getCastDevice() != null ? session.getCastDevice().getFriendlyName() : L.t("el Chromecast");
             new AlertDialog.Builder(activity)
-                    .setTitle("Enviando a " + name)
-                    .setMessage("La música suena en " + name + ". Los botones de volumen del móvil lo controlan.")
-                    .setPositiveButton("Dejar de enviar", (dialog, which) -> cast.getSessionManager().endCurrentSession(true))
-                    .setNegativeButton("Cerrar", null)
+                    .setTitle(L.t("Enviando a ") + name)
+                    .setMessage(L.t("La música suena en ") + name + L.t(". Los botones de volumen del móvil lo controlan."))
+                    .setPositiveButton(L.t("Dejar de enviar"), (dialog, which) -> cast.getSessionManager().endCurrentSession(true))
+                    .setNegativeButton(L.t("Cerrar"), null)
                     .show();
             return;
         }
@@ -58,7 +60,7 @@ final class MusicCastDialog {
         LinearLayout box = new LinearLayout(activity);
         box.setOrientation(LinearLayout.VERTICAL);
         TextView empty = new TextView(activity);
-        empty.setText("Buscando dispositivos en tu Wi‑Fi…\n\nEl móvil y el Chromecast tienen que estar en la misma red.");
+        empty.setText(L.t("Buscando dispositivos en tu Wi‑Fi…\n\nEl móvil y el Chromecast tienen que estar en la misma red."));
         empty.setPadding(padding, padding / 2, padding, padding / 2);
         empty.setTextSize(15);
         ListView list = new ListView(activity);
@@ -98,14 +100,14 @@ final class MusicCastDialog {
         refresh.run();
 
         AlertDialog dialog = new AlertDialog.Builder(activity)
-                .setTitle("Enviar a un dispositivo")
+                .setTitle(L.t("Enviar a un dispositivo"))
                 .setView(box)
-                .setNegativeButton("Cancelar", null)
+                .setNegativeButton(L.t("Cancelar"), null)
                 .create();
         list.setOnItemClickListener((parent, view, position, id) -> {
             if (position < routes.size()) {
                 router.selectRoute(routes.get(position)); // Google Cast starts sending
-                Toast.makeText(activity, "Conectando con " + names.get(position) + "…", Toast.LENGTH_SHORT).show();
+                Toast.makeText(activity, L.t("Conectando con ") + names.get(position) + "…", Toast.LENGTH_SHORT).show();
             }
             dialog.dismiss();
         });

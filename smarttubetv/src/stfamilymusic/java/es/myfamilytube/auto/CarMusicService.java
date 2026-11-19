@@ -86,6 +86,8 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
     public static final String ACTION_LISTS_CHANGED = "es.myfamilymusic.LISTS_CHANGED";
     /** The phone: you changed the styles and artists you like. */
     public static final String ACTION_PREFS_CHANGED = "es.myfamilymusic.PREFS_CHANGED";
+    /** The phone: another language was chosen (everything is made again). */
+    public static final String ACTION_LANGUAGE_CHANGED = "es.myfamilymusic.LANGUAGE_CHANGED";
     /** From the phone: a list was created here (it is music); extra: its name. */
     public static final String ACTION_LIST_CREATED = "es.myfamilymusic.LIST_CREATED";
     public static final String EXTRA_NAME = "name";
@@ -221,7 +223,7 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
                 return; // another song meanwhile, or no longer sending
             }
             if (url == null) {
-                showError("Para enviar al Chromecast, el móvil tiene que estar en la misma Wi‑Fi");
+                showError(L.t("Para enviar al Chromecast, el móvil tiene que estar en la misma Wi‑Fi"));
                 return;
             }
             mCast.load(url, mime, title, artist, album, image, startMs, play);
@@ -289,7 +291,7 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
             if (error && ++mCastErrors >= 2) {
                 // Not this song's fault: say so instead of skipping through the whole list in silence
                 mCastErrors = 0;
-                showError("El dispositivo no ha podido reproducir la música. Mira «Diagnóstico» en el menú ⋮");
+                showError(L.t("El dispositivo no ha podido reproducir la música. Mira «Diagnóstico» en el menú ⋮"));
                 return;
             }
             if (!error) {
@@ -355,6 +357,7 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         super.onCreate();
         sInstance = this;
         MusicUser.ensure(this); // one person, no profiles
+        L.init(this);
         mPlayer = new CarPlayer(this, this);
         mBridge.setContext(this);
         mBridge.setLog(text -> es.myfamilytube.FamilyDiagnostics.instance(this).log(text));
@@ -464,8 +467,8 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
             // Android Auto: the songs, and at the top a way to look for artists or albums instead
             load(SEARCH + query, items -> {
                 List<MediaItem> all = new ArrayList<>();
-                all.add(browsable(SEARCH_ARTIST + query, "Artistas: «" + query + "»", null, null, "Buscar también", STYLE_LIST));
-                all.add(browsable(SEARCH_ALBUM + query, "Álbumes: «" + query + "»", null, null, "Buscar también", STYLE_LIST));
+                all.add(browsable(SEARCH_ARTIST + query, L.t("Artistas: «") + query + "»", null, null, L.t("Buscar también"), STYLE_LIST));
+                all.add(browsable(SEARCH_ALBUM + query, L.t("Álbumes: «") + query + "»", null, null, L.t("Buscar también"), STYLE_LIST));
                 all.addAll(items);
                 result.sendResult(all);
             });
@@ -485,16 +488,16 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
     private List<MediaItem> tabs() {
         List<MediaItem> tabs = new ArrayList<>();
         if (profile().isKid) {
-            tabs.add(tab(TAB_HOME, "Inicio", R.drawable.mobile_ic_home, STYLE_GRID, STYLE_GRID));
+            tabs.add(tab(TAB_HOME, L.t("Inicio"), R.drawable.mobile_ic_home, STYLE_GRID, STYLE_GRID));
             if (!profile().approvedChannels.isEmpty()) {
-                tabs.add(tab(TAB_CHANNELS, "Tus canales", R.drawable.mobile_ic_subs, STYLE_GRID, STYLE_LIST));
+                tabs.add(tab(TAB_CHANNELS, L.t("Tus canales"), R.drawable.mobile_ic_subs, STYLE_GRID, STYLE_LIST));
             }
             return tabs;
         }
         if (mTabs != null && System.currentTimeMillis() - mTabsTime < TABS_MS) {
             return mTabs;
         }
-        tabs.add(tab(TAB_FOR_YOU, "Para ti", R.drawable.mobile_ic_home, STYLE_GRID, STYLE_LIST));
+        tabs.add(tab(TAB_FOR_YOU, L.t("Para ti"), R.drawable.mobile_ic_home, STYLE_GRID, STYLE_LIST));
         MusicTaste taste = taste();
         List<MusicTaste.Entry> artists = taste.topArtists(3);
         List<MusicTaste.Entry> genres = taste.topGenres(2);
@@ -512,10 +515,10 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
             }
         }
         if (tabs.size() < MAX_TABS) {
-            tabs.add(tab(TAB_LISTS, "Tus listas", R.drawable.mobile_ic_library, STYLE_GRID, STYLE_LIST));
+            tabs.add(tab(TAB_LISTS, L.t("Tus listas"), R.drawable.mobile_ic_library, STYLE_GRID, STYLE_LIST));
         }
         if (tabs.size() < MAX_TABS) {
-            tabs.add(tab(TAB_CHANNELS, "Canales", R.drawable.mobile_ic_subs, STYLE_GRID, STYLE_LIST));
+            tabs.add(tab(TAB_CHANNELS, L.t("Canales"), R.drawable.mobile_ic_subs, STYLE_GRID, STYLE_LIST));
         }
         mTabs = tabs;
         mTabsTime = System.currentTimeMillis();
@@ -763,7 +766,7 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
                     ? CarArtProvider.uriFor(this, "https://i.ytimg.com/vi/" + entry.firstVideo + "/hqdefault.jpg")
                     : Uri.parse("android.resource://" + getPackageName() + "/" + R.drawable.mobile_ic_library);
             local.add(browsable(LOCAL_LIST + entry.id, entry.name,
-                    entry.size == 1 ? "1 canción · en el móvil" : entry.size + " canciones · en el móvil",
+                    entry.size == 1 ? L.t("1 canción · en el móvil") : entry.size + L.t(" canciones · en el móvil"),
                     icon, groupTitle, STYLE_LIST));
         }
         if (!hasAccount() || local.size() >= max) {
@@ -821,8 +824,8 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
                             }
                         }
                         if (!hiddenOnly && groupTitle == null && hidden > 0) {
-                            items.add(browsable(HIDDEN_LISTS, "Listas ocultas",
-                                    hidden == 1 ? "1 lista que no es de música" : hidden + " listas que no son de música",
+                            items.add(browsable(HIDDEN_LISTS, L.t("Listas ocultas"),
+                                    hidden == 1 ? L.t("1 lista que no es de música") : hidden + L.t(" listas que no son de música"),
                                     Uri.parse("android.resource://" + getPackageName() + "/" + R.drawable.mobile_ic_library), null, STYLE_LIST));
                         }
                         once.onItems(items);
@@ -870,7 +873,7 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         collectVideos(sources, 12_000, lists -> {
             List<Video> picked = roundRobin(lists, 20, 20, video -> playableSong(video) && !taste.knows(video.videoId)
                     && !taste.isHidden(video.videoId) && SearchRank.looksLikeMusic(video));
-            done.onItems(videoItems(listKey, picked, "Recomendadas para ti"));
+            done.onItems(videoItems(listKey, picked, L.t("Recomendadas para ti")));
         });
     }
 
@@ -1135,7 +1138,7 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
     private List<Part> forYou() {
         MusicTaste taste = taste();
         List<Part> parts = new ArrayList<>();
-        parts.add(Part.local(localSongs(TAB_FOR_YOU + "#recent", taste.recent(15), "Escuchado recientemente")));
+        parts.add(Part.local(localSongs(TAB_FOR_YOU + "#recent", taste.recent(15), L.t("Escuchado recientemente"))));
         List<String> likedArtists = MusicPrefs.artists(this);
         if (!taste.isEmpty() || !MusicPrefs.isEmpty(this)) {
             parts.add(Part.custom(done -> recommended(TAB_FOR_YOU + "#rec", done)));
@@ -1148,48 +1151,48 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
                     favourite.add(artist);
                 }
             }
-            parts.add(Part.custom(done -> news(TAB_FOR_YOU + "#new", favourite, 3, 18, "Novedades de tus artistas", done)));
+            parts.add(Part.custom(done -> news(TAB_FOR_YOU + "#new", favourite, 3, 18, L.t("Novedades de tus artistas"), done)));
         }
 
         List<MediaItem> mixes = new ArrayList<>();
         for (MusicTaste.Entry artist : taste.topArtists(6)) {
             MusicTaste.Song top = artist.songs.get(0);
-            mixes.add(browsable(MIX + top.videoId, "Mezcla de " + artist.name, "Canciones parecidas",
-                    CarArtProvider.uriForSong(this, toVideo(top)), "Tus mezclas", STYLE_LIST));
+            mixes.add(browsable(MIX + top.videoId, L.t("Mezcla de ") + artist.name, L.t("Canciones parecidas"),
+                    CarArtProvider.uriForSong(this, toVideo(top)), L.t("Tus mezclas"), STYLE_LIST));
         }
         parts.add(Part.local(mixes));
 
         List<MediaItem> styles = new ArrayList<>();
         for (MusicTaste.Entry genre : taste.topGenres(6)) {
             styles.add(browsable(GENRE + Uri.encode(genre.name), genre.name, songsText(genre.songs.size()),
-                    CarArtProvider.uriForSong(this, toVideo(genre.songs.get(0))), "Tus estilos", STYLE_LIST));
+                    CarArtProvider.uriForSong(this, toVideo(genre.songs.get(0))), L.t("Tus estilos"), STYLE_LIST));
         }
         for (String style : MusicPrefs.styles(this)) { // what you said you like
             if (styles.size() >= 8) {
                 break;
             }
             if (taste.songsOf(MusicTaste.KIND_GENRE, style).isEmpty()) {
-                styles.add(browsable(GENRE + Uri.encode(style), style, "Te gusta", null, "Tus estilos", STYLE_LIST));
+                styles.add(browsable(GENRE + Uri.encode(style), style, L.t("Te gusta"), null, L.t("Tus estilos"), STYLE_LIST));
             }
         }
         parts.add(Part.local(styles));
 
         List<MediaItem> artists = new ArrayList<>();
         for (MusicTaste.Entry artist : taste.topArtists(10)) {
-            artists.add(browsable(ARTIST + Uri.encode(artist.name), artist.name, "Artista",
-                    CarArtProvider.uriForSong(this, toVideo(artist.songs.get(0))), "Tus artistas", STYLE_LIST));
+            artists.add(browsable(ARTIST + Uri.encode(artist.name), artist.name, L.t("Artista"),
+                    CarArtProvider.uriForSong(this, toVideo(artist.songs.get(0))), L.t("Tus artistas"), STYLE_LIST));
         }
         for (String artist : likedArtists) {
             if (artists.size() >= 12) {
                 break;
             }
             if (taste.songsOf(MusicTaste.KIND_ARTIST, artist).isEmpty()) {
-                artists.add(browsable(ARTIST + Uri.encode(artist), artist, "Te gusta", null, "Tus artistas", STYLE_LIST));
+                artists.add(browsable(ARTIST + Uri.encode(artist), artist, L.t("Te gusta"), null, L.t("Tus artistas"), STYLE_LIST));
             }
         }
         parts.add(Part.local(artists));
 
-        parts.add(Part.custom(done -> allLists("Tus listas", MAX_PER_SHELF, done)));
+        parts.add(Part.custom(done -> allLists(L.t("Tus listas"), MAX_PER_SHELF, done)));
         parts.add(Part.rows(null, content().getMusicObserve(), MAX_ITEMS));
         return parts;
     }
@@ -1199,27 +1202,27 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         MusicTaste taste = taste();
         List<Part> parts = new ArrayList<>();
         List<MusicTaste.Song> songs = taste.songsOf(MusicTaste.KIND_ARTIST, name);
-        parts.add(Part.local(localSongs(ARTIST + name + "#fav", songs.subList(0, Math.min(15, songs.size())), "Tus favoritas")));
+        parts.add(Part.local(localSongs(ARTIST + name + "#fav", songs.subList(0, Math.min(15, songs.size())), L.t("Tus favoritas"))));
 
         List<MediaItem> more = new ArrayList<>();
         if (!songs.isEmpty()) {
-            more.add(browsable(MIX + songs.get(0).videoId, "Mezcla de " + name, "Canciones parecidas",
-                    CarArtProvider.uriForSong(this, toVideo(songs.get(0))), "Para seguir escuchando", STYLE_LIST));
+            more.add(browsable(MIX + songs.get(0).videoId, L.t("Mezcla de ") + name, L.t("Canciones parecidas"),
+                    CarArtProvider.uriForSong(this, toVideo(songs.get(0))), L.t("Para seguir escuchando"), STYLE_LIST));
         }
         List<String> albums = new ArrayList<>();
         for (MusicTaste.Song song : songs) {
             if (!TextUtils.isEmpty(song.album) && !albums.contains(song.album)) {
                 albums.add(song.album);
-                more.add(browsable(albumId(name, song.album), song.album, "Álbum",
-                        CarArtProvider.uriForSong(this, toVideo(song)), "Para seguir escuchando", STYLE_LIST));
+                more.add(browsable(albumId(name, song.album), song.album, L.t("Álbum"),
+                        CarArtProvider.uriForSong(this, toVideo(song)), L.t("Para seguir escuchando"), STYLE_LIST));
             }
         }
         parts.add(Part.local(more));
         List<String> one = new ArrayList<>();
         one.add(name);
-        parts.add(Part.custom(done -> news(ARTIST + name + "#new", one, 10, 10, "Lo último de " + name, done)));
-        parts.add(Part.rows("Más de " + name, content().getSearchObserve(name, SearchOptions.TYPE_VIDEO), 25));
-        parts.add(Part.rows("Listas con " + name, content().getSearchObserve(name, SearchOptions.TYPE_PLAYLIST), 8));
+        parts.add(Part.custom(done -> news(ARTIST + name + "#new", one, 10, 10, L.t("Lo último de ") + name, done)));
+        parts.add(Part.rows(L.t("Más de ") + name, content().getSearchObserve(name, SearchOptions.TYPE_VIDEO), 25));
+        parts.add(Part.rows(L.t("Listas con ") + name, content().getSearchObserve(name, SearchOptions.TYPE_PLAYLIST), 8));
         return parts;
     }
 
@@ -1228,15 +1231,15 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         MusicTaste taste = taste();
         List<Part> parts = new ArrayList<>();
         List<MusicTaste.Song> songs = taste.songsOf(MusicTaste.KIND_GENRE, genre);
-        parts.add(Part.local(localSongs(GENRE + genre + "#fav", songs.subList(0, Math.min(15, songs.size())), "Tus favoritas")));
+        parts.add(Part.local(localSongs(GENRE + genre + "#fav", songs.subList(0, Math.min(15, songs.size())), L.t("Tus favoritas"))));
         List<MediaItem> artists = new ArrayList<>();
         for (MusicTaste.Entry artist : taste.artistsOfGenre(genre, 10)) {
-            artists.add(browsable(ARTIST + Uri.encode(artist.name), artist.name, "Artista",
-                    CarArtProvider.uriForSong(this, toVideo(artist.songs.get(0))), "Tus artistas", STYLE_LIST));
+            artists.add(browsable(ARTIST + Uri.encode(artist.name), artist.name, L.t("Artista"),
+                    CarArtProvider.uriForSong(this, toVideo(artist.songs.get(0))), L.t("Tus artistas"), STYLE_LIST));
         }
         parts.add(Part.local(artists));
-        parts.add(Part.rows("Descubre " + genre, content().getSearchObserve(genre + " música", SearchOptions.TYPE_VIDEO), 25));
-        parts.add(Part.rows("Listas de " + genre, content().getSearchObserve(genre + " playlist", SearchOptions.TYPE_PLAYLIST), 8));
+        parts.add(Part.rows(L.t("Descubre ") + genre, content().getSearchObserve(genre + " música", SearchOptions.TYPE_VIDEO), 25));
+        parts.add(Part.rows(L.t("Listas de ") + genre, content().getSearchObserve(genre + " playlist", SearchOptions.TYPE_PLAYLIST), 8));
         return parts;
     }
 
@@ -1250,15 +1253,15 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
                 known.add(song);
             }
         }
-        parts.add(Part.local(localSongs(ALBUM + album + "#fav", known, "Has escuchado")));
+        parts.add(Part.local(localSongs(ALBUM + album + "#fav", known, L.t("Has escuchado"))));
         String query = (TextUtils.isEmpty(artist) ? "" : artist + " ") + album;
-        parts.add(Part.rows("Álbum completo", content().getSearchObserve(query + " album", SearchOptions.TYPE_PLAYLIST), 6));
-        parts.add(Part.rows("Canciones", content().getSearchObserve(query, SearchOptions.TYPE_VIDEO), 20));
+        parts.add(Part.rows(L.t("Álbum completo"), content().getSearchObserve(query + " album", SearchOptions.TYPE_PLAYLIST), 6));
+        parts.add(Part.rows(L.t("Canciones"), content().getSearchObserve(query, SearchOptions.TYPE_VIDEO), 20));
         return parts;
     }
 
     private static String songsText(int count) {
-        return count == 1 ? "1 canción escuchada" : count + " canciones escuchadas";
+        return count == 1 ? L.t("1 canción escuchada") : count + L.t(" canciones escuchadas");
     }
 
     private static Video toVideo(MusicTaste.Song song) {
@@ -1470,13 +1473,13 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
                     }
                     String author = video.getAuthor() != null ? video.getAuthor() : video.getTitle();
                     boolean music = author != null && (author.endsWith(" - Topic") || author.toUpperCase(java.util.Locale.ROOT).contains("VEVO"));
-                    (music ? best : rest).add(folder(CHANNEL + video.channelId, video, music ? "Artistas" : "Otros canales"));
+                    (music ? best : rest).add(folder(CHANNEL + video.channelId, video, music ? L.t("Artistas") : L.t("Otros canales")));
                 } else {
                     if (!video.hasPlaylist() || !seen.add(video.playlistId)) {
                         continue;
                     }
                     boolean album = video.playlistId.startsWith("OLAK5uy_");
-                    (album ? best : rest).add(folder(PLAYLIST + video.playlistId, video, album ? "Álbumes" : "Otras listas"));
+                    (album ? best : rest).add(folder(PLAYLIST + video.playlistId, video, album ? L.t("Álbumes") : L.t("Otras listas")));
                 }
             }
         } catch (RuntimeException e) {
@@ -1522,18 +1525,18 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
                 }
             } else if (video.hasPlaylist()) {
                 if (seen.add("pl:" + video.playlistId)) {
-                    folders.add(folder(PLAYLIST + video.playlistId, video, "Listas y canales"));
+                    folders.add(folder(PLAYLIST + video.playlistId, video, L.t("Listas y canales")));
                 }
             } else if (video.channelId != null && (!profile.isKid || profile.isChannelApproved(video.channelId))) {
                 if (seen.add("ch:" + video.channelId)) {
-                    folders.add(folder(CHANNEL + video.channelId, video, "Listas y canales"));
+                    folders.add(folder(CHANNEL + video.channelId, video, L.t("Listas y canales")));
                 }
             }
         }
         List<MediaItem> items = new ArrayList<>();
-        items.addAll(searchSongs(parentId + "#songs", SearchRank.sort(songs), "Canciones"));
+        items.addAll(searchSongs(parentId + "#songs", SearchRank.sort(songs), L.t("Canciones")));
         items.addAll(folders);
-        items.addAll(searchSongs(parentId + "#others", others, "Otros resultados"));
+        items.addAll(searchSongs(parentId + "#others", others, L.t("Otros resultados")));
         return items;
     }
 
@@ -1615,11 +1618,11 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
     /** Spotify-like: the rest of the list plays after it, then YouTube's own "up next". */
     private void playQueue(List<Video> queue, Video start) {
         if (FamilyProfiles.instance(this).isTimeUp(profile())) {
-            showError("Se ha acabado el tiempo de hoy");
+            showError(L.t("Se ha acabado el tiempo de hoy"));
             return;
         }
         if (!ContentGate.allowsPlayback(this, start)) {
-            showError("Este vídeo no está permitido en este perfil");
+            showError(L.t("Este vídeo no está permitido en este perfil"));
             return;
         }
         mError = null;
@@ -1669,7 +1672,7 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         mIndex = index;
         Video video = mQueue.get(index);
         if (FamilyProfiles.instance(this).isTimeUp(profile())) {
-            showError("Se ha acabado el tiempo de hoy");
+            showError(L.t("Se ha acabado el tiempo de hoy"));
             return;
         }
         if (!ContentGate.allowsPlayback(this, video)) {
@@ -1847,7 +1850,7 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
             items.add(new MediaSessionCompat.QueueItem(songDescription(VIDEO + video.videoId + "@queue", video, null), i));
         }
         mSession.setQueue(items);
-        mSession.setQueueTitle("A continuación");
+        mSession.setQueueTitle(L.t("A continuación"));
     }
 
     /** Saves the next songs while there is coverage and keeps only the last few played. */
@@ -2120,7 +2123,7 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
                 return;
             }
         }
-        showError("No se ha encontrado nada para reproducir");
+        showError(L.t("No se ha encontrado nada para reproducir"));
     }
 
     private void playMediaId(String mediaId) {
@@ -2195,7 +2198,7 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
             if (current.isKid && mPlayer.isActive() && mPlayer.uiIsPlaying()) {
                 FamilyProfiles.instance(CarMusicService.this).addUsedSeconds(current, seconds);
                 if (FamilyProfiles.instance(CarMusicService.this).isTimeUp(current)) {
-                    showError("Se ha acabado el tiempo de hoy");
+                    showError(L.t("Se ha acabado el tiempo de hoy"));
                     return;
                 }
             }
@@ -2235,7 +2238,7 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         }
         if (active) { // Android Auto shows it next to the controls
             builder.addCustomAction(new PlaybackStateCompat.CustomAction.Builder(ACTION_SHUFFLE,
-                    mShuffle ? "Aleatorio: sí" : "Aleatorio: no",
+                    mShuffle ? L.t("Aleatorio: sí") : L.t("Aleatorio: no"),
                     mShuffle ? R.drawable.music_ic_shuffle_on : R.drawable.music_ic_shuffle).build());
         }
         Video playingNow = active ? mPlayer.current() : null;
@@ -2244,7 +2247,7 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
             boolean saved = mSavedIds.contains(playingNow.videoId)
                     || (favourites != null && LocalLists.contains(this, favourites, playingNow.videoId));
             builder.addCustomAction(new PlaybackStateCompat.CustomAction.Builder(ACTION_SAVE_SONG,
-                    saved ? "Guardada en " + FAVOURITES : "Guardar en " + FAVOURITES,
+                    saved ? L.t("Guardada en ") + FAVOURITES : L.t("Guardar en ") + FAVOURITES,
                     saved ? R.drawable.music_ic_saved : R.drawable.music_ic_add).build());
         }
         mSession.setPlaybackState(builder.build());
@@ -2302,7 +2305,7 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
         if (Build.VERSION.SDK_INT >= 26) {
             NotificationManager manager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
             if (manager != null && manager.getNotificationChannel(CHANNEL_ID) == null) {
-                NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "Música en el coche", NotificationManager.IMPORTANCE_LOW);
+                NotificationChannel channel = new NotificationChannel(CHANNEL_ID, L.t("Música en el coche"), NotificationManager.IMPORTANCE_LOW);
                 channel.setShowBadge(false);
                 manager.createNotificationChannel(channel);
             }
@@ -2312,7 +2315,7 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
                 .addAction(R.drawable.mobile_ic_prev, "Anterior", notificationAction(ACTION_PREVIOUS, 1))
                 .addAction(playing ? R.drawable.mobile_ic_pause : R.drawable.mobile_ic_play, playing ? "Pausa" : "Reproducir",
                         notificationAction(ACTION_PLAY_PAUSE, 2))
-                .addAction(R.drawable.mobile_ic_next, "Siguiente", notificationAction(ACTION_NEXT, 3))
+                .addAction(R.drawable.mobile_ic_next, L.t("Siguiente"), notificationAction(ACTION_NEXT, 3))
                 .setSmallIcon(R.drawable.mobile_ic_play)
                 .setContentTitle(songTitle(video))
                 .setContentText(songArtist(video))
@@ -2482,6 +2485,13 @@ public class CarMusicService extends MediaBrowserServiceCompat implements CarPla
                 setShuffle(!mShuffle);
             } else if (ACTION_PREFS_CHANGED.equals(action)) {
                 refreshSuggestions();
+            } else if (ACTION_LANGUAGE_CHANGED.equals(action)) {
+                mChildren.clear();
+                mChildrenTime.clear();
+                mTabs = null;
+                notifyChildrenChanged(ROOT);
+                updateSessionQueue();
+                updateState();
             }
         }
 

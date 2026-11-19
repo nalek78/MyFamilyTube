@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import es.myfamilytube.auto.CarMusicService;
+import es.myfamilytube.auto.L;
 import es.myfamilytube.auto.LocalLists;
 import es.myfamilytube.profiles.FamilyAccounts;
 
@@ -110,7 +111,7 @@ final class MusicListsMenu {
             showLists(videoId, title, songArtist, choices, false);
             return;
         }
-        Toast.makeText(mActivity, "Cargando tus listas…", Toast.LENGTH_SHORT).show();
+        Toast.makeText(mActivity, L.t("Cargando tus listas…"), Toast.LENGTH_SHORT).show();
         items().getPlaylistsInfoObserve(videoId).subscribe(
                 infos -> mHandler.post(() -> {
                     if (infos != null) {
@@ -123,7 +124,7 @@ final class MusicListsMenu {
                     showLists(videoId, title, songArtist, choices, true);
                 }),
                 error -> mHandler.post(() -> {
-                    toast("No se han podido cargar las listas de tu cuenta; salen solo las del móvil.");
+                    toast(L.t("No se han podido cargar las listas de tu cuenta; salen solo las del móvil."));
                     showLists(videoId, title, songArtist, choices, true);
                 }));
     }
@@ -136,18 +137,18 @@ final class MusicListsMenu {
         boolean[] after = new boolean[choices.size()];
         for (int i = 0; i < choices.size(); i++) {
             Choice choice = choices.get(i);
-            names[i] = withAccount ? choice.name + (isLocal(choice.id) ? "  (en el móvil)" : "  (en YouTube)") : choice.name;
+            names[i] = withAccount ? choice.name + (isLocal(choice.id) ? L.t("  (en el móvil)") : L.t("  (en YouTube)")) : choice.name;
             after[i] = choice.before;
         }
         AlertDialog.Builder dialog = new AlertDialog.Builder(mActivity)
-                .setTitle(!title.isEmpty() ? "Añadir «" + title + "»" : "Añadir a una lista")
-                .setNeutralButton("Nueva lista", (d, w) -> newList(videoId, title, artist))
-                .setNegativeButton("Cancelar", null);
+                .setTitle(!title.isEmpty() ? L.t("Añadir «") + title + "»" : L.t("Añadir a una lista"))
+                .setNeutralButton(L.t("Nueva lista"), (d, w) -> newList(videoId, title, artist))
+                .setNegativeButton(L.t("Cancelar"), null);
         if (choices.isEmpty()) {
-            dialog.setMessage("Todavía no tienes listas. Crea una con «Nueva lista».");
+            dialog.setMessage(L.t("Todavía no tienes listas. Crea una con «Nueva lista»."));
         } else {
             dialog.setMultiChoiceItems(names, after, (d, which, checked) -> after[which] = checked)
-                    .setPositiveButton("Guardar", (d, w) -> {
+                    .setPositiveButton(L.t("Guardar"), (d, w) -> {
                         boolean local = false;
                         for (int i = 0; i < choices.size(); i++) {
                             Choice choice = choices.get(i);
@@ -162,14 +163,14 @@ final class MusicListsMenu {
                                 } else {
                                     LocalLists.remove(mActivity, id, videoId);
                                 }
-                                toast((after[i] ? "Añadida a «" : "Quitada de «") + name + "»");
+                                toast((after[i] ? L.t("Añadida a «") : L.t("Quitada de «")) + name + "»");
                                 local = true;
                             } else if (after[i]) {
-                                run(items().addToPlaylistObserve(choice.id, videoId), "No se ha podido añadir a «" + name + "»",
-                                        () -> toast("Añadida a «" + name + "»"));
+                                run(items().addToPlaylistObserve(choice.id, videoId), L.t("No se ha podido añadir a «") + name + "»",
+                                        () -> toast(L.t("Añadida a «") + name + "»"));
                             } else {
-                                run(items().removeFromPlaylistObserve(choice.id, videoId), "No se ha podido quitar de «" + name + "»",
-                                        () -> toast("Quitada de «" + name + "»"));
+                                run(items().removeFromPlaylistObserve(choice.id, videoId), L.t("No se ha podido quitar de «") + name + "»",
+                                        () -> toast(L.t("Quitada de «") + name + "»"));
                             }
                         }
                         if (local) {
@@ -186,14 +187,14 @@ final class MusicListsMenu {
     }
 
     private void newList(String videoId, String title, String artist) {
-        askName("Nueva lista", "", name -> {
+        askName(L.t("Nueva lista"), "", name -> {
             if (!hasAccount()) {
                 createLocal(name, videoId, title, artist);
                 return;
             }
             new AlertDialog.Builder(mActivity)
-                    .setTitle("¿Dónde guardo «" + name + "»?")
-                    .setItems(new String[] {"En el móvil (sin cuenta)", "En tu cuenta de YouTube (también en la tele)"}, (d, which) -> {
+                    .setTitle(L.t("¿Dónde guardo «") + name + "»?")
+                    .setItems(new String[] {L.t("En el móvil (sin cuenta)"), L.t("En tu cuenta de YouTube (también en la tele)")}, (d, which) -> {
                         if (which == 0) {
                             createLocal(name, videoId, title, artist);
                         } else {
@@ -207,19 +208,19 @@ final class MusicListsMenu {
     private void createLocal(String name, String videoId, String title, String artist) {
         String id = LocalLists.create(mActivity, name);
         if (id == null) {
-            toast("No se ha podido crear la lista");
+            toast(L.t("No se ha podido crear la lista"));
             return;
         }
         if (!TextUtils.isEmpty(videoId)) {
             LocalLists.add(mActivity, id, videoId, title, artist, null);
         }
-        toast("Lista «" + name + "» creada en el móvil");
+        toast(L.t("Lista «") + name + L.t("» creada en el móvil"));
         changed();
     }
 
     private void createOnAccount(String name, String videoId) {
         if (TextUtils.isEmpty(videoId)) {
-            toast("Las listas de YouTube se crean con una canción: mantén pulsada una canción → «Añadir a una lista…».");
+            toast(L.t("Las listas de YouTube se crean con una canción: mantén pulsada una canción → «Añadir a una lista…»."));
             return;
         }
         if (mController != null) {
@@ -227,36 +228,36 @@ final class MusicListsMenu {
             extras.putString(CarMusicService.EXTRA_NAME, name);
             mController.getTransportControls().sendCustomAction(CarMusicService.ACTION_LIST_CREATED, extras); // it is music
         }
-        run(items().createPlaylistObserve(name, videoId), "No se ha podido crear la lista",
-                () -> toast("Lista «" + name + "» creada. Puede tardar un poco en salir en «Tus listas»."));
+        run(items().createPlaylistObserve(name, videoId), L.t("No se ha podido crear la lista"),
+                () -> toast(L.t("Lista «") + name + L.t("» creada. Puede tardar un poco en salir en «Tus listas».")));
     }
 
     /** Takes the song out of the list open now. */
     void removeSong(String listId, String videoId, CharSequence songTitle, CharSequence listTitle) {
         new AlertDialog.Builder(mActivity)
-                .setTitle("Quitar de la lista")
-                .setMessage("¿Quitar «" + songTitle + "» de «" + listTitle + "»?")
-                .setPositiveButton("Quitar", (d, w) -> {
+                .setTitle(L.t("Quitar de la lista"))
+                .setMessage(L.t("¿Quitar «") + songTitle + L.t("» de «") + listTitle + "»?")
+                .setPositiveButton(L.t("Quitar"), (d, w) -> {
                     if (isLocal(listId)) {
                         LocalLists.remove(mActivity, listId.substring(LOCAL.length()), videoId);
-                        toast("Quitada de la lista");
+                        toast(L.t("Quitada de la lista"));
                         changed();
                     } else {
                         run(items().removeFromPlaylistObserve(listId, videoId),
-                                "No se ha podido quitar (¿es una lista de otra persona?)", () -> toast("Quitada de la lista"));
+                                L.t("No se ha podido quitar (¿es una lista de otra persona?)"), () -> toast(L.t("Quitada de la lista")));
                     }
                 })
-                .setNegativeButton("Cancelar", null)
+                .setNegativeButton(L.t("Cancelar"), null)
                 .show();
     }
 
     // ---------------------------------------------------------------- a list
 
     void rename(String listId, String oldName) {
-        askName("Cambiar nombre", oldName, name -> {
+        askName(L.t("Cambiar nombre"), oldName, name -> {
             if (isLocal(listId)) {
                 LocalLists.rename(mActivity, listId.substring(LOCAL.length()), name);
-                toast("Ahora se llama «" + name + "»");
+                toast(L.t("Ahora se llama «") + name + "»");
                 changed();
                 return;
             }
@@ -265,31 +266,31 @@ final class MusicListsMenu {
                 extras.putString(CarMusicService.EXTRA_NAME, name);
                 mController.getTransportControls().sendCustomAction(CarMusicService.ACTION_LIST_CREATED, extras);
             }
-            run(items().renamePlaylistObserve(listId, name), "No se ha podido cambiar el nombre (¿es una lista de otra persona?)",
-                    () -> toast("Ahora se llama «" + name + "»"));
+            run(items().renamePlaylistObserve(listId, name), L.t("No se ha podido cambiar el nombre (¿es una lista de otra persona?)"),
+                    () -> toast(L.t("Ahora se llama «") + name + "»"));
         });
     }
 
     void delete(String listId, String name, Runnable done) {
         boolean local = isLocal(listId);
         new AlertDialog.Builder(mActivity)
-                .setTitle("Borrar «" + name + "»")
-                .setMessage(local ? "Se borrará la lista del móvil. No se puede deshacer."
-                        : "Se borrará de tu cuenta de YouTube (también en la tele). Las canciones no se borran.")
-                .setPositiveButton("Borrar", (d, w) -> {
+                .setTitle(L.t("Borrar «") + name + "»")
+                .setMessage(local ? L.t("Se borrará la lista del móvil. No se puede deshacer.")
+                        : L.t("Se borrará de tu cuenta de YouTube (también en la tele). Las canciones no se borran."))
+                .setPositiveButton(L.t("Borrar"), (d, w) -> {
                     if (local) {
                         LocalLists.delete(mActivity, listId.substring(LOCAL.length()));
-                        toast("Lista borrada");
+                        toast(L.t("Lista borrada"));
                         changed();
                         done.run();
                         return;
                     }
-                    run(items().removePlaylistObserve(listId), "No se ha podido borrar (¿es una lista de otra persona?)", () -> {
-                        toast("Lista borrada");
+                    run(items().removePlaylistObserve(listId), L.t("No se ha podido borrar (¿es una lista de otra persona?)"), () -> {
+                        toast(L.t("Lista borrada"));
                         done.run();
                     });
                 })
-                .setNegativeButton("Cancelar", null)
+                .setNegativeButton(L.t("Cancelar"), null)
                 .show();
     }
 
@@ -301,7 +302,7 @@ final class MusicListsMenu {
         EditText field = new EditText(mActivity);
         field.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
         field.setSingleLine(true);
-        field.setHint("Nombre de la lista");
+        field.setHint(L.t("Nombre de la lista"));
         field.setText(current);
         field.setSelection(field.getText().length());
         FrameLayout box = new FrameLayout(mActivity);
@@ -311,13 +312,13 @@ final class MusicListsMenu {
         new AlertDialog.Builder(mActivity)
                 .setTitle(title)
                 .setView(box)
-                .setPositiveButton("Aceptar", (d, w) -> {
+                .setPositiveButton(L.t("Aceptar"), (d, w) -> {
                     String name = field.getText().toString().trim();
                     if (!name.isEmpty()) {
                         done.onName(name);
                     }
                 })
-                .setNegativeButton("Cancelar", null)
+                .setNegativeButton(L.t("Cancelar"), null)
                 .show();
     }
 }
