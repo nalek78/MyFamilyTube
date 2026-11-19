@@ -1154,10 +1154,71 @@ public class MusicHomeActivity extends MotherActivity {
 
     /** While the video plays the screen doesn't dim or switch off (like YouTube). */
     private void keepScreenOn() {
-        if (mVideoOn && mPlayingNow) {
+        // full screen: always on while it is shown (also paused); the video in the player: while it plays
+        boolean keep = mResumed && (mFullscreen || (mVideoOn && mPlayingNow));
+        if (keep) {
             getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         } else {
             getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        }
+        // the same on the views (some phones, like MIUI, honour it better there)
+        if (mFull != null) {
+            mFull.setKeepScreenOn(keep && mFullscreen);
+        }
+        if (mVideoBox != null) {
+            mVideoBox.setKeepScreenOn(keep && !mFullscreen);
+        }
+    }
+
+    // ---------------------------------------------------------------- turning the phone with the video: full screen
+
+    private android.view.OrientationEventListener mTurn;
+    private long mLandscapeSince;
+
+    /**
+     * With the video on screen, turning the phone sideways goes to full screen. Turning it back
+     * doesn't leave it: that is done with the button (full screen stays sideways).
+     */
+    private void watchTurning(boolean on) {
+        if (!on) {
+            if (mTurn != null) {
+                mTurn.disable();
+            }
+            return;
+        }
+        if (mTurn == null) {
+            mTurn = new android.view.OrientationEventListener(this) {
+                @Override
+                public void onOrientationChanged(int degrees) {
+                    if (degrees == ORIENTATION_UNKNOWN) {
+                        return;
+                    }
+                    boolean sideways = (degrees > 65 && degrees < 115) || (degrees > 245 && degrees < 295);
+                    if (!sideways) {
+                        mLandscapeSince = 0;
+                        return;
+                    }
+                    long now = android.os.SystemClock.elapsedRealtime();
+                    if (mLandscapeSince == 0) {
+                        mLandscapeSince = now;
+                    } else if (now - mLandscapeSince > 400 && mVideoOn && !mFullscreen && autoRotate()) {
+                        mLandscapeSince = 0;
+                        enterFullscreen();
+                    }
+                }
+            };
+        }
+        if (mTurn.canDetectOrientation()) {
+            mTurn.enable();
+        }
+    }
+
+    /** The phone's «Girar automáticamente» is on (if it's locked, turning does nothing, like YouTube). */
+    private boolean autoRotate() {
+        try {
+            return android.provider.Settings.System.getInt(getContentResolver(), android.provider.Settings.System.ACCELEROMETER_ROTATION) == 1;
+        } catch (Exception e) {
+            return true;
         }
     }
 
@@ -1177,6 +1238,7 @@ public class MusicHomeActivity extends MotherActivity {
                 && (mFullscreen || mPlayer.getVisibility() == View.VISIBLE);
         mVideoOn = on;
         keepScreenOn();
+        watchTurning(on && !mFullscreen);
         mVideoBox.setVisibility(on && !mFullscreen ? View.VISIBLE : View.GONE);
         mPlayerArt.setVisibility(on && !mFullscreen ? View.INVISIBLE : View.VISIBLE);
         if (on) {
