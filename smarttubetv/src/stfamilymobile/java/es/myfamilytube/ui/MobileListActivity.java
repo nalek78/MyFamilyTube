@@ -21,6 +21,11 @@ import com.liskovsoft.smartyoutubetv2.tv.R;
  * (search results, a channel, a channel's uploads).
  */
 abstract class MobileListActivity extends MotherActivity implements MobileFeedAdapter.Listener {
+    @Override
+    protected boolean isFullscreenModeAllowed() {
+        return false; // keeps the status bar: the top bar never goes under the front camera
+    }
+
     protected final MobileFeed mFeed = new MobileFeed();
     protected MobileFeedAdapter mAdapter;
     protected RecyclerView mList;

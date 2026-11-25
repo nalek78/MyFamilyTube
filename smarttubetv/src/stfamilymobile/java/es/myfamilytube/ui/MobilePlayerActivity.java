@@ -1126,7 +1126,9 @@ public class MobilePlayerActivity extends MotherActivity implements PlaybackView
                 mShortsSeen.add(queued.videoId);
             }
         }
-        if (playlist.getAllAfterCurrent().size() > 3) {
+        // null when the current Short is the last one queued: exactly when more are needed
+        List<Video> left = playlist.getAllAfterCurrent();
+        if (left != null && left.size() > 3) {
             return;
         }
         com.liskovsoft.mediaserviceinterfaces.ContentService content =
@@ -1164,6 +1166,9 @@ public class MobilePlayerActivity extends MotherActivity implements PlaybackView
         }
         if (!fresh.isEmpty()) {
             com.liskovsoft.smartyoutubetv2.common.app.models.data.Playlist.instance().addAll(fresh);
+            // The current one may have been the last: get the next one ready now that there is one
+            mPreloadedAfter = null;
+            preloadNextShort();
         } else {
             // Nothing new on this page: try the next one
             topUpShorts(getVideo());
@@ -1204,6 +1209,7 @@ public class MobilePlayerActivity extends MotherActivity implements PlaybackView
             return;
         }
         mPreloadedAfter = current.videoId;
+        // Only the next one: YouTube's engine keeps a single video's data in memory
         Video next = com.liskovsoft.smartyoutubetv2.common.app.models.data.Playlist.instance().getNext();
         if (next != null && next.videoId != null && !next.videoId.equals(current.videoId)) {
             // A moment later, so the current one isn't slowed down
@@ -1212,7 +1218,7 @@ public class MobilePlayerActivity extends MotherActivity implements PlaybackView
                     com.liskovsoft.smartyoutubetv2.common.misc.MediaServiceManager.instance()
                             .loadFormatInfo(next, info -> { });
                 }
-            }, 1500);
+            }, 600);
         }
     }
 
@@ -1613,6 +1619,11 @@ public class MobilePlayerActivity extends MotherActivity implements PlaybackView
     @Override
     public void setFormat(FormatItem option) {
         mController.selectFormat(option);
+    }
+
+    @Override
+    public Throwable getUnthrownError() {
+        return mController != null ? mController.getUnthrownError() : null;
     }
 
     @Override

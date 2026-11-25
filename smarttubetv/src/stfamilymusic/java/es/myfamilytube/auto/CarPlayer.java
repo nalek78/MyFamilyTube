@@ -699,6 +699,11 @@ final class CarPlayer implements PlaybackView, BasePresenter.Headless {
     }
 
     @Override
+    public Throwable getUnthrownError() {
+        return mController != null ? mController.getUnthrownError() : null;
+    }
+
+    @Override
     public FormatItem getVideoFormat() {
         return mController != null ? mController.getVideoFormat() : null;
     }

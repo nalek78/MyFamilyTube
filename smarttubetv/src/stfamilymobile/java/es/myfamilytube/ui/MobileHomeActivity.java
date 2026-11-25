@@ -48,6 +48,11 @@ import es.myfamilytube.profiles.FamilyProfiles;
  * shown as a list you scroll with the finger and a bar of tabs at the bottom.
  */
 public class MobileHomeActivity extends MotherActivity implements BrowseView, MobileFeedAdapter.Listener {
+    @Override
+    protected boolean isFullscreenModeAllowed() {
+        return false; // keeps the status bar: the top bar never goes under the front camera
+    }
+
     private static final int[] HOME_CANDIDATES = {MediaGroup.TYPE_HOME, MediaGroup.TYPE_TRENDING, MediaGroup.TYPE_MUSIC};
     /** A section seen less than this long ago comes back instantly from memory. */
     private static final long CACHE_MAX_AGE_MS = 15 * 60 * 1000;

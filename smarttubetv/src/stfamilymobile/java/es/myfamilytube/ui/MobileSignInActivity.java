@@ -22,6 +22,11 @@ import com.liskovsoft.smartyoutubetv2.tv.R;
  * (Same YouTube sign-in as the TV app, without the QR or typing a code.)
  */
 public class MobileSignInActivity extends MotherActivity implements SignInView {
+    @Override
+    protected boolean isFullscreenModeAllowed() {
+        return false; // keeps the status bar: the top bar never goes under the front camera
+    }
+
     private SignInPresenter mPresenter;
     private TextView mButton;
     private TextView mStatus;
